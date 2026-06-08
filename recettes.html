@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carnet de Brassage — Création de recettes</title>
+<style>
+  :root{
+    --bg:#f3ead4;
+    --bg2:#efe2c6;
+    --card:#fffdf6;
+    --ink:#2c2017;
+    --ink-soft:#5e4d3c;
+    --amber:#a8541b;
+    --copper:#b5651d;
+    --gold:#cf982b;
+    --green:#4f6b2f;
+    --line:rgba(44,32,23,.14);
+    --line-strong:rgba(44,32,23,.28);
+    --shadow:0 1px 2px rgba(44,32,23,.06),0 8px 24px rgba(44,32,23,.10);
+    --serif:"Iowan Old Style","Palatino Linotype","Palatino","Book Antiqua",Georgia,serif;
+    --sans:"Avenir Next","Avenir","Segoe UI","Helvetica Neue",Helvetica,sans-serif;
+    --mono:"SF Mono","JetBrains Mono","Menlo",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(207,152,43,.18), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(168,84,27,.12), transparent 55%),
+      var(--bg);
+    background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.45;
+  }
+  .grain{position:fixed;inset:0;pointer-events:none;opacity:.04;z-index:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");}
+  .wrap{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:22px 20px 60px}
+
+  /* Header */
+  header.app{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;
+    padding-bottom:16px;margin-bottom:18px;border-bottom:2px solid var(--ink);
+    animation:rise .6s ease both}
+  .brand{display:flex;align-items:center;gap:14px}
+  .brand svg{flex:0 0 auto}
+  .brand h1{font-family:var(--serif);font-weight:600;font-size:30px;margin:0;letter-spacing:.2px;line-height:1}
+  .brand .sub{font-size:12.5px;color:var(--ink-soft);letter-spacing:.16em;text-transform:uppercase;margin-top:6px}
+  .actions{display:flex;gap:10px;flex-wrap:wrap}
+  button{font-family:var(--sans);cursor:pointer;border:none;border-radius:10px;font-size:13.5px;
+    font-weight:600;padding:10px 15px;transition:transform .12s ease, box-shadow .2s ease, background .2s}
+  button:active{transform:translateY(1px)}
+  .btn-primary{background:var(--ink);color:#fbf3df}
+  .btn-primary:hover{box-shadow:0 6px 18px rgba(44,32,23,.28)}
+  .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line-strong)}
+  .btn-ghost:hover{background:rgba(44,32,23,.05)}
+  .btn-gold{background:var(--copper);color:#fff}
+  .btn-gold:hover{box-shadow:0 6px 18px rgba(168,84,27,.35)}
+
+  /* Stats bar */
+  .stats{display:grid;grid-template-columns:1.1fr repeat(5,1fr);gap:12px;margin-bottom:20px;
+    animation:rise .6s ease .05s both}
+  .stat,.glass-card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);padding:14px 16px;position:relative;overflow:hidden}
+  .stat .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft)}
+  .stat .val{font-family:var(--serif);font-size:28px;font-weight:600;margin-top:4px;line-height:1;
+    font-variant-numeric:tabular-nums}
+  .stat .unit{font-size:12px;color:var(--ink-soft);margin-left:3px;font-family:var(--sans)}
+  .stat .bjcp{font-size:10.5px;color:var(--ink-soft);margin-top:6px;min-height:13px}
+  .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--gold)}
+  .stat.di::before{background:#caa23a}.stat.df::before{background:#9a7b3c}
+  .stat.abv::before{background:var(--amber)}.stat.ebc::before{background:#6a3a12}
+  .stat.ibu::before{background:var(--green)}
+  .glass-card{display:flex;align-items:center;gap:14px;padding:12px 14px}
+  .glass-card .info{flex:1}
+  .glass-card .info .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft)}
+  .glass-card .info .nm{font-family:var(--serif);font-size:19px;font-weight:600;margin-top:2px;line-height:1.1}
+  .glass-card .info .ebcv{font-size:12px;color:var(--ink-soft);margin-top:3px}
+
+  /* Meta inputs */
+  .meta{display:grid;grid-template-columns:1.4fr 1fr;gap:12px;margin-bottom:14px}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .panel-h{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line)}
+  .panel-h h2{font-family:var(--serif);font-size:16px;margin:0;font-weight:600}
+  .panel-b{padding:14px 16px}
+  .field{display:flex;flex-direction:column;gap:5px;margin-bottom:11px}
+  .field:last-child{margin-bottom:0}
+  .field label{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:600}
+  input,select,textarea{font-family:var(--sans);font-size:14px;color:var(--ink);background:#fff;
+    border:1.5px solid var(--line-strong);border-radius:9px;padding:9px 11px;width:100%;transition:border .15s,box-shadow .15s}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--copper);box-shadow:0 0 0 3px rgba(168,84,27,.12)}
+  textarea{resize:vertical;min-height:54px;line-height:1.4}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+  .hint{font-size:11px;color:var(--ink-soft);margin-top:-3px}
+
+  /* Main two-col */
+  .main{display:grid;grid-template-columns:1fr 1.18fr;gap:14px;align-items:start}
+
+  /* Browser */
+  .tabs{display:flex;gap:6px;padding:10px 12px 0;flex-wrap:wrap}
+  .tab{padding:8px 13px;border-radius:9px 9px 0 0;font-size:13px;font-weight:600;cursor:pointer;
+    color:var(--ink-soft);border:1px solid transparent;border-bottom:none;background:transparent}
+  .tab.active{background:var(--bg2);color:var(--ink);border-color:var(--line)}
+  .subfilters{display:flex;gap:6px;flex-wrap:wrap;padding:12px 14px 4px}
+  .chip{font-size:11.5px;font-weight:600;padding:5px 11px;border-radius:999px;cursor:pointer;
+    border:1.5px solid var(--line-strong);color:var(--ink-soft);background:transparent;transition:all .15s}
+  .chip.active{background:var(--ink);color:#fbf3df;border-color:var(--ink)}
+  .search{padding:8px 14px 4px}
+  .list{max-height:430px;overflow-y:auto;padding:6px 8px 10px}
+  .item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:10px;cursor:pointer;transition:background .12s}
+  .item:hover{background:var(--bg2)}
+  .item .dot{width:14px;height:14px;border-radius:50%;flex:0 0 auto;border:1px solid rgba(0,0,0,.15)}
+  .item .nm{flex:1;font-size:13.5px;font-weight:600}
+  .item .nm small{display:block;font-weight:500;color:var(--ink-soft);font-size:11px;letter-spacing:.02em}
+  .item .meta-r{font-size:11.5px;color:var(--ink-soft);text-align:right;font-variant-numeric:tabular-nums}
+  .item .add{font-size:18px;color:var(--copper);font-weight:700;width:22px;text-align:center}
+  .item-actions{display:flex;gap:1px;flex:0 0 auto}
+  .iact{background:transparent;border:none;color:var(--ink-soft);font-size:13px;line-height:1;padding:4px 5px;border-radius:6px;cursor:pointer}
+  .iact:hover{background:rgba(44,32,23,.10);color:var(--ink)}
+  .iact.del{font-size:16px}
+  .iact.del:hover{color:#a23;background:rgba(170,34,34,.10)}
+  .badge{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 6px;border-radius:5px;background:rgba(79,107,47,.15);color:var(--green)}
+
+  /* Recipe lists */
+  .recipe-sec{margin-bottom:6px}
+  .recipe-sec h3{font-family:var(--serif);font-size:15px;margin:0;padding:11px 16px 7px;font-weight:600;
+    display:flex;justify-content:space-between;align-items:baseline}
+  .recipe-sec h3 .tot{font-family:var(--sans);font-size:12px;color:var(--ink-soft);font-weight:600}
+  .ri{display:grid;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--line)}
+  .ri.malt{grid-template-columns:14px 1fr 92px 70px 26px}
+  .ri.hop{grid-template-columns:1fr 70px 64px 78px 70px 26px}
+  .ri.yeast{grid-template-columns:1fr 84px 78px 26px}
+  .ri.soft{grid-template-columns:1fr 88px 76px 26px}
+  .ri .rn{font-size:13px;font-weight:600;line-height:1.15}
+  .ri .rn small{display:block;font-weight:500;color:var(--ink-soft);font-size:10.5px}
+  .ri input,.ri select{padding:6px 8px;font-size:12.5px;border-radius:7px}
+  .ri .lbl-mini{font-size:9.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.05em;text-align:center}
+  .ri .del{background:transparent;color:#a23;border:none;font-size:16px;padding:2px;font-weight:700}
+  .cs-toggle{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--ink-soft);cursor:pointer;justify-content:center}
+  .cs-toggle input{width:auto;padding:0;margin:0}
+  .empty{padding:22px 16px;text-align:center;color:var(--ink-soft);font-size:13px;font-style:italic}
+  .col-head{display:grid;gap:8px;padding:2px 14px 4px;font-size:9.5px;text-transform:uppercase;
+    letter-spacing:.05em;color:var(--ink-soft);font-weight:700}
+  .col-head.malt{grid-template-columns:14px 1fr 92px 70px 26px}
+  .col-head.hop{grid-template-columns:1fr 70px 64px 78px 70px 26px}
+  .col-head.soft{grid-template-columns:1fr 88px 76px 26px}
+
+  /* Mode bar */
+  .modebar{display:flex;align-items:center;gap:14px;margin:-4px 0 18px}
+  .modelabel{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--ink-soft);font-weight:700}
+  .modeseg-group{display:inline-flex;background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:3px}
+  .modeseg{background:transparent;border:none;border-radius:999px;padding:7px 20px;font-size:13px;font-weight:600;color:var(--ink-soft)}
+  .modeseg.active{background:var(--ink);color:#fbf3df}
+  .add-manual{padding:9px 12px 12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:7px}
+  .add-manual .btn-ghost{width:100%}
+  .cat-reset{background:transparent;border:none;color:var(--ink-soft);font-size:11px;text-decoration:underline;cursor:pointer;padding:2px}
+  .cat-reset:hover{color:#a23}
+
+  /* Saved recipes */
+  .saved-list{display:flex;flex-direction:column;gap:7px;padding:4px 0}
+  .saved-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);
+    border-radius:10px;background:#fff}
+  .saved-item .si-nm{flex:1;font-size:13.5px;font-weight:600}
+  .saved-item .si-nm small{display:block;color:var(--ink-soft);font-weight:500;font-size:11px}
+  .saved-item button{padding:6px 10px;font-size:12px}
+
+  /* Modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(30,22,15,.5);z-index:50;display:none;align-items:center;justify-content:center;padding:20px}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--card);border-radius:16px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+  .modal .panel-b{padding:18px}
+
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  /* Responsive */
+  @media(max-width:980px){
+    .stats{grid-template-columns:repeat(3,1fr)}
+    .glass-card{grid-column:span 3}
+    .meta{grid-template-columns:1fr}
+    .main{grid-template-columns:1fr}
+  }
+  @media(max-width:560px){
+    .stats{grid-template-columns:repeat(2,1fr)}
+    .glass-card{grid-column:span 2}
+    .brand h1{font-size:24px}
+    .ri.malt,.ri.hop,.ri.yeast,.ri.soft{grid-template-columns:1fr 1fr;row-gap:6px}
+    .col-head{display:none}
+  }
+
+  /* ============ PRINT / PDF ============ */
+  .print-sheet{display:none}
+  @media print{
+    @page{size:A4 portrait;margin:22mm 20mm}
+    body{background:#fff!important}
+    .grain,.wrap{display:none!important}
+    .print-sheet{display:block!important;color:#1c140d;font-family:var(--serif);line-height:1.5;
+      -webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+    /* En-tête */
+    .ps-head{padding-bottom:14px;margin-bottom:26px;display:flex;justify-content:space-between;align-items:flex-end;
+      border-bottom:2.5px solid #1c140d;position:relative}
+    .ps-head::after{content:"";position:absolute;left:0;bottom:-6px;width:64px;height:2.5px;background:#cf982b}
+    .ps-head h1{font-size:30px;margin:0;font-weight:600;letter-spacing:.2px;line-height:1.05}
+    .ps-head .ps-style{font-size:12px;color:#a8541b;margin-top:7px;font-family:var(--sans);letter-spacing:.16em;text-transform:uppercase;font-weight:600}
+    .ps-head .ps-brand{text-align:right;font-family:var(--sans);font-size:10px;color:#8a7a64;letter-spacing:.14em;text-transform:uppercase;line-height:1.7}
+
+    /* Bandeau de stats */
+    .ps-stats{display:flex;gap:0;margin-bottom:28px;border:1px solid #d8c7a8;border-radius:10px;overflow:hidden;
+      box-shadow:inset 0 0 0 1px #fff}
+    .ps-stat{flex:1;padding:13px 8px 12px;text-align:center;border-right:1px solid #e6d8bd;background:#fcf8ef;position:relative}
+    .ps-stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:#cf982b}
+    .ps-stat:last-child{border-right:none}
+    .ps-stat .l{font-size:8.5px;text-transform:uppercase;letter-spacing:.1em;color:#8a7a64;font-family:var(--sans);font-weight:700}
+    .ps-stat .v{font-size:21px;font-weight:600;margin-top:5px;line-height:1}
+    .ps-swatch{display:inline-block;width:34px;height:13px;border-radius:3px;vertical-align:middle;margin-left:6px;border:1px solid rgba(0,0,0,.18)}
+
+    /* Sections */
+    .ps-sec{margin-bottom:24px;break-inside:avoid}
+    .ps-sec h2{font-size:12.5px;margin:0 0 10px;padding-bottom:6px;border-bottom:1.5px solid #cf982b;
+      text-transform:uppercase;letter-spacing:.12em;font-family:var(--sans);font-weight:700;color:#a8541b}
+
+    /* Tableaux */
+    .ps-table{width:100%;border-collapse:collapse;table-layout:fixed;font-family:var(--sans);font-size:12px}
+    .ps-table th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.07em;color:#8a7a64;
+      padding:7px 10px;border-bottom:1.5px solid #d8c7a8;font-weight:700}
+    .ps-table th.num{text-align:right}
+    .ps-table tbody tr:nth-child(even){background:#faf6ec}
+    .ps-table td{padding:8px 10px;border-bottom:1px solid #eee3cd;overflow-wrap:anywhere;vertical-align:top}
+    .ps-table td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:500}
+
+    /* Paramètres en pastilles */
+    .ps-params{font-family:var(--sans);font-size:11px;color:#3a2c1f;display:flex;gap:9px;flex-wrap:wrap;margin-top:6px}
+    .ps-params span{background:#f5edda;border:1px solid #e6d8bd;border-radius:999px;padding:5px 12px;font-weight:500}
+
+    /* Notes */
+    .ps-notes{font-family:var(--sans);font-size:12px;white-space:pre-wrap;line-height:1.6;color:#3a2c1f;
+      background:#fcf8ef;border:1px solid #e6d8bd;border-left:3px solid #cf982b;border-radius:8px;padding:12px 15px}
+
+    /* Pied de page */
+    .ps-foot{margin-top:30px;padding-top:10px;border-top:1px solid #d8c7a8;font-family:var(--sans);
+      font-size:9.5px;color:#8a7a64;letter-spacing:.04em;display:flex;justify-content:space-between}
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+<div class="wrap">
+
+  <header class="app">
+    <div class="brand">
+      <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+        <rect x="2" y="2" width="40" height="40" rx="9" fill="#2c2017"/>
+        <path d="M22 9c-3.2 2-5 4.4-5 7.2 0 2 1.1 3.3 1.1 5.1 0 1.4-.9 2.4-.9 3.9 0 2.3 1.9 4 4.8 4s4.8-1.7 4.8-4c0-1.5-.9-2.5-.9-3.9 0-1.8 1.1-3.1 1.1-5.1 0-2.8-1.8-5.2-5-7.2z" fill="#cf982b"/>
+        <path d="M22 13c-1.8 1.3-2.8 2.8-2.8 4.6M22 13c1.8 1.3 2.8 2.8 2.8 4.6" stroke="#a8541b" stroke-width="1.3" stroke-linecap="round"/>
+        <ellipse cx="22" cy="31" rx="3.4" ry="2.4" fill="#a8541b"/>
+      </svg>
+      <div>
+        <h1>Carnet de Brassage</h1>
+        <div class="sub">Création de recettes · Brasserie</div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn-ghost" onclick="newRecipe()">Nouvelle</button>
+      <button class="btn-ghost" onclick="openSaved()">Mes recettes</button>
+      <button class="btn-ghost" onclick="backupData()" title="Télécharge un fichier de sauvegarde de toutes tes recettes — à conserver ou transférer entre appareils">Sauvegarder mes données</button>
+      <button class="btn-primary" onclick="saveRecipe()" title="Enregistre la recette en cours dans ce navigateur">Enregistrer</button>
+      <button class="btn-gold" onclick="exportPDF()">Export PDF</button>
+    </div>
+  </header>
+
+  <div class="modebar">
+    <span class="modelabel">Type de produit</span>
+    <div class="modeseg-group">
+      <button class="modeseg active" data-mode="biere" onclick="switchMode('biere')">Bière</button>
+      <button class="modeseg" data-mode="soft" onclick="switchMode('soft')">Soft</button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="glass-card">
+      <svg id="glassSvg" width="44" height="58" viewBox="0 0 44 58"></svg>
+      <div class="info">
+        <div class="lbl">Couleur</div>
+        <div class="nm" id="colorName">—</div>
+        <div class="ebcv" id="ebcVal">0 EBC</div>
+      </div>
+    </div>
+    <div class="stat di"><div class="lbl" id="lblA">Densité initiale</div><div class="val" id="ogVal">1.000</div><div class="bjcp" id="ogBj"></div></div>
+    <div class="stat df"><div class="lbl" id="lblB">Densité finale</div><div class="val" id="fgVal">1.000</div><div class="bjcp" id="fgBj"></div></div>
+    <div class="stat abv"><div class="lbl" id="lblC">Alcool</div><div class="val" id="abvVal">0.0<span class="unit">%</span></div><div class="bjcp" id="abvBj"></div></div>
+    <div class="stat ebc"><div class="lbl" id="lblD">Couleur</div><div class="val" id="ebcStat">0<span class="unit">EBC</span></div><div class="bjcp" id="ebcBj"></div></div>
+    <div class="stat ibu"><div class="lbl" id="lblE">Amertume</div><div class="val" id="ibuVal">0<span class="unit">IBU</span></div><div class="bjcp" id="ibuBj"></div></div>
+  </div>
+
+  <!-- META -->
+  <div class="meta">
+    <div class="panel">
+      <div class="panel-h"><h2>Recette</h2></div>
+      <div class="panel-b">
+        <div class="row2">
+          <div class="field"><label>Nom de la recette</label><input id="rName" placeholder="Ex. Stout Carambar" oninput="recalc()"></div>
+          <div class="field"><label>Style</label><input id="rStyle" placeholder="Ex. Sweet Stout" oninput="recalc()"></div>
+        </div>
+        <div class="field"><label>Notes de brassage</label><textarea id="rNotes" placeholder="Cold steep, ajouts, process…" oninput="recalc()"></textarea></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><h2>Paramètres</h2></div>
+      <div class="panel-b">
+        <div class="row3">
+          <div class="field"><label>Volume</label><input id="pVol" type="number" value="2000" min="1" oninput="recalc()"><div class="hint" id="hlHint">20 HL</div></div>
+          <div class="field" id="fEff"><label>Rendement %</label><input id="pEff" type="number" value="77.85" step="0.1" oninput="recalc()"></div>
+          <div class="field" id="fMash"><label>Empâtage °C</label><input id="pMash" type="number" value="67" step="0.5" oninput="recalc()"><div class="hint">influe sur la DF</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- BROWSER -->
+    <div class="panel">
+      <div class="tabs" id="appTabs">
+        <div class="tab active" data-tab="malt" onclick="switchTab('malt')">Malts</div>
+        <div class="tab" data-tab="hop" onclick="switchTab('hop')">Houblons</div>
+        <div class="tab" data-tab="yeast" onclick="switchTab('yeast')">Levures</div>
+      </div>
+      <div id="subfilters" class="subfilters"></div>
+      <div class="search"><input id="searchBox" placeholder="Rechercher…" oninput="renderBrowser()"></div>
+      <div class="list" id="browserList"></div>
+      <div class="add-manual">
+        <button class="btn-ghost" onclick="openManual()">+ Ajouter un ingrédient manuel</button>
+        <button class="cat-reset" onclick="resetCatalog()">Réinitialiser le catalogue aux valeurs d'origine</button>
+      </div>
+    </div>
+
+    <!-- RECIPE -->
+    <div class="panel">
+      <div class="panel-h"><h2>Composition</h2>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="tot" id="grainTot" style="font-size:12px;color:var(--ink-soft);font-weight:600"></span>
+          <button class="btn-ghost" style="padding:6px 12px;font-size:12.5px" onclick="openResize()">Redimensionner</button>
+        </div>
+      </div>
+      <div id="biereComp">
+      <div class="recipe-sec">
+        <h3>Malts &amp; grains <span class="tot" id="maltTot"></span></h3>
+        <div class="col-head malt"><span></span><span>Ingrédient</span><span style="text-align:center">kg</span><span style="text-align:center">Cold steep</span><span></span></div>
+        <div id="maltList"></div>
+      </div>
+      <div class="recipe-sec">
+        <h3>Houblons <span class="tot" id="hopTot"></span></h3>
+        <div class="col-head hop"><span>Variété</span><span style="text-align:center">g</span><span style="text-align:center">α %</span><span style="text-align:center">min</span><span style="text-align:center">forme</span><span></span></div>
+        <div id="hopList"></div>
+      </div>
+      <div class="recipe-sec">
+        <h3>Levure</h3>
+        <div id="yeastList"></div>
+      </div>
+      </div>
+      <div id="softComp" style="display:none">
+        <div class="recipe-sec">
+          <h3>Ingrédients <span class="tot" id="softTot"></span></h3>
+          <div class="col-head soft"><span>Ingrédient</span><span style="text-align:center">Quantité</span><span style="text-align:center">Unité</span><span></span></div>
+          <div id="softList"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p style="font-size:11.5px;color:var(--ink-soft);max-width:760px;margin:22px auto 0;text-align:center;line-height:1.5">
+    Valeurs EBC, extrait et compositions indicatives (fiches techniques fabricants) — ajustables ; à recouper avec les spec sheets de ton lot.
+    Bière : couleur (Morey), amertume (Tinseth), DI/DF/ABV standard ; le cold steep contribue à la couleur mais peu à la densité.
+    Soft : sucre (g/L), °Brix et acidité (g/L) estimés à partir des teneurs des ingrédients ; couleur indicative.
+    Le bouton « + Ingrédient manuel » ajoute un ingrédient personnalisé selon le mode actif.
+  </p>
+</div>
+
+<!-- MODAL SAVED -->
+<div class="modal-bg" id="savedModal">
+  <div class="modal">
+    <div class="panel-h"><h2>Mes recettes</h2><button class="btn-ghost" style="padding:6px 12px" onclick="closeSaved()">Fermer</button></div>
+    <div class="panel-b">
+      <div class="saved-list" id="savedList"></div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);font-weight:700;margin-bottom:9px">Recettes d'exemple</div>
+        <div class="saved-list" id="exampleList"></div>
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);font-weight:700;margin-bottom:9px">Sauvegarde des données</div>
+        <p style="font-size:11.5px;color:var(--ink-soft);margin:0 0 11px;line-height:1.45">Tes recettes sont stockées dans ce navigateur. Exporte un fichier de sauvegarde pour les conserver durablement ou les transférer sur un autre appareil, puis réimporte-le quand tu veux.</p>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn-primary" onclick="backupData()">Sauvegarder dans un fichier</button>
+          <button class="btn-ghost" onclick="document.getElementById('importFile').click()">Importer un fichier</button>
+        </div>
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importData(this)">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RESIZE -->
+<div class="modal-bg" id="resizeModal">
+  <div class="modal">
+    <div class="panel-h"><h2>Redimensionner la recette</h2><button class="btn-ghost" style="padding:6px 12px" onclick="closeResize()">Fermer</button></div>
+    <div class="panel-b">
+      <p style="font-size:12px;color:var(--ink-soft);margin:0 0 13px;line-height:1.45">Toutes les quantités sont recalculées proportionnellement au nouveau volume. Les stats (DI/DF/EBC/IBU, ou sucre/acidité) restent identiques.</p>
+      <div class="row2">
+        <div class="field"><label>Volume actuel</label><input id="rzCurrent" type="text" disabled></div>
+        <div class="field"><label>Nouveau volume (L)</label><input id="rzTarget" type="number" min="1" step="1" oninput="updResizePreview()"></div>
+      </div>
+      <div class="hint" id="rzFactor" style="margin:-4px 0 4px"></div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        <button class="btn-ghost" style="padding:6px 11px;font-size:12px" onclick="setResize(0.5)">½ ×</button>
+        <button class="btn-ghost" style="padding:6px 11px;font-size:12px" onclick="setResize(2)">2 ×</button>
+        <button class="btn-ghost" style="padding:6px 11px;font-size:12px" onclick="rzSetHL(10)">10 HL</button>
+        <button class="btn-ghost" style="padding:6px 11px;font-size:12px" onclick="rzSetHL(20)">20 HL</button>
+        <button class="btn-ghost" style="padding:6px 11px;font-size:12px" onclick="rzSetHL(30)">30 HL</button>
+      </div>
+      <div style="display:flex;gap:9px;margin-top:14px">
+        <button class="btn-primary" onclick="applyResize()">Appliquer</button>
+        <button class="btn-ghost" onclick="closeResize()">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MANUAL -->
+<div class="modal-bg" id="manualModal">
+  <div class="modal">
+    <div class="panel-h"><h2 id="manualTitle">Ingrédient manuel</h2><button class="btn-ghost" style="padding:6px 12px" onclick="closeManual()">Fermer</button></div>
+    <div class="panel-b">
+      <div id="manualFields"></div>
+      <div style="display:flex;gap:9px;margin-top:6px">
+        <button class="btn-primary" id="manualSave" onclick="saveIngredient()">Ajouter à la recette</button>
+        <button class="btn-ghost" onclick="closeManual()">Annuler</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PRINT SHEET -->
+<div class="print-sheet" id="printSheet"></div>
+
+<script>
+/* ============================ DATA ============================ */
+/* Malts: brand, name, cat(base|caramel|roasted|special), ebc, ppg, bio, ferment(default true) */
+const MALTS=[
+/* ---- MALTEUROP (FR) ---- */
+{b:"Malteurop",n:"Pilsen",c:"base",ebc:3.5,ppg:37},
+{b:"Malteurop",n:"Pilsen Hauts-de-France",c:"base",ebc:3.5,ppg:37},
+{b:"Malteurop",n:"Pale Ale",c:"base",ebc:7,ppg:37},
+{b:"Malteurop",n:"Vienna",c:"base",ebc:8,ppg:36},
+{b:"Malteurop",n:"Munich",c:"base",ebc:18,ppg:36},
+{b:"Malteurop",n:"Malt de blé (Wheat)",c:"base",ebc:4,ppg:38},
+{b:"Malteurop",n:"Caramel Light",c:"caramel",ebc:25,ppg:34},
+{b:"Malteurop",n:"Caramel",c:"caramel",ebc:60,ppg:34},
+{b:"Malteurop",n:"Caramel Dark",c:"caramel",ebc:130,ppg:33},
+{b:"Malteurop",n:"Chocolate",c:"roasted",ebc:900,ppg:28},
+{b:"Malteurop",n:"Roasted",c:"roasted",ebc:1100,ppg:26},
+{b:"Malteurop",n:"Organic Pilsen",c:"bio",ebc:3.5,ppg:37,bio:1},
+{b:"Malteurop",n:"Organic Pale Ale",c:"bio",ebc:7,ppg:37,bio:1},
+{b:"Malteurop",n:"Organic Wheat",c:"bio",ebc:4,ppg:38,bio:1},
+/* ---- BESTMALZ (DE) ---- */
+{b:"BestMalz",n:"BEST Pilsen",c:"base",ebc:3.5,ppg:37},
+{b:"BestMalz",n:"BEST Pale Ale",c:"base",ebc:9,ppg:37},
+{b:"BestMalz",n:"BEST Vienna",c:"base",ebc:8,ppg:36},
+{b:"BestMalz",n:"BEST Munich",c:"base",ebc:20,ppg:36},
+{b:"BestMalz",n:"BEST Heidelberg",c:"base",ebc:9,ppg:37},
+{b:"BestMalz",n:"BEST Wheat",c:"base",ebc:4.5,ppg:38},
+{b:"BestMalz",n:"BEST Red X",c:"base",ebc:15,ppg:36},
+{b:"BestMalz",n:"BEST Spelt (épeautre)",c:"base",ebc:5,ppg:37},
+{b:"BestMalz",n:"BEST Caramel Pils",c:"caramel",ebc:5,ppg:34},
+{b:"BestMalz",n:"BEST Caramel Hell",c:"caramel",ebc:28,ppg:34},
+{b:"BestMalz",n:"BEST Caramel Aromatic",c:"caramel",ebc:50,ppg:34},
+{b:"BestMalz",n:"BEST Caramel Amber",c:"caramel",ebc:70,ppg:34},
+{b:"BestMalz",n:"BEST Caramel Munich I",c:"caramel",ebc:90,ppg:33},
+{b:"BestMalz",n:"BEST Caramel Munich II",c:"caramel",ebc:130,ppg:33},
+{b:"BestMalz",n:"BEST Caramel Munich III",c:"caramel",ebc:150,ppg:33},
+{b:"BestMalz",n:"BEST Caramel Dark",c:"caramel",ebc:300,ppg:33},
+{b:"BestMalz",n:"BEST Caramel Extra Dark",c:"caramel",ebc:450,ppg:32},
+{b:"BestMalz",n:"BEST Melanoidin Light",c:"caramel",ebc:35,ppg:37},
+{b:"BestMalz",n:"BEST Melanoidin",c:"caramel",ebc:70,ppg:37},
+{b:"BestMalz",n:"BEST Special X",c:"caramel",ebc:190,ppg:33},
+{b:"BestMalz",n:"BEST Chocolate",c:"roasted",ebc:900,ppg:28},
+{b:"BestMalz",n:"BEST Black",c:"roasted",ebc:1400,ppg:26},
+{b:"BestMalz",n:"BEST Acidulated (acidifié)",c:"special",ebc:4,ppg:27},
+{b:"BestMalz",n:"BEST Chit",c:"special",ebc:4,ppg:30},
+{b:"BestMalz",n:"BEST Smoked (fumé)",c:"special",ebc:5,ppg:37},
+{b:"BestMalz",n:"BEST Beechwood Smoked",c:"special",ebc:5,ppg:37},
+{b:"BestMalz",n:"BEST Cherry Ember Smoked",c:"special",ebc:6,ppg:37},
+{b:"BestMalz",n:"BEST Whisky Malt",c:"special",ebc:5,ppg:37},
+{b:"BestMalz",n:"BEST Peated Light (tourbé)",c:"special",ebc:5,ppg:37},
+{b:"BestMalz",n:"BEST Organic Pilsen",c:"bio",ebc:3.5,ppg:37,bio:1},
+{b:"BestMalz",n:"BEST Organic Pale Ale",c:"bio",ebc:9,ppg:37,bio:1},
+{b:"BestMalz",n:"BEST Organic Vienna",c:"bio",ebc:8,ppg:36,bio:1},
+{b:"BestMalz",n:"BEST Organic Munich",c:"bio",ebc:20,ppg:36,bio:1},
+{b:"BestMalz",n:"BEST Organic Wheat",c:"bio",ebc:4.5,ppg:38,bio:1},
+{b:"BestMalz",n:"BEST Organic Caramel Pils",c:"bio",ebc:5,ppg:34,bio:1},
+{b:"BestMalz",n:"BEST Organic Caramel Hell",c:"bio",ebc:28,ppg:34,bio:1},
+{b:"BestMalz",n:"BEST Organic Chocolate",c:"bio",ebc:900,ppg:28,bio:1},
+/* ---- DINGEMANS (BE) ---- */
+{b:"Dingemans",n:"Pilsen MD",c:"base",ebc:3.5,ppg:37},
+{b:"Dingemans",n:"Pale Ale 9 MD",c:"base",ebc:9,ppg:37},
+{b:"Dingemans",n:"Munich 15 MD",c:"base",ebc:15,ppg:36},
+{b:"Dingemans",n:"Aromatic 150 MD",c:"base",ebc:150,ppg:36},
+{b:"Dingemans",n:"Wheat Blanc MD",c:"base",ebc:4,ppg:38},
+{b:"Dingemans",n:"Cara 45 MD",c:"caramel",ebc:45,ppg:34},
+{b:"Dingemans",n:"Cara 120 MD",c:"caramel",ebc:120,ppg:33},
+{b:"Dingemans",n:"Special B MD",c:"caramel",ebc:320,ppg:30},
+{b:"Dingemans",n:"Biscuit 50 MD",c:"roasted",ebc:55,ppg:34},
+{b:"Dingemans",n:"Chocolate MD",c:"roasted",ebc:900,ppg:28},
+{b:"Dingemans",n:"Black Mroost 1400 MD (désamérisé)",c:"roasted",ebc:1400,ppg:28},
+{b:"Dingemans",n:"Pealed Roasted Barley MD",c:"roasted",ebc:1200,ppg:26},
+{b:"Dingemans",n:"Organic Pilsen MD",c:"bio",ebc:3.5,ppg:37,bio:1},
+{b:"Dingemans",n:"Organic Pale Ale MD",c:"bio",ebc:9,ppg:37,bio:1},
+{b:"Dingemans",n:"Organic Munich MD",c:"bio",ebc:15,ppg:36,bio:1},
+{b:"Dingemans",n:"Organic Cara 45 MD",c:"bio",ebc:45,ppg:34,bio:1},
+{b:"Dingemans",n:"Organic Mroost 1400 MD",c:"bio",ebc:1400,ppg:28,bio:1},
+{b:"Dingemans",n:"Organic Chocolate MD",c:"bio",ebc:900,ppg:28,bio:1},
+/* ---- CRISP (UK) ---- */
+{b:"Crisp",n:"Maris Otter",c:"base",ebc:6,ppg:38},
+{b:"Crisp",n:"Best Ale Malt",c:"base",ebc:6,ppg:37},
+{b:"Crisp",n:"Finest Pale Ale Maris Otter",c:"base",ebc:6,ppg:38},
+{b:"Crisp",n:"Clear Choice (low protein)",c:"base",ebc:4,ppg:38},
+{b:"Crisp",n:"Europils Lager",c:"base",ebc:3.5,ppg:37},
+{b:"Crisp",n:"Vienna",c:"base",ebc:8,ppg:36},
+{b:"Crisp",n:"Munich",c:"base",ebc:20,ppg:36},
+{b:"Crisp",n:"Chevallier Heritage",c:"base",ebc:6,ppg:37},
+{b:"Crisp",n:"Naked Oat Malt",c:"base",ebc:6,ppg:35},
+{b:"Crisp",n:"Caramalt",c:"caramel",ebc:25,ppg:34},
+{b:"Crisp",n:"Crystal 100",c:"caramel",ebc:110,ppg:34},
+{b:"Crisp",n:"Crystal 150",c:"caramel",ebc:170,ppg:33},
+{b:"Crisp",n:"Dark Crystal",c:"caramel",ebc:280,ppg:33},
+{b:"Crisp",n:"Crystal Rye",c:"caramel",ebc:90,ppg:33},
+{b:"Crisp",n:"Brown Malt",c:"roasted",ebc:280,ppg:32},
+{b:"Crisp",n:"Pale Chocolate",c:"roasted",ebc:550,ppg:30},
+{b:"Crisp",n:"Chocolate Malt",c:"roasted",ebc:1000,ppg:28},
+{b:"Crisp",n:"Black Malt",c:"roasted",ebc:1400,ppg:26},
+{b:"Crisp",n:"Roasted Barley",c:"roasted",ebc:1350,ppg:26},
+/* ---- MUNTONS (UK) ---- */
+{b:"Muntons",n:"Pale Ale Malt",c:"base",ebc:6,ppg:37},
+{b:"Muntons",n:"Maris Otter Pale Ale",c:"base",ebc:6,ppg:38},
+{b:"Muntons",n:"Lager Malt",c:"base",ebc:3.5,ppg:37},
+{b:"Muntons",n:"Wheat Malt",c:"base",ebc:4,ppg:38},
+{b:"Muntons",n:"Caramalt",c:"caramel",ebc:30,ppg:34},
+{b:"Muntons",n:"Crystal Light",c:"caramel",ebc:90,ppg:34},
+{b:"Muntons",n:"Crystal Medium",c:"caramel",ebc:140,ppg:33},
+{b:"Muntons",n:"Crystal Dark",c:"caramel",ebc:280,ppg:33},
+{b:"Muntons",n:"Dextrin Malt (Carapils)",c:"special",ebc:4,ppg:33,ferment:0},
+{b:"Muntons",n:"Chocolate Malt",c:"roasted",ebc:1100,ppg:28},
+{b:"Muntons",n:"Black Malt",c:"roasted",ebc:1300,ppg:26},
+{b:"Muntons",n:"Roasted Barley",c:"roasted",ebc:1350,ppg:26},
+/* ---- Adjuvants & sucres ---- */
+{b:"Adjuvant",n:"Flocons d'avoine",c:"special",ebc:2,ppg:33},
+{b:"Adjuvant",n:"Flocons d'orge",c:"special",ebc:3,ppg:32},
+{b:"Adjuvant",n:"Flocons de froment",c:"special",ebc:2,ppg:35},
+{b:"Adjuvant",n:"Lactose (sucre de lait)",c:"special",ebc:1,ppg:35,ferment:0},
+{b:"Adjuvant",n:"Sucre candi foncé (D2)",c:"special",ebc:160,ppg:32},
+{b:"Adjuvant",n:"Mélasse",c:"special",ebc:160,ppg:30},
+{b:"Adjuvant",n:"Sucre de canne (cassonade)",c:"special",ebc:35,ppg:44}
+];
+
+/* Hops: name, alpha%, origin */
+const HOPS=[
+{n:"Magnum",a:13,o:"DE"},{n:"Northern Brewer",a:8.5,o:"DE"},{n:"Perle",a:8,o:"DE"},
+{n:"Hallertau Mittelfrüh",a:4,o:"DE"},{n:"Hersbrucker",a:3.5,o:"DE"},{n:"Tettnang",a:4.5,o:"DE"},
+{n:"Spalt",a:4.5,o:"DE"},{n:"Tradition",a:6,o:"DE"},{n:"Saphir",a:4,o:"DE"},
+{n:"Mandarina Bavaria",a:8.5,o:"DE"},{n:"Hallertau Blanc",a:10,o:"DE"},{n:"Huell Melon",a:7,o:"DE"},
+{n:"Polaris",a:20,o:"DE"},{n:"Smaragd",a:5,o:"DE"},{n:"Opal",a:7,o:"DE"},
+{n:"Merkur",a:14,o:"DE"},{n:"Herkules",a:15,o:"DE"},{n:"Callista",a:5,o:"DE"},
+{n:"Cascade",a:5.5,o:"US"},{n:"Centennial",a:10,o:"US"},{n:"Chinook",a:13,o:"US"},
+{n:"Citra",a:12,o:"US"},{n:"Mosaic",a:12,o:"US"},{n:"Simcoe",a:13,o:"US"},
+{n:"Amarillo",a:9,o:"US"},{n:"Columbus / CTZ",a:15,o:"US"},{n:"Galena",a:12,o:"US"},
+{n:"Willamette",a:5,o:"US"},{n:"Mt Hood",a:5,o:"US"},{n:"Crystal",a:4,o:"US"},
+{n:"Nugget",a:13,o:"US"},{n:"Warrior",a:16,o:"US"},{n:"Azacca",a:14,o:"US"},
+{n:"Idaho 7",a:13,o:"US"},{n:"Sabro",a:15,o:"US"},{n:"El Dorado",a:15,o:"US"},
+{n:"Comet",a:10,o:"US"},{n:"Cluster",a:7,o:"US"},{n:"Cashmere",a:8,o:"US"},
+{n:"Ekuanot",a:14,o:"US"},{n:"Loral",a:11,o:"US"},
+{n:"East Kent Goldings",a:5,o:"UK"},{n:"Fuggle",a:4.5,o:"UK"},{n:"Challenger",a:7.5,o:"UK"},
+{n:"Target",a:11,o:"UK"},{n:"Northdown",a:8,o:"UK"},{n:"Bramling Cross",a:6,o:"UK"},
+{n:"First Gold",a:8,o:"UK"},{n:"Pilgrim",a:10,o:"UK"},{n:"Progress",a:6,o:"UK"},
+{n:"Admiral",a:14,o:"UK"},{n:"Bullion",a:8,o:"UK"},{n:"Brewers Gold",a:8,o:"UK"},
+{n:"Sovereign",a:5,o:"UK"},{n:"Endeavour",a:8,o:"UK"},{n:"Jester",a:8,o:"UK"},
+{n:"Olicana",a:8,o:"UK"},{n:"Phoenix",a:10,o:"UK"},
+{n:"Saaz",a:3.5,o:"CZ"},{n:"Premiant",a:9,o:"CZ"},{n:"Sládek",a:6,o:"CZ"},
+{n:"Kazbek",a:6,o:"CZ"},{n:"Bohemie",a:7,o:"CZ"},
+{n:"Nelson Sauvin",a:12,o:"NZ"},{n:"Motueka",a:7,o:"NZ"},{n:"Riwaka",a:5.5,o:"NZ"},
+{n:"Wai-iti",a:3,o:"NZ"},{n:"Pacifica",a:5.5,o:"NZ"},{n:"Rakau",a:10,o:"NZ"},
+{n:"Waimea",a:17,o:"NZ"},{n:"Nectaron",a:14,o:"NZ"},{n:"Pacific Jade",a:13,o:"NZ"},
+{n:"Green Bullet",a:13,o:"NZ"},
+{n:"Galaxy",a:14,o:"AU"},{n:"Vic Secret",a:16,o:"AU"},{n:"Ella",a:14,o:"AU"},
+{n:"Topaz",a:16,o:"AU"},{n:"Enigma",a:16,o:"AU"},{n:"Eclipse",a:16,o:"AU"},
+{n:"Super Pride",a:14,o:"AU"},
+{n:"Strisselspalt",a:3,o:"FR"},{n:"Aramis",a:8,o:"FR"},{n:"Triskel",a:5,o:"FR"},
+{n:"Barbe Rouge",a:8,o:"FR"},{n:"Mistral",a:8,o:"FR"},{n:"Bouclier",a:8,o:"FR"},
+{n:"Elixir",a:10,o:"FR"},
+{n:"Styrian Goldings (Celeia)",a:5,o:"SI"},{n:"Bobek",a:5.5,o:"SI"},{n:"Aurora",a:8,o:"SI"},
+{n:"Styrian Wolf",a:13,o:"SI"},{n:"Dragon",a:10,o:"SI"},
+{n:"Lubelski",a:4,o:"PL"},{n:"Marynka",a:9,o:"PL"},{n:"Sybilla",a:6,o:"PL"},
+{n:"Sorachi Ace",a:12,o:"JP"}
+];
+
+/* Lallemand (LalBrew) yeasts: name, type, apparent attenuation %, temp range */
+const YEASTS=[
+{n:"Nottingham",t:"Ale",att:77,tp:"10–22 °C"},
+{n:"Windsor",t:"Ale",att:72,tp:"15–22 °C"},
+{n:"BRY-97 West Coast Ale",t:"Ale",att:82,tp:"15–22 °C"},
+{n:"London ESB",t:"Ale",att:73,tp:"18–22 °C"},
+{n:"Verdant IPA",t:"Ale",att:78,tp:"18–23 °C"},
+{n:"New England (East Coast)",t:"Ale",att:80,tp:"15–22 °C"},
+{n:"London Fog (Hazy)",t:"Ale",att:78,tp:"18–22 °C"},
+{n:"Voss Kveik",t:"Kveik",att:80,tp:"25–40 °C"},
+{n:"Lutra Kveik",t:"Kveik",att:80,tp:"20–35 °C"},
+{n:"Belle Saison",t:"Saison",att:88,tp:"15–35 °C"},
+{n:"Farmhouse Saison",t:"Saison",att:82,tp:"20–35 °C"},
+{n:"Abbaye (belge)",t:"Belge",att:82,tp:"17–25 °C"},
+{n:"Wit",t:"Blanche",att:80,tp:"17–22 °C"},
+{n:"Munich Classic (blé)",t:"Blanche",att:75,tp:"17–22 °C"},
+{n:"Köln (Kölsch)",t:"Ale",att:80,tp:"12–20 °C"},
+{n:"Philly Sour",t:"Sure",att:78,tp:"20–25 °C"},
+{n:"Diamond Lager",t:"Lager",att:82,tp:"10–15 °C"},
+{n:"NovaLager",t:"Lager",att:80,tp:"12–18 °C"}
+];
+
+/* Soft drinks ingredients: name, cat(sucre|acide|jus|arome|the|eau|additif), sucre(g/100g), acide(g/100g), ebc, unité, g(grammes par unité) */
+const SOFTS=[
+{n:"Sucre blanc (saccharose)",c:"sucre",sucre:100,acide:0,ebc:0,u:"kg",g:1000},
+{n:"Sucre roux / cassonade",c:"sucre",sucre:97,acide:0,ebc:30,u:"kg",g:1000},
+{n:"Sirop de sucre (60%)",c:"sucre",sucre:60,acide:0,ebc:2,u:"L",g:1000},
+{n:"Sirop de glucose-fructose",c:"sucre",sucre:75,acide:0,ebc:1,u:"kg",g:1000},
+{n:"Miel",c:"sucre",sucre:80,acide:1,ebc:25,u:"kg",g:1000},
+{n:"Sirop d'agave",c:"sucre",sucre:76,acide:0,ebc:5,u:"kg",g:1000},
+{n:"Stévia (poudre)",c:"sucre",sucre:0,acide:0,ebc:0,u:"g",g:1},
+{n:"Sucralose",c:"sucre",sucre:0,acide:0,ebc:0,u:"g",g:1},
+{n:"Acide citrique",c:"acide",sucre:0,acide:100,ebc:0,u:"g",g:1},
+{n:"Acide malique",c:"acide",sucre:0,acide:100,ebc:0,u:"g",g:1},
+{n:"Acide tartrique",c:"acide",sucre:0,acide:100,ebc:0,u:"g",g:1},
+{n:"Acide lactique (80%)",c:"acide",sucre:0,acide:80,ebc:0,u:"ml",g:1.2},
+{n:"Jus de citron",c:"jus",sucre:2,acide:5,ebc:2,u:"L",g:1000},
+{n:"Jus de citron vert",c:"jus",sucre:2,acide:6,ebc:2,u:"L",g:1000},
+{n:"Jus d'orange",c:"jus",sucre:9,acide:1,ebc:8,u:"L",g:1000},
+{n:"Jus de pomme",c:"jus",sucre:11,acide:0.5,ebc:8,u:"L",g:1000},
+{n:"Concentré de pomme",c:"jus",sucre:65,acide:2,ebc:30,u:"kg",g:1000},
+{n:"Concentré fruits rouges",c:"jus",sucre:60,acide:3,ebc:120,u:"kg",g:1000},
+{n:"Purée de fruits",c:"jus",sucre:12,acide:1,ebc:20,u:"kg",g:1000},
+{n:"Arôme cola",c:"arome",sucre:0,acide:0,ebc:0,u:"ml",g:1},
+{n:"Extrait de cola (noix de kola)",c:"arome",sucre:0,acide:0,ebc:30,u:"ml",g:1},
+{n:"Arôme citron",c:"arome",sucre:0,acide:0,ebc:0,u:"ml",g:1},
+{n:"Arôme orange",c:"arome",sucre:0,acide:0,ebc:0,u:"ml",g:1},
+{n:"Arôme cerise",c:"arome",sucre:0,acide:0,ebc:0,u:"ml",g:1},
+{n:"Extrait de vanille",c:"arome",sucre:0,acide:0,ebc:10,u:"ml",g:1},
+{n:"Extrait de gingembre",c:"arome",sucre:0,acide:0,ebc:5,u:"ml",g:1},
+{n:"Arôme menthe",c:"arome",sucre:0,acide:0,ebc:0,u:"ml",g:1},
+{n:"Thé noir (infusé)",c:"the",sucre:0,acide:0,ebc:25,u:"L",g:1000},
+{n:"Thé vert (infusé)",c:"the",sucre:0,acide:0,ebc:8,u:"L",g:1000},
+{n:"Maté (infusé)",c:"the",sucre:0,acide:0,ebc:12,u:"L",g:1000},
+{n:"Café (infusé)",c:"the",sucre:0,acide:0,ebc:200,u:"L",g:1000},
+{n:"Infusion hibiscus",c:"the",sucre:0,acide:2,ebc:80,u:"L",g:1000},
+{n:"Feuilles de thé noir (sec)",c:"the",sucre:0,acide:0,ebc:0,u:"g",g:1},
+{n:"Eau",c:"eau",sucre:0,acide:0,ebc:0,u:"L",g:1000},
+{n:"Eau gazeuse",c:"eau",sucre:0,acide:0,ebc:0,u:"L",g:1000},
+{n:"Colorant caramel E150",c:"additif",sucre:0,acide:0,ebc:8000,u:"g",g:1},
+{n:"Caféine (poudre)",c:"additif",sucre:0,acide:0,ebc:0,u:"g",g:1},
+{n:"Sel",c:"additif",sucre:0,acide:0,ebc:0,u:"g",g:1},
+{n:"Bicarbonate de soude",c:"additif",sucre:0,acide:0,ebc:0,u:"g",g:1},
+{n:"Sorbate de potassium (conservateur)",c:"additif",sucre:0,acide:0,ebc:0,u:"g",g:1},
+{n:"Benzoate de sodium (conservateur)",c:"additif",sucre:0,acide:0,ebc:0,u:"g",g:1},
+{n:"Acide ascorbique (vitamine C)",c:"additif",sucre:0,acide:0,ebc:0,u:"g",g:1},
+{n:"Écorce de citron",c:"aromate",sucre:4,acide:1,ebc:6,u:"g",g:1},
+{n:"Écorce d'orange",c:"aromate",sucre:8,acide:1,ebc:12,u:"g",g:1},
+{n:"Écorce de citron vert",c:"aromate",sucre:2,acide:2,ebc:5,u:"g",g:1},
+{n:"Écorce de pamplemousse",c:"aromate",sucre:6,acide:1,ebc:8,u:"g",g:1},
+{n:"Zeste de citron (séché)",c:"aromate",sucre:2,acide:0,ebc:4,u:"g",g:1},
+{n:"Zeste d'orange (séché)",c:"aromate",sucre:4,acide:0,ebc:8,u:"g",g:1},
+{n:"Gingembre frais (râpé)",c:"aromate",sucre:2,acide:0,ebc:3,u:"g",g:1},
+{n:"Cannelle (bâton)",c:"aromate",sucre:2,acide:0,ebc:60,u:"g",g:1},
+{n:"Badiane (anis étoilé)",c:"aromate",sucre:0,acide:0,ebc:40,u:"g",g:1},
+{n:"Cardamome verte",c:"aromate",sucre:0,acide:0,ebc:8,u:"g",g:1},
+{n:"Clou de girofle",c:"aromate",sucre:0,acide:0,ebc:80,u:"g",g:1},
+{n:"Coriandre (graines)",c:"aromate",sucre:0,acide:0,ebc:5,u:"g",g:1},
+{n:"Baies de genièvre",c:"aromate",sucre:0,acide:0,ebc:30,u:"g",g:1},
+{n:"Poivre noir",c:"aromate",sucre:0,acide:0,ebc:20,u:"g",g:1},
+{n:"Fève tonka",c:"aromate",sucre:0,acide:0,ebc:60,u:"g",g:1},
+{n:"Réglisse (bâton)",c:"aromate",sucre:4,acide:0,ebc:120,u:"g",g:1},
+{n:"Citronnelle",c:"aromate",sucre:0,acide:0,ebc:4,u:"g",g:1},
+{n:"Menthe fraîche",c:"aromate",sucre:0,acide:0,ebc:4,u:"g",g:1},
+{n:"Basilic frais",c:"aromate",sucre:0,acide:0,ebc:4,u:"g",g:1},
+{n:"Fleurs de sureau (séchées)",c:"aromate",sucre:0,acide:0,ebc:6,u:"g",g:1},
+{n:"Fleurs d'hibiscus (séchées)",c:"aromate",sucre:0,acide:2,ebc:200,u:"g",g:1},
+{n:"Gousse de vanille",c:"aromate",sucre:0,acide:0,ebc:30,u:"g",g:1}
+];
+
+/* Recettes d'exemple (chargeables depuis « Mes recettes ») */
+const EXAMPLES=[
+{name:"Stout Carambar",style:"Sweet / Chocolate Stout",vol:"2000",eff:"77.85",mash:"68",mode:"biere",
+ notes:"Empâtage 68 °C. Cold steep du Malt Choco (3-4 L/kg, 12-24 h) ajouté en fin d'ébullition.",
+ malts:[{b:"Malteurop",n:"Pilsen",c:"base",ebc:3.5,ppg:37,kg:260,cs:false},
+   {b:"Crisp",n:"Crystal 100",c:"caramel",ebc:110,ppg:34,kg:25,cs:false},
+   {b:"Adjuvant",n:"Flocons d'avoine",c:"special",ebc:2,ppg:33,kg:25,cs:false},
+   {b:"Dingemans",n:"Pealed Roasted Barley MD",c:"roasted",ebc:1200,ppg:26,kg:20,cs:false},
+   {b:"Dingemans",n:"Chocolate MD",c:"roasted",ebc:900,ppg:28,kg:20,cs:true}],
+ hops:[{n:"Northern Brewer",a:8.5,g:1500,time:60,form:"pellets"}],
+ yeast:{n:"Nottingham",t:"Ale",att:77,tp:"10–22 °C",g:2500,attU:77},soft:[]},
+{name:"Limonade citron",style:"Limonade — carbonatation forcée",vol:"1500",eff:"77.85",mash:"67",mode:"soft",
+ notes:"15 HL. Sirop : dissoudre le sucre dans ~200 L d'eau à 60–70 °C (ne pas bouillir). Infuser les zestes 15–20 min hors feu, filtrer. Presser et filtrer le jus, garder à froid. Assembler sirop + jus, compléter à 1500 L à l'eau froide. Ajuster le pH à 2,8–3,2 à l'acide citrique (bench-test, pas de taux fixe). Refroidir 2–4 °C, carbonater 3,5–4,5 g/L CO₂. Conditionnement isobare. ⚠ Eau réseau : filtration charbon actif indispensable (la chloramine n'est pas éliminée par ébullition).",
+ malts:[],hops:[],yeast:null,
+ soft:[{n:"Eau",c:"eau",sucre:0,acide:0,ebc:0,u:"L",g:1000,qty:1290},
+   {n:"Sucre blanc (saccharose)",c:"sucre",sucre:100,acide:0,ebc:0,u:"kg",g:1000,qty:98},
+   {n:"Jus de citron",c:"jus",sucre:2,acide:5,ebc:2,u:"L",g:1000,qty:105},
+   {n:"Écorce de citron",c:"aromate",sucre:4,acide:1,ebc:6,u:"g",g:1,qty:4000},
+   {n:"Acide citrique",c:"acide",sucre:0,acide:100,ebc:0,u:"g",g:1,qty:1500},
+   {n:"Acide ascorbique (vitamine C)",c:"additif",sucre:0,acide:0,ebc:0,u:"g",g:1,qty:300},
+   {n:"Sorbate de potassium (conservateur)",c:"additif",sucre:0,acide:0,ebc:0,u:"g",g:1,qty:300}]}
+];
+
+/* SRM -> hex (1..40) */
+const SRM_HEX=["#FFE699","#FFD878","#FFCA5A","#FFBF42","#FBB123","#F8A600","#F39C00","#EA8F00","#E58500","#DE7C00","#D77200","#CF6900","#CB6200","#C35900","#BB5100","#B54C00","#B04500","#A63E00","#A13700","#9B3200","#952D00","#8E2900","#882300","#821E00","#7B1A00","#771900","#701400","#6A0E00","#660D00","#5E0B00","#5A0A02","#560A05","#520907","#4C0505","#470606","#440607","#3F0708","#3B0607","#3A070B","#36080A"];
+function ebcHex(ebc){let srm=ebc/1.97;let i=Math.max(1,Math.min(40,Math.round(srm)));return SRM_HEX[i-1];}
+function colorName(ebc){
+  if(ebc<6)return"Paille";if(ebc<12)return"Or";if(ebc<20)return"Ambré clair";if(ebc<30)return"Ambré";
+  if(ebc<45)return"Cuivre";if(ebc<60)return"Brun-rouge";if(ebc<80)return"Brun";if(ebc<140)return"Brun foncé";
+  return"Noir";
+}
+
+/* ============================ STATE ============================ */
+let state={mode:'biere',malts:[],hops:[],yeast:null,soft:[]};
+let curTab="malt", curFilter="base";
+const FILTERS={
+  malt:[["base","Base"],["caramel","Caramélisé"],["roasted","Torréfié"],["special","Spéciaux"],["bio","Bio"]],
+  hop:[["all","Tous"],["DE","DE"],["US","US"],["UK","UK"],["CZ","CZ"],["NZ","NZ"],["AU","AU"],["FR","FR"],["SI","SI"],["PL","PL"]],
+  yeast:[["all","Toutes"],["Ale","Ale"],["Lager","Lager"],["Saison","Saison"],["Belge","Belge"],["Blanche","Blanche"],["Kveik","Kveik"],["Sure","Sure"]],
+  soft:[["sucre","Sucres"],["acide","Acides"],["jus","Jus & concentrés"],["arome","Arômes"],["the","Thé / Café"],["aromate","Écorces & aromates"],["eau","Eau & gaz"],["additif","Additifs"]]
+};
+const SOFTCAT={sucre:"Sucre",acide:"Acide",jus:"Jus / Concentré",arome:"Arôme",the:"Thé / Café",aromate:"Écorce / Aromate",eau:"Eau",additif:"Additif"};
+
+/* ============================ MODE ============================ */
+function renderTabs(){
+  const t=document.getElementById('appTabs');
+  if(state.mode==='biere'){
+    t.innerHTML=`<div class="tab ${curTab==='malt'?'active':''}" data-tab="malt" onclick="switchTab('malt')">Malts</div>
+      <div class="tab ${curTab==='hop'?'active':''}" data-tab="hop" onclick="switchTab('hop')">Houblons</div>
+      <div class="tab ${curTab==='yeast'?'active':''}" data-tab="yeast" onclick="switchTab('yeast')">Levures</div>`;
+  }else{
+    t.innerHTML=`<div class="tab active" data-tab="soft">Ingrédients soft</div>`;
+  }
+}
+function applyLabels(m){
+  const L=(id,txt)=>document.getElementById(id).textContent=txt;
+  if(m==='biere'){L('lblA','Densité initiale');L('lblB','Densité finale');L('lblC','Alcool');L('lblD','Couleur');L('lblE','Amertume');}
+  else{L('lblA','Sucre');L('lblB','°Brix');L('lblC','Acidité');L('lblD','Couleur');L('lblE','Sucre total');}
+}
+function switchMode(m){
+  state.mode=m;
+  document.querySelectorAll('.modeseg').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));
+  document.getElementById('biereComp').style.display=m==='biere'?'':'none';
+  document.getElementById('softComp').style.display=m==='soft'?'':'none';
+  document.getElementById('fEff').style.display=m==='biere'?'':'none';
+  document.getElementById('fMash').style.display=m==='biere'?'':'none';
+  curTab=m==='biere'?'malt':'soft';
+  curFilter=FILTERS[curTab][0][0];
+  document.getElementById('searchBox').value="";
+  renderTabs();renderSubfilters();renderBrowser();applyLabels(m);renderRecipe();recalc();
+}
+
+/* ============================ BROWSER ============================ */
+function switchTab(t){curTab=t;curFilter=FILTERS[t][0][0];
+  renderTabs();
+  document.getElementById('searchBox').value="";renderSubfilters();renderBrowser();}
+function renderSubfilters(){
+  document.getElementById('subfilters').innerHTML=FILTERS[curTab].map(f=>
+    `<span class="chip ${f[0]===curFilter?'active':''}" onclick="setFilter('${f[0]}')">${f[1]}</span>`).join('');
+}
+function setFilter(f){curFilter=f;renderSubfilters();renderBrowser();}
+function renderBrowser(){
+  const q=document.getElementById('searchBox').value.toLowerCase().trim();
+  const L=document.getElementById('browserList');let html="";
+  const A=(t,gi)=>`<span class="item-actions">`+
+    `<button class="iact" title="Modifier" onclick="event.stopPropagation();editIngredient('${t}',${gi})">✎</button>`+
+    `<button class="iact del" title="Supprimer du catalogue" onclick="event.stopPropagation();deleteIngredient('${t}',${gi})">×</button></span>`;
+  if(curTab==='malt'){
+    let arr=MALTS.filter(m=>m.c===curFilter);
+    if(q)arr=MALTS.filter(m=>(m.n+m.b).toLowerCase().includes(q));
+    arr.forEach(m=>{
+      const gi=MALTS.indexOf(m);
+      html+=`<div class="item" onclick="addMalt(${gi})">
+        <span class="dot" style="background:${ebcHex(m.ebc)}"></span>
+        <span class="nm">${m.n}<small>${m.b}${m.custom?' · perso':''}</small></span>
+        <span class="meta-r">${m.ebc} EBC${m.ferment===0?' · non ferm.':''}</span>
+        ${A('malt',gi)}<span class="add">+</span></div>`;
+    });
+  }else if(curTab==='hop'){
+    let arr=HOPS.filter(h=>curFilter==='all'||h.o===curFilter);
+    if(q)arr=HOPS.filter(h=>h.n.toLowerCase().includes(q));
+    arr.sort((a,b)=>a.n.localeCompare(b.n));
+    arr.forEach(h=>{const gi=HOPS.indexOf(h);
+      html+=`<div class="item" onclick="addHop(${gi})">
+        <span class="nm">${h.n}<small>${h.o}${h.custom?' · perso':''}</small></span>
+        <span class="meta-r">α ${h.a}%</span>${A('hop',gi)}<span class="add">+</span></div>`;});
+  }else if(curTab==='yeast'){
+    let arr=YEASTS.filter(y=>curFilter==='all'||y.t===curFilter);
+    if(q)arr=YEASTS.filter(y=>y.n.toLowerCase().includes(q));
+    arr.forEach(y=>{const gi=YEASTS.indexOf(y);
+      html+=`<div class="item" onclick="setYeast(${gi})">
+        <span class="nm">${y.n}<small>${y.t} · ${y.tp}${y.custom?' · perso':''}</small></span>
+        <span class="meta-r">${y.att}% att.</span>${A('yeast',gi)}<span class="add">+</span></div>`;});
+  }else{
+    let arr=SOFTS.filter(s=>s.c===curFilter);
+    if(q)arr=SOFTS.filter(s=>s.n.toLowerCase().includes(q));
+    arr.forEach(s=>{const gi=SOFTS.indexOf(s);
+      const badge=s.sucre?`${s.sucre}% sucre`:(s.acide?`${s.acide}% acide`:(s.ebc?`${s.ebc} EBC`:s.u));
+      html+=`<div class="item" onclick="addSoft(${gi})">
+        ${s.ebc>0?`<span class="dot" style="background:${ebcHex(s.ebc)}"></span>`:`<span class="dot" style="background:#eee;border-color:rgba(0,0,0,.08)"></span>`}
+        <span class="nm">${s.n}<small>${SOFTCAT[s.c]}${s.custom?' · perso':''}</small></span>
+        <span class="meta-r">${badge}</span>${A('soft',gi)}<span class="add">+</span></div>`;});
+  }
+  L.innerHTML=html||'<div class="empty">Aucun résultat</div>';
+}
+
+/* ============================ ADD / RENDER RECIPE ============================ */
+function addMalt(gi){const m=MALTS[gi];state.malts.push({...m,kg:10,cs:false});renderRecipe();recalc();}
+function addHop(gi){const h=HOPS[gi];state.hops.push({n:h.n,a:h.a,g:50,time:60,form:'pellets'});renderRecipe();recalc();}
+function setYeast(gi){const y=YEASTS[gi];state.yeast={...y,g:500,attU:y.att};renderRecipe();recalc();}
+function qtyDefault(u){return u==='g'?10:u==='ml'?5:1;}
+function addSoft(gi){const s=SOFTS[gi];state.soft.push({...s,qty:qtyDefault(s.u)});renderRecipe();recalc();}
+function updSoft(i,key,v){const it=state.soft[i];if(key==='u'){it.u=v;it.g=(v==='kg'||v==='L')?1000:1;}else{it[key]=parseFloat(v)||0;}recalc();}
+function rmSoft(i){state.soft.splice(i,1);renderRecipe();recalc();}
+function unitOpts(cur){return ['kg','g','L','ml'].map(u=>`<option value="${u}" ${u===cur?'selected':''}>${u}</option>`).join('');}
+
+function renderRecipe(){
+  // malts
+  let mh="";
+  if(!state.malts.length)mh='<div class="empty">Ajoute des malts depuis la liste →</div>';
+  state.malts.forEach((m,i)=>{
+    mh+=`<div class="ri malt">
+      <span class="dot" style="width:14px;height:14px;border-radius:50%;background:${ebcHex(m.ebc)}"></span>
+      <span class="rn">${m.n}<small>${m.b} · ${m.ebc} EBC</small></span>
+      <input type="number" value="${m.kg}" min="0" step="0.1" oninput="upd('malt',${i},'kg',this.value)">
+      <label class="cs-toggle"><input type="checkbox" ${m.cs?'checked':''} onchange="upd('malt',${i},'cs',this.checked)">cold</label>
+      <button class="del" onclick="rm('malt',${i})">×</button></div>`;
+  });
+  document.getElementById('maltList').innerHTML=mh;
+  // hops
+  let hh="";
+  if(!state.hops.length)hh='<div class="empty">Ajoute des houblons →</div>';
+  state.hops.forEach((h,i)=>{
+    hh+=`<div class="ri hop">
+      <span class="rn">${h.n}</span>
+      <input type="number" value="${h.g}" min="0" step="1" oninput="upd('hop',${i},'g',this.value)">
+      <input type="number" value="${h.a}" min="0" step="0.1" oninput="upd('hop',${i},'a',this.value)">
+      <input type="number" value="${h.time}" min="0" step="1" oninput="upd('hop',${i},'time',this.value)">
+      <select onchange="upd('hop',${i},'form',this.value)">
+        <option value="pellets" ${h.form==='pellets'?'selected':''}>Pellets</option>
+        <option value="cones" ${h.form==='cones'?'selected':''}>Cônes</option></select>
+      <button class="del" onclick="rm('hop',${i})">×</button></div>`;
+  });
+  document.getElementById('hopList').innerHTML=hh;
+  // yeast
+  let yh="";
+  if(!state.yeast)yh='<div class="empty">Choisis une levure →</div>';
+  else{const y=state.yeast;
+    yh=`<div class="ri yeast">
+      <span class="rn">${y.n}<small>${y.t} · ${y.tp}</small></span>
+      <input type="number" value="${y.g}" min="0" step="10" oninput="upd('yeast',0,'g',this.value)" title="grammes">
+      <input type="number" value="${y.attU}" min="40" max="95" step="1" oninput="upd('yeast',0,'attU',this.value)" title="atténuation %">
+      <button class="del" onclick="rm('yeast',0)">×</button></div>
+      <div style="font-size:10px;color:var(--ink-soft);padding:0 14px 10px;display:flex;gap:14px">
+      <span>g totaux (≈${state.yeast?Math.round(state.yeast.g/ (getVol()/100)):0} g/hL)</span><span>atténuation %</span></div>`;
+  }
+  document.getElementById('yeastList').innerHTML=yh;
+  // soft
+  let sh="";
+  if(!state.soft.length)sh='<div class="empty">Ajoute des ingrédients depuis la liste →</div>';
+  state.soft.forEach((s,i)=>{
+    sh+=`<div class="ri soft">
+      <span class="rn">${s.n}<small>${SOFTCAT[s.c]}${s.sucre?` · ${s.sucre}% sucre`:''}${s.acide?` · ${s.acide}% acide`:''}</small></span>
+      <input type="number" value="${s.qty}" min="0" step="0.1" oninput="updSoft(${i},'qty',this.value)">
+      <select onchange="updSoft(${i},'u',this.value)">${unitOpts(s.u)}</select>
+      <button class="del" onclick="rmSoft(${i})">×</button></div>`;
+  });
+  document.getElementById('softList').innerHTML=sh;
+}
+function upd(type,i,key,val){
+  if(type==='malt'){state.malts[i][key]= key==='cs'?val:parseFloat(val)||0;}
+  else if(type==='hop'){state.hops[i][key]= key==='form'?val:parseFloat(val)||0;}
+  else if(type==='yeast'){state.yeast[key]=parseFloat(val)||0;}
+  if(key==='g'&&type==='yeast')renderRecipe();
+  recalc();
+}
+function rm(type,i){
+  if(type==='malt')state.malts.splice(i,1);
+  else if(type==='hop')state.hops.splice(i,1);
+  else state.yeast=null;
+  renderRecipe();recalc();
+}
+
+/* ---- Catalogue : ajout / édition / suppression ---- */
+let editCtx=null;
+function curType(){return state.mode==='soft'?'soft':curTab;}
+function arrayFor(t){return t==='malt'?MALTS:t==='hop'?HOPS:t==='yeast'?YEASTS:SOFTS;}
+function esc(s){return (s==null?'':String(s)).replace(/"/g,'&quot;');}
+function opts(arr,sel){return arr.map(o=>`<option value="${o[0]}" ${o[0]===sel?'selected':''}>${o[1]}</option>`).join('');}
+function gv(id){const el=document.getElementById(id);return el?el.value:'';}
+function num(id,def){const v=parseFloat(gv(id));return isNaN(v)?def:v;}
+
+function ingFields(type,o){
+  o=o||{};
+  if(type==='malt'){
+    const cats=[['base','Base'],['caramel','Caramélisé'],['roasted','Torréfié'],['special','Spéciaux'],['bio','Bio']];
+    return `
+     <div class="field"><label>Nom *</label><input id="m_name" value="${esc(o.n)}" placeholder="Ex. Malt maison"></div>
+     <div class="row2">
+       <div class="field"><label>Marque</label><input id="m_brand" value="${esc(o.b)}" placeholder="Perso"></div>
+       <div class="field"><label>Catégorie</label><select id="m_cat">${opts(cats,o.c)}</select></div>
+     </div>
+     <div class="row2">
+       <div class="field"><label>Couleur EBC</label><input id="m_ebc" type="number" value="${o.ebc!=null?o.ebc:10}" min="0"></div>
+       <div class="field"><label>Extrait (PPG)</label><input id="m_ppg" type="number" value="${o.ppg!=null?o.ppg:36}" min="0"><div class="hint">36 ≈ malt de base</div></div>
+     </div>
+     <label class="cs-toggle" style="justify-content:flex-start;font-size:12px"><input type="checkbox" id="m_ferment" ${o.ferment===0?'checked':''}> Non fermentescible (ex. lactose)</label>`;
+  }
+  if(type==='hop'){
+    const ors=[['DE','DE'],['US','US'],['UK','UK'],['CZ','CZ'],['NZ','NZ'],['AU','AU'],['FR','FR'],['SI','SI'],['PL','PL'],['JP','JP'],['Autre','Autre']];
+    return `
+     <div class="field"><label>Nom *</label><input id="m_name" value="${esc(o.n)}" placeholder="Ex. Houblon maison"></div>
+     <div class="row2">
+       <div class="field"><label>Origine</label><select id="m_orig">${opts(ors,o.o)}</select></div>
+       <div class="field"><label>Acide alpha %</label><input id="m_alpha" type="number" value="${o.a!=null?o.a:8}" step="0.1" min="0"></div>
+     </div>`;
+  }
+  if(type==='yeast'){
+    const ts=[['Ale','Ale'],['Lager','Lager'],['Saison','Saison'],['Belge','Belge'],['Blanche','Blanche'],['Kveik','Kveik'],['Sure','Sure']];
+    return `
+     <div class="field"><label>Nom *</label><input id="m_name" value="${esc(o.n)}" placeholder="Ex. Levure maison"></div>
+     <div class="row2">
+       <div class="field"><label>Type</label><select id="m_ytype">${opts(ts,o.t)}</select></div>
+       <div class="field"><label>Atténuation %</label><input id="m_att" type="number" value="${o.att!=null?o.att:78}" min="40" max="95"></div>
+     </div>
+     <div class="field"><label>Température</label><input id="m_temp" value="${esc(o.tp)}" placeholder="Ex. 18–22 °C"></div>`;
+  }
+  const scats=[['sucre','Sucre'],['acide','Acide'],['jus','Jus / Concentré'],['arome','Arôme'],['the','Thé / Café'],['aromate','Écorce / Aromate'],['eau','Eau'],['additif','Additif']];
+  const us=[['kg','kg'],['L','L'],['g','g'],['ml','ml']];
+  return `
+   <div class="field"><label>Nom *</label><input id="m_name" value="${esc(o.n)}" placeholder="Ex. Sirop maison"></div>
+   <div class="row2">
+     <div class="field"><label>Catégorie</label><select id="m_cat">${opts(scats,o.c)}</select></div>
+     <div class="field"><label>Unité</label><select id="m_unit">${opts(us,o.u)}</select></div>
+   </div>
+   <div class="row3">
+     <div class="field"><label>Sucre g/100g</label><input id="m_sucre" type="number" value="${o.sucre!=null?o.sucre:0}" min="0"></div>
+     <div class="field"><label>Acide g/100g</label><input id="m_acide" type="number" value="${o.acide!=null?o.acide:0}" min="0"></div>
+     <div class="field"><label>Couleur EBC</label><input id="m_ebc" type="number" value="${o.ebc!=null?o.ebc:0}" min="0"></div>
+   </div>`;
+}
+function openManual(){
+  editCtx=null;
+  const type=curType();
+  document.getElementById('manualTitle').textContent='Nouvel ingrédient';
+  document.getElementById('manualFields').innerHTML=ingFields(type,null);
+  document.getElementById('manualSave').textContent='Ajouter à la recette';
+  document.getElementById('manualModal').classList.add('show');
+}
+function editIngredient(type,gi){
+  const o=arrayFor(type)[gi];if(!o)return;
+  editCtx={type:type,index:gi};
+  document.getElementById('manualTitle').textContent='Modifier l’ingrédient';
+  document.getElementById('manualFields').innerHTML=ingFields(type,o);
+  document.getElementById('manualSave').textContent='Enregistrer les modifications';
+  document.getElementById('manualModal').classList.add('show');
+}
+function deleteIngredient(type,gi){
+  const o=arrayFor(type)[gi];if(!o)return;
+  if(!confirm('Supprimer « '+o.n+' » du catalogue ?'))return;
+  arrayFor(type).splice(gi,1);
+  saveCatalog();renderBrowser();
+}
+function closeManual(){document.getElementById('manualModal').classList.remove('show');}
+function addToRecipeFromCatalog(type,obj){
+  if(type==='malt')state.malts.push({...obj,kg:10,cs:false});
+  else if(type==='hop')state.hops.push({n:obj.n,a:obj.a,g:50,time:60,form:'pellets'});
+  else if(type==='yeast')state.yeast={...obj,g:500,attU:obj.att};
+  else state.soft.push({...obj,qty:qtyDefault(obj.u)});
+}
+function saveIngredient(){
+  const type=editCtx?editCtx.type:curType();
+  const name=(gv('m_name')||'').trim();
+  if(!name){alert('Donne un nom à l’ingrédient.');return;}
+  let obj;
+  if(type==='malt'){
+    obj={b:(gv('m_brand')||'').trim()||'Perso',n:name,c:gv('m_cat'),ebc:num('m_ebc',0),ppg:num('m_ppg',36),
+      ferment:document.getElementById('m_ferment').checked?0:1,custom:1};
+  }else if(type==='hop'){
+    obj={n:name,o:gv('m_orig'),a:num('m_alpha',8),custom:1};
+  }else if(type==='yeast'){
+    obj={n:name,t:gv('m_ytype'),att:num('m_att',78),tp:(gv('m_temp')||'').trim()||'—',custom:1};
+  }else{
+    const u=gv('m_unit');
+    obj={n:name,c:gv('m_cat'),sucre:num('m_sucre',0),acide:num('m_acide',0),ebc:num('m_ebc',0),u:u,g:(u==='kg'||u==='L')?1000:1,custom:1};
+  }
+  if(editCtx){arrayFor(type)[editCtx.index]=obj;}
+  else{arrayFor(type).push(obj);addToRecipeFromCatalog(type,obj);}
+  saveCatalog();closeManual();renderBrowser();renderRecipe();recalc();
+}
+
+/* ---- Persistance du catalogue ---- */
+const CATKEY='brasserie_catalogue_v1';
+function saveCatalog(){try{localStorage.setItem(CATKEY,JSON.stringify({malts:MALTS,hops:HOPS,yeasts:YEASTS,softs:SOFTS}));}catch(e){}}
+function loadCatalog(){
+  let c=null;try{c=JSON.parse(localStorage.getItem(CATKEY));}catch(e){}
+  if(!c)return;
+  const repl=(arr,data)=>{if(Array.isArray(data)){arr.length=0;data.forEach(x=>arr.push(x));}};
+  repl(MALTS,c.malts);repl(HOPS,c.hops);repl(YEASTS,c.yeasts);repl(SOFTS,c.softs);
+}
+function resetCatalog(){if(confirm('Réinitialiser le catalogue d’ingrédients aux valeurs d’origine ? Tes ajouts et modifications du catalogue seront perdus (tes recettes enregistrées sont conservées).')){localStorage.removeItem(CATKEY);location.reload();}}
+
+/* ---- Redimensionnement de recette ---- */
+function openResize(){
+  const v=getVol();
+  document.getElementById('rzCurrent').value=v+' L ('+(v/100).toFixed(v%100?1:0)+' HL)';
+  document.getElementById('rzTarget').value=v;
+  updResizePreview();
+  document.getElementById('resizeModal').classList.add('show');
+}
+function closeResize(){document.getElementById('resizeModal').classList.remove('show');}
+function rzTargetVal(){return Math.max(1,parseFloat(document.getElementById('rzTarget').value)||1);}
+function updResizePreview(){
+  const cur=getVol(),tgt=rzTargetVal(),k=tgt/cur;
+  document.getElementById('rzFactor').textContent='Facteur ×'+(k.toFixed(3).replace(/\.?0+$/,''))+'  →  '+(tgt/100).toFixed(tgt%100?1:0)+' HL';
+}
+function setResize(mult){document.getElementById('rzTarget').value=Math.round(getVol()*mult);updResizePreview();}
+function rzSetHL(hl){document.getElementById('rzTarget').value=hl*100;updResizePreview();}
+function roundQ(v,dec){const f=Math.pow(10,dec);return Math.round(v*f)/f;}
+function applyResize(){
+  const cur=getVol(),tgt=rzTargetVal(),k=tgt/cur;
+  if(!(k>0)){closeResize();return;}
+  if(state.mode==='biere'){
+    state.malts.forEach(m=>m.kg=roundQ(m.kg*k,2));
+    state.hops.forEach(h=>h.g=Math.round(h.g*k));
+    if(state.yeast)state.yeast.g=Math.round(state.yeast.g*k);
+  }else{
+    state.soft.forEach(s=>{const dec=(s.u==='kg')?2:(s.u==='L')?1:0;s.qty=roundQ(s.qty*k,dec);});
+  }
+  document.getElementById('pVol').value=tgt;
+  closeResize();renderRecipe();recalc();
+}
+
+/* ============================ CALCULATIONS ============================ */
+const LB=2.2046226, GAL=3.7854118;
+function getVol(){return Math.max(1,parseFloat(document.getElementById('pVol').value)||1);}
+function recalc(){
+  if(state.mode==='soft'){recalcSoft();return;}
+  const volL=getVol();
+  const eff=(parseFloat(document.getElementById('pEff').value)||0)/100;
+  const mash=parseFloat(document.getElementById('pMash').value)||66;
+  const volGal=volL/GAL;
+  const REF_PPG=37; // malt de base de référence (Pilsen)
+  let extractKg=0, extractFermKg=0, mcu=0, maltKg=0;
+  state.malts.forEach(m=>{
+    const csFactor=m.cs?0.35:1;                 // cold steep : faible apport en densité
+    const ex=m.kg*(m.ppg/REF_PPG)*eff*csFactor; // extrait (kg) — rendement brasserie extrait/malt
+    extractKg+=ex;
+    if(m.ferment!==0)extractFermKg+=ex;
+    mcu+=(m.kg*LB)*(m.ebc/1.97);                // couleur pleine, même en cold steep
+    maltKg+=m.kg;
+  });
+  const GU=(extractKg/volL)*385.6;              // 1 kg extrait / L ≈ 385.6 points de densité
+  const OG=1+GU/1000;
+  // couleur (Morey)
+  const mcuV=volGal>0?mcu/volGal:0;
+  const srm=1.4922*Math.pow(mcuV,0.6859);
+  const ebc=Math.max(0,srm*1.97);
+  // densité finale
+  let attU=state.yeast?state.yeast.attU:75;
+  let attAdj=attU-(mash-65)*1.3;                // empâtage haut => atténuation plus basse
+  attAdj=Math.max(45,Math.min(95,attAdj));
+  const GU_ferm=(extractFermKg/volL)*385.6;
+  const FG=1+(GU - GU_ferm*(attAdj/100))/1000;
+  const ABV=(OG-FG)*131.25;
+  // IBU (Tinseth)
+  let ibu=0;
+  const bigness=1.65*Math.pow(0.000125,(OG-1));
+  state.hops.forEach(h=>{
+    const btf=(1-Math.exp(-0.04*h.time))/4.15;
+    let util=bigness*btf;
+    if(h.form==='pellets')util*=1.10;
+    ibu+=(h.a/100)*h.g*1000*util/volL;
+  });
+
+  // ---- render stats
+  document.getElementById('ogVal').textContent=OG.toFixed(3);
+  document.getElementById('fgVal').textContent=FG.toFixed(3);
+  document.getElementById('abvVal').innerHTML=ABV.toFixed(1)+'<span class="unit">%</span>';
+  document.getElementById('ebcStat').innerHTML=Math.round(ebc)+'<span class="unit">EBC</span>';
+  document.getElementById('ibuVal').innerHTML=Math.round(ibu)+'<span class="unit">IBU</span>';
+  document.getElementById('ebcVal').textContent=Math.round(ebc)+' EBC ('+(ebc/1.97).toFixed(0)+' SRM)';
+  document.getElementById('colorName').textContent=colorName(ebc);
+  document.getElementById('hlHint').textContent=(volL/100).toFixed(volL%100?1:0)+' HL';
+  document.getElementById('maltTot').textContent=maltKg.toFixed(1)+' kg';
+  document.getElementById('grainTot').textContent='Plato ≈ '+sgToPlato(OG).toFixed(1)+' °P';
+  const hopG=state.hops.reduce((s,h)=>s+h.g,0);
+  document.getElementById('hopTot').textContent=hopG+' g';
+  // little BJCP-ish context
+  document.getElementById('ibuBj').textContent= ibu<20?'doux':ibu<40?'équilibré':ibu<60?'houblonné':'très amer';
+  document.getElementById('ogBj').textContent= sgToPlato(OG).toFixed(1)+' °P';
+  document.getElementById('ebcBj').textContent=colorName(ebc);
+  // glass
+  drawGlass(ebc);
+  saveAuto();
+}
+function computeSoft(){
+  const volL=getVol();
+  let sucreG=0,acideG=0,colorAcc=0;
+  state.soft.forEach(it=>{
+    const massG=(parseFloat(it.qty)||0)*(it.g||1);
+    sucreG+=massG*((it.sucre||0)/100);
+    acideG+=massG*((it.acide||0)/100);
+    colorAcc+=(it.ebc||0)*(massG/1000);
+  });
+  const sucreParL=volL>0?sucreG/volL:0;
+  const masseSol=volL*1000+sucreG;
+  const brix=masseSol>0?(sucreG/masseSol)*100:0;
+  const acideParL=volL>0?acideG/volL:0;
+  const ebcSoft=volL>0?colorAcc/volL:0;
+  return {volL,sucreG,sucreParL,brix,acideParL,ebcSoft};
+}
+function recalcSoft(){
+  const r=computeSoft();
+  document.getElementById('ogVal').innerHTML=r.sucreParL.toFixed(0)+'<span class="unit">g/L</span>';
+  document.getElementById('fgVal').innerHTML=r.brix.toFixed(1)+'<span class="unit">°Bx</span>';
+  document.getElementById('abvVal').innerHTML=r.acideParL.toFixed(1)+'<span class="unit">g/L</span>';
+  document.getElementById('ebcStat').innerHTML=Math.round(r.ebcSoft)+'<span class="unit">EBC</span>';
+  document.getElementById('ibuVal').innerHTML=(r.sucreG/1000).toFixed(2)+'<span class="unit">kg</span>';
+  document.getElementById('ogBj').textContent=r.brix.toFixed(1)+' °Brix';
+  document.getElementById('fgBj').textContent='';
+  document.getElementById('abvBj').textContent= r.acideParL<2?'peu acide':r.acideParL<5?'acidulé':'acide';
+  document.getElementById('ebcBj').textContent=colorName(r.ebcSoft);
+  document.getElementById('ibuBj').textContent='de sucre';
+  document.getElementById('ebcVal').textContent=Math.round(r.ebcSoft)+' EBC';
+  document.getElementById('colorName').textContent=colorName(r.ebcSoft);
+  document.getElementById('hlHint').textContent=(r.volL/100).toFixed(r.volL%100?1:0)+' HL';
+  document.getElementById('grainTot').textContent='Sucre ≈ '+r.sucreParL.toFixed(0)+' g/L';
+  document.getElementById('softTot').textContent=state.soft.length+' ingrédient'+(state.soft.length>1?'s':'');
+  drawGlass(r.ebcSoft);
+  saveAuto();
+}
+function sgToPlato(sg){return (-616.868+1111.14*sg-630.272*sg*sg+135.997*sg*sg*sg);}
+
+function drawGlass(ebc){
+  const hex=ebcHex(ebc);
+  const dark=ebc>60;
+  const svg=`
+  <defs><clipPath id="gclip"><path d="M9 4 h26 l-3 44 a5 5 0 0 1 -5 4 h-10 a5 5 0 0 1 -5 -4 z"/></clipPath></defs>
+  <path d="M9 4 h26 l-3 44 a5 5 0 0 1 -5 4 h-10 a5 5 0 0 1 -5 -4 z" fill="#fff" stroke="#2c2017" stroke-width="1.6"/>
+  <g clip-path="url(#gclip)">
+    <rect x="6" y="14" width="32" height="44" fill="${hex}"/>
+    <rect x="6" y="14" width="32" height="6" fill="rgba(255,255,255,.35)"/>
+  </g>
+  <path d="M9 4 h26 l-3 44 a5 5 0 0 1 -5 4 h-10 a5 5 0 0 1 -5 -4 z" fill="none" stroke="#2c2017" stroke-width="1.6"/>
+  <ellipse cx="22" cy="11" rx="14" ry="3.4" fill="#fff7e6" stroke="#2c2017" stroke-width="1.4"/>`;
+  document.getElementById('glassSvg').innerHTML=svg;
+}
+
+/* ============================ SAVE / LOAD ============================ */
+const LSKEY='brasserie_recettes_v1', AUTOKEY='brasserie_recette_auto';
+function snapshot(){
+  return {
+    name:val('rName'),style:val('rStyle'),notes:val('rNotes'),
+    vol:val('pVol'),eff:val('pEff'),mash:val('pMash'),
+    mode:state.mode,malts:state.malts,hops:state.hops,yeast:state.yeast,soft:state.soft,ts:Date.now()
+  };
+}
+function val(id){return document.getElementById(id).value;}
+function saveAuto(){try{localStorage.setItem(AUTOKEY,JSON.stringify(snapshot()));}catch(e){}}
+function loadInto(r){
+  document.getElementById('rName').value=r.name||"";
+  document.getElementById('rStyle').value=r.style||"";
+  document.getElementById('rNotes').value=r.notes||"";
+  document.getElementById('pVol').value=r.vol||2000;
+  document.getElementById('pEff').value=r.eff||77.85;
+  document.getElementById('pMash').value=r.mash||67;
+  state.mode=r.mode||'biere';
+  state.malts=r.malts||[];state.hops=r.hops||[];state.yeast=r.yeast||null;state.soft=r.soft||[];
+  switchMode(state.mode);
+}
+function saveRecipe(){
+  const name=val('rName').trim();
+  if(!name){alert("Donne un nom à la recette avant d'enregistrer.");document.getElementById('rName').focus();return;}
+  let all=getAll();const snap=snapshot();
+  const idx=all.findIndex(r=>r.name===name);
+  if(idx>=0)all[idx]=snap;else all.push(snap);
+  try{localStorage.setItem(LSKEY,JSON.stringify(all));alert("Recette « "+name+" » enregistrée.");}
+  catch(e){alert("Stockage impossible.");}
+}
+function getAll(){try{return JSON.parse(localStorage.getItem(LSKEY))||[];}catch(e){return[];}}
+function openSaved(){
+  const all=getAll().sort((a,b)=>b.ts-a.ts);const L=document.getElementById('savedList');
+  if(!all.length){L.innerHTML='<div class="empty">Aucune recette enregistrée.</div>';}
+  else{L.innerHTML=all.map((r,i)=>`<div class="saved-item">
+    <span class="si-nm">${r.name||'(sans nom)'}<small>${r.style||''} · ${new Date(r.ts).toLocaleDateString('fr-FR')}</small></span>
+    <button class="btn-ghost" onclick='loadSaved(${i})'>Ouvrir</button>
+    <button class="btn-ghost" style="color:#a23" onclick='delSaved(${i})'>Suppr.</button></div>`).join('');}
+  renderExamples();
+  document.getElementById('savedModal').classList.add('show');
+}
+function renderExamples(){
+  document.getElementById('exampleList').innerHTML=EXAMPLES.map((r,i)=>`<div class="saved-item">
+    <span class="si-nm">${r.name}<small>${r.style||''}</small></span>
+    <button class="btn-ghost" onclick='loadExample(${i})'>Charger</button></div>`).join('');
+}
+function loadExample(i){loadInto(JSON.parse(JSON.stringify(EXAMPLES[i])));closeSaved();}
+function closeSaved(){document.getElementById('savedModal').classList.remove('show');}
+function loadSaved(i){const all=getAll().sort((a,b)=>b.ts-a.ts);loadInto(all[i]);closeSaved();}
+function delSaved(i){const all=getAll().sort((a,b)=>b.ts-a.ts);if(confirm("Supprimer « "+all[i].name+" » ?")){
+  const full=getAll();const t=all[i].ts;localStorage.setItem(LSKEY,JSON.stringify(full.filter(r=>r.ts!==t)));openSaved();}}
+function newRecipe(){if(confirm("Nouvelle recette ? La composition actuelle non enregistrée sera perdue.")){
+  const m=state.mode;
+  state={mode:m,malts:[],hops:[],yeast:null,soft:[]};
+  ['rName','rStyle','rNotes'].forEach(id=>document.getElementById(id).value="");
+  document.getElementById('pVol').value=2000;document.getElementById('pEff').value=77.85;document.getElementById('pMash').value=67;
+  switchMode(m);}}
+
+/* ============================ BACKUP / IMPORT FICHIER ============================ */
+function backupData(){
+  const data={app:"Carnet de Brassage",version:1,exportDate:new Date().toISOString(),
+    recettes:getAll(),courante:snapshot()};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download="mes-recettes-brasserie-"+new Date().toISOString().slice(0,10)+".json";
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+}
+function importData(input){
+  const file=input.files&&input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      const incoming=Array.isArray(data)?data:(data.recettes||[]);
+      if(!incoming.length){alert("Aucune recette trouvée dans ce fichier.");input.value="";return;}
+      let all=getAll(),added=0,updated=0;
+      incoming.forEach(r=>{
+        if(!r||!r.name)return;
+        const idx=all.findIndex(x=>x.name===r.name);
+        if(idx>=0){all[idx]=r;updated++;}else{all.push(r);added++;}
+      });
+      localStorage.setItem(LSKEY,JSON.stringify(all));
+      alert("Import terminé : "+added+" ajoutée(s), "+updated+" mise(s) à jour.");
+      openSaved();
+    }catch(err){alert("Fichier illisible ou invalide.");}
+    input.value="";
+  };
+  reader.readAsText(file);
+}
+
+/* ============================ EXPORT PDF ============================ */
+function exportPDF(){
+  if(state.mode==='soft'){exportPDFSoft();return;}
+  const volL=getVol();
+  // recompute quickly for sheet values from displayed stats
+  const og=document.getElementById('ogVal').textContent;
+  const fg=document.getElementById('fgVal').textContent;
+  const abv=document.getElementById('abvVal').textContent.replace(/<[^>]+>/g,'');
+  const ebc=document.getElementById('ebcStat').textContent.replace('EBC','').trim();
+  const ibu=document.getElementById('ibuVal').textContent.replace('IBU','').trim();
+  const ebcN=parseFloat(ebc)||0;
+  const CG='<colgroup><col style="width:32%"><col style="width:20%"><col style="width:16%"><col style="width:14%"><col style="width:18%"></colgroup>';
+  let maltRows=state.malts.map(m=>{
+    const tot=state.malts.reduce((s,x)=>s+x.kg,0);
+    const pct=tot?(m.kg/tot*100).toFixed(1):0;
+    return `<tr><td><span class="ps-swatch" style="width:16px;background:${ebcHex(m.ebc)}"></span> ${m.n}</td>
+      <td>${m.b}</td><td class="num">${m.kg} kg</td><td class="num">${pct}%</td><td>${m.cs?'Cold steep':'Maische'}</td></tr>`;}).join('');
+  let hopRows=state.hops.map(h=>`<tr><td>${h.n}</td><td>${h.form==='pellets'?'Pellets':'Cônes'}</td><td class="num">${h.g} g</td><td class="num">${h.a}%</td><td class="num">${h.time} min</td></tr>`).join('');
+  const y=state.yeast;
+  const yeastRow=y?`<tr><td>${y.n}</td><td>${y.t}</td><td class="num">${y.g} g</td><td class="num">${y.attU}%</td><td>${y.tp}</td></tr>`:`<tr><td colspan="5">—</td></tr>`;
+  const sheet=`
+    <div class="ps-head">
+      <div><h1>${val('rName')||'Recette sans nom'}</h1>
+      <div class="ps-style">${val('rStyle')||'—'}</div></div>
+      <div class="ps-brand">Carnet de Brassage<br>${new Date().toLocaleDateString('fr-FR')}</div>
+    </div>
+    <div class="ps-stats">
+      <div class="ps-stat"><div class="l">Volume</div><div class="v">${(volL/100).toFixed(volL%100?1:0)} HL</div></div>
+      <div class="ps-stat"><div class="l">DI</div><div class="v">${og}</div></div>
+      <div class="ps-stat"><div class="l">DF</div><div class="v">${fg}</div></div>
+      <div class="ps-stat"><div class="l">Alcool</div><div class="v">${abv}</div></div>
+      <div class="ps-stat"><div class="l">Couleur</div><div class="v">${ebc} EBC<span class="ps-swatch" style="background:${ebcHex(ebcN)}"></span></div></div>
+      <div class="ps-stat"><div class="l">Amertume</div><div class="v">${ibu} IBU</div></div>
+    </div>
+    <div class="ps-sec"><h2>Malts &amp; grains</h2>
+      <table class="ps-table">${CG}<thead><tr><th>Ingrédient</th><th>Marque</th><th class="num">Quantité</th><th class="num">% grist</th><th>Process</th></tr></thead>
+      <tbody>${maltRows||'<tr><td colspan="5">—</td></tr>'}</tbody></table></div>
+    <div class="ps-sec"><h2>Houblons</h2>
+      <table class="ps-table">${CG}<thead><tr><th>Variété</th><th>Forme</th><th class="num">Quantité</th><th class="num">α</th><th class="num">Ébullition</th></tr></thead>
+      <tbody>${hopRows||'<tr><td colspan="5">—</td></tr>'}</tbody></table></div>
+    <div class="ps-sec"><h2>Levure</h2>
+      <table class="ps-table">${CG}<thead><tr><th>Souche</th><th>Type</th><th class="num">Quantité</th><th class="num">Atténuation</th><th>Température</th></tr></thead>
+      <tbody>${yeastRow}</tbody></table></div>
+    <div class="ps-sec"><h2>Paramètres</h2>
+      <div class="ps-params"><span>Rendement : ${val('pEff')} %</span><span>Empâtage : ${val('pMash')} °C</span><span>Volume : ${volL} L</span></div></div>
+    ${val('rNotes')?`<div class="ps-sec"><h2>Notes</h2><div class="ps-notes">${val('rNotes').replace(/</g,'&lt;')}</div></div>`:''}
+    <div class="ps-foot"><span>Carnet de Brassage — recette générée le ${new Date().toLocaleString('fr-FR')}</span><span>${val('rName')||''}</span></div>`;
+  document.getElementById('printSheet').innerHTML=sheet;
+  window.print();
+}
+
+function exportPDFSoft(){
+  const r=computeSoft();
+  const CG='<colgroup><col style="width:40%"><col style="width:20%"><col style="width:20%"><col style="width:20%"></colgroup>';
+  const rows=state.soft.map(s=>{
+    const apport=s.sucre?`${s.sucre}% sucre`:(s.acide?`${s.acide}% acide`:(s.ebc?`${s.ebc} EBC`:'—'));
+    return `<tr><td>${s.n}</td><td>${SOFTCAT[s.c]}</td><td class="num">${s.qty} ${s.u}</td><td>${apport}</td></tr>`;
+  }).join('');
+  const sheet=`
+    <div class="ps-head">
+      <div><h1>${val('rName')||'Recette sans nom'}</h1>
+      <div class="ps-style">${val('rStyle')||'Soft'}</div></div>
+      <div class="ps-brand">Carnet de Brassage<br>${new Date().toLocaleDateString('fr-FR')}</div>
+    </div>
+    <div class="ps-stats">
+      <div class="ps-stat"><div class="l">Volume</div><div class="v">${(r.volL/100).toFixed(r.volL%100?1:0)} HL</div></div>
+      <div class="ps-stat"><div class="l">Sucre</div><div class="v">${r.sucreParL.toFixed(0)} g/L</div></div>
+      <div class="ps-stat"><div class="l">°Brix</div><div class="v">${r.brix.toFixed(1)}</div></div>
+      <div class="ps-stat"><div class="l">Acidité</div><div class="v">${r.acideParL.toFixed(1)} g/L</div></div>
+      <div class="ps-stat"><div class="l">Couleur</div><div class="v">${Math.round(r.ebcSoft)} EBC<span class="ps-swatch" style="background:${ebcHex(r.ebcSoft)}"></span></div></div>
+      <div class="ps-stat"><div class="l">Sucre total</div><div class="v">${(r.sucreG/1000).toFixed(2)} kg</div></div>
+    </div>
+    <div class="ps-sec"><h2>Ingrédients</h2>
+      <table class="ps-table">${CG}<thead><tr><th>Ingrédient</th><th>Catégorie</th><th class="num">Quantité</th><th>Apport</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="4">—</td></tr>'}</tbody></table></div>
+    <div class="ps-sec"><h2>Paramètres</h2>
+      <div class="ps-params"><span>Volume : ${r.volL} L</span><span>Sucre : ${r.sucreParL.toFixed(0)} g/L</span><span>Acidité : ${r.acideParL.toFixed(1)} g/L</span></div></div>
+    ${val('rNotes')?`<div class="ps-sec"><h2>Notes</h2><div class="ps-notes">${val('rNotes').replace(/</g,'&lt;')}</div></div>`:''}
+    <div class="ps-foot"><span>Carnet de Brassage — recette générée le ${new Date().toLocaleString('fr-FR')}</span><span>${val('rName')||''}</span></div>`;
+  document.getElementById('printSheet').innerHTML=sheet;
+  window.print();
+}
+
+/* ============================ INIT ============================ */
+function seedDemo(){
+  // Pré-remplit la stout en cours pour démonstration (robuste si le catalogue a été modifié)
+  const mk=(b,n,kg,cs)=>{const m=MALTS.find(x=>x.b===b&&x.n===n);return m?{...m,kg:kg,cs:!!cs}:null;};
+  const oat=(()=>{const m=MALTS.find(x=>x.n==="Flocons d'avoine");return m?{...m,kg:25,cs:false}:null;})();
+  state.malts=[mk("Malteurop","Pilsen",260),mk("Crisp","Crystal 100",25),oat,
+    mk("Dingemans","Pealed Roasted Barley MD",20),mk("Dingemans","Chocolate MD",20,true)].filter(Boolean);
+  const nb=HOPS.find(h=>h.n==="Northern Brewer");
+  state.hops=nb?[{n:"Northern Brewer",a:nb.a,g:1500,time:60,form:'pellets'}]:[];
+  const ng=YEASTS.find(y=>y.n==="Nottingham");
+  state.yeast=ng?{...ng,g:2500,attU:ng.att}:null;
+  document.getElementById('rName').value="Stout Carambar";
+  document.getElementById('rStyle').value="Sweet / Chocolate Stout";
+  document.getElementById('rNotes').value="Empâtage 68°C. Cold steep du Malt Choco (3-4 L/kg, 12-24h) ajouté en fin d'ébullition.";
+  document.getElementById('pMash').value=68;
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  loadCatalog();
+  let auto=null;try{auto=JSON.parse(localStorage.getItem(AUTOKEY));}catch(e){}
+  if(auto && ((auto.malts&&auto.malts.length)||(auto.soft&&auto.soft.length))){
+    loadInto(auto);
+  }else{
+    seedDemo();
+    switchMode('biere');
+  }
+});
+</script>
+</body>
+</html>

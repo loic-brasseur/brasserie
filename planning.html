@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Planning">
+<meta name="theme-color" content="#FBF5EC">
+<title>Planning de production — Brasserie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FBF5EC; --bg2:#F4ECDC; --card:#FFFDF7; --ink:#1A1612; --ink-soft:#7A6F5C;
+    --amber:#B8842F; --copper:#A8541B; --gold:#CF982B; --green:#4F6B2F; --red:#A8392B;
+    --line:rgba(26,22,18,.12); --line-strong:rgba(26,22,18,.24);
+    --shadow:0 1px 2px rgba(26,22,18,.05),0 8px 24px rgba(26,22,18,.09);
+    --serif:'Fraunces',Georgia,serif; --sans:'Manrope',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);line-height:1.45;
+    background:radial-gradient(ellipse at top,#FBF5EC 0%,#F4ECDC 100%);background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;min-height:100vh;
+    padding:max(1rem,env(safe-area-inset-top)) max(.9rem,env(safe-area-inset-right)) max(2.5rem,env(safe-area-inset-bottom)) max(.9rem,env(safe-area-inset-left));}
+  .wrap{max-width:1280px;margin:0 auto}
+  header.app{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+    padding-bottom:1rem;margin-bottom:1.1rem;border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:.85rem}
+  .brand .mark{width:42px;height:42px;flex:0 0 auto;border-radius:11px;background:var(--ink);color:#FBF5EC;
+    display:grid;place-items:center;font-family:var(--serif);font-size:1.4rem;font-weight:600}
+  h1{font-family:var(--serif);font-weight:500;font-size:clamp(1.7rem,5vw,2.3rem);letter-spacing:-.02em;line-height:1;margin:0}
+  .sub{font-family:var(--serif);font-style:italic;font-size:.92rem;color:var(--ink-soft);margin-top:.3rem}
+  .toolbar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  button{font-family:var(--sans);cursor:pointer;border:none;border-radius:10px;font-size:.85rem;font-weight:600;
+    padding:.6rem .9rem;transition:transform .12s,box-shadow .2s,background .2s}
+  button:active{transform:translateY(1px)}
+  .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line-strong)}
+  .btn-ghost:hover{background:rgba(26,22,18,.05)}
+  .btn-primary{background:var(--ink);color:#FBF5EC}
+  .btn-primary:hover{box-shadow:0 6px 18px rgba(26,22,18,.25)}
+  .btn-copper{background:var(--copper);color:#fff}
+  .btn-copper:hover{box-shadow:0 6px 18px rgba(168,84,27,.32)}
+
+  .bar-controls{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+  .nav{display:flex;gap:.35rem;align-items:center}
+  .nav button{width:38px;height:38px;padding:0;display:grid;place-items:center;font-size:1.1rem;
+    border:1.5px solid var(--line-strong);background:transparent;border-radius:9px}
+  .nav .lbl{font-family:var(--serif);font-size:1rem;font-weight:600;min-width:150px;text-align:center}
+  .seg{display:flex;border:1.5px solid var(--line-strong);border-radius:9px;overflow:hidden}
+  .seg button{border:none;border-radius:0;background:transparent;padding:.5rem .75rem;font-size:.8rem}
+  .seg button.active{background:var(--ink);color:#FBF5EC}
+  .conflict-flag{margin-left:auto;font-size:.82rem;font-weight:700;color:var(--red);display:flex;align-items:center;gap:.4rem}
+  .conflict-flag.ok{color:var(--green)}
+
+  /* Gantt */
+  .gantt-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
+  .gantt{min-width:760px}
+  .grow{display:grid;align-items:stretch;border-bottom:1px solid var(--line)}
+  .grow:last-child{border-bottom:none}
+  .ghead{position:sticky;top:0;z-index:3;background:var(--bg2)}
+  .gcell{padding:.5rem .4rem;font-size:.7rem;text-align:center;color:var(--ink-soft);border-left:1px solid var(--line);
+    text-transform:uppercase;letter-spacing:.04em}
+  .gcell.today{background:rgba(184,132,47,.16);color:var(--amber);font-weight:700}
+  .rowlabel{position:sticky;left:0;z-index:2;background:var(--card);display:flex;align-items:center;gap:.5rem;
+    padding:.55rem .7rem;font-weight:700;font-size:.9rem;border-right:1px solid var(--line)}
+  .ghead .rowlabel{background:var(--bg2);font-family:var(--serif);font-weight:600}
+  .rowlabel .cap{font-family:var(--mono);font-size:.68rem;font-weight:500;color:var(--ink-soft)}
+  .track{position:relative;border-left:1px solid var(--line)}
+  .track .colsep{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
+  .track .todayline{position:absolute;top:0;bottom:0;width:2px;background:rgba(184,132,47,.55);z-index:1}
+  .bar{position:absolute;top:6px;bottom:6px;border-radius:8px;padding:.25rem .5rem;color:#fff;cursor:pointer;
+    overflow:hidden;display:flex;flex-direction:column;justify-content:center;z-index:2;box-shadow:0 2px 6px rgba(26,22,18,.18)}
+  .bar .bn{font-size:.78rem;font-weight:700;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar .bd{font-size:.64rem;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar.conflict{outline:2.5px solid var(--red);outline-offset:-1px}
+  .gantt .grow{position:relative}
+  .rowwrap{position:relative}
+
+  .legend{display:flex;gap:1rem;flex-wrap:wrap;margin-top:.8rem;font-size:.76rem;color:var(--ink-soft)}
+  .legend span{display:inline-flex;align-items:center;gap:.4rem}
+  .legend .sw{width:12px;height:12px;border-radius:4px}
+
+  /* upcoming list */
+  .upcoming{margin-top:1.6rem}
+  .upcoming h2{font-family:var(--serif);font-weight:600;font-size:1.15rem;margin:0 0 .6rem}
+  .ucard{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
+    padding:.7rem .9rem;margin-bottom:.55rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;cursor:pointer}
+  .ucard.conflict{border-color:rgba(168,57,43,.45)}
+  .ucard .swatch{width:10px;height:34px;border-radius:5px;flex:0 0 auto}
+  .ucard .uinfo{flex:1;min-width:150px}
+  .ucard .un{font-weight:700;font-size:1rem}
+  .ucard .ud{font-size:.76rem;color:var(--ink-soft);font-family:var(--mono);margin-top:.15rem}
+  .ucard .utank{font-family:var(--mono);font-size:.8rem;font-weight:600;color:var(--copper)}
+  .miniconf{font-size:.66rem;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.05em}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(26,22,18,.42);backdrop-filter:blur(3px);display:none;
+    align-items:flex-start;justify-content:center;padding:1.2rem;z-index:50;overflow:auto}
+  .overlay.show{display:flex}
+  .modal{background:var(--card);border-radius:18px;box-shadow:0 20px 60px rgba(26,22,18,.3);width:100%;max-width:440px;margin:auto;
+    border:1px solid var(--line);overflow:hidden;animation:pop .2s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+  .modal h2{font-family:var(--serif);font-weight:500;font-size:1.35rem;margin:0;padding:1.1rem 1.2rem .2rem}
+  .form{padding:1rem 1.2rem 1.2rem;display:flex;flex-direction:column;gap:.8rem}
+  label{display:flex;flex-direction:column;gap:.3rem;font-size:.74rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:600}
+  .input{font-family:var(--mono);font-size:1rem;padding:.6rem .7rem;background:rgba(255,255,255,.7);border:1px solid #E0D4BE;
+    border-radius:9px;color:var(--ink);width:100%;min-height:42px;-webkit-appearance:none;appearance:none}
+  .input:focus{outline:none;border-color:var(--amber);background:#fff;box-shadow:0 0 0 3px rgba(184,132,47,.12)}
+  select.input{font-family:var(--sans);font-weight:600}
+  .two{display:flex;gap:.6rem}.two>label{flex:1}
+  .swatches{display:flex;gap:.4rem;flex-wrap:wrap}
+  .swatches .s{width:28px;height:28px;border-radius:7px;cursor:pointer;border:2px solid transparent}
+  .swatches .s.sel{border-color:var(--ink);transform:scale(1.1)}
+  .conflict-note{font-size:.78rem;color:var(--red);font-weight:600;font-family:var(--sans);text-transform:none;letter-spacing:0;display:none}
+  .conflict-note.show{display:block}
+  .modal-actions{display:flex;gap:.5rem;padding:0 1.2rem 1.2rem}
+  .modal-actions button{flex:1}
+  .danger{color:var(--red);background:transparent;border:1.5px solid rgba(168,57,43,.4)}
+  .danger:hover{background:rgba(168,57,43,.07)}
+  footer{margin-top:2rem;text-align:center;color:var(--ink-soft);font-size:.74rem}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <div class="brand">
+      <div class="mark">P</div>
+      <div>
+        <h1>Planning</h1>
+        <div class="sub">Occupation des cuves &amp; brassins à venir</div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button class="btn-copper" id="btnAdd">+ Brassin</button>
+      <button class="btn-ghost" id="btnExport">Exporter</button>
+      <button class="btn-ghost" id="btnImport">Importer</button>
+      <input type="file" id="fileInput" accept="application/json" class="hidden">
+    </div>
+  </header>
+
+  <div class="bar-controls">
+    <div class="nav">
+      <button id="prev">‹</button>
+      <div class="lbl" id="rangeLbl"></div>
+      <button id="next">›</button>
+      <button class="btn-ghost" id="today" style="width:auto;height:38px;padding:0 .8rem">Aujourd'hui</button>
+    </div>
+    <div class="seg" id="zoom">
+      <button data-w="6">6 sem.</button>
+      <button data-w="10" class="active">10 sem.</button>
+      <button data-w="16">16 sem.</button>
+    </div>
+    <div class="conflict-flag ok" id="conflictFlag"></div>
+  </div>
+
+  <div class="gantt-scroll">
+    <div class="gantt" id="gantt"></div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:rgba(184,132,47,.55)"></span>Aujourd'hui</span>
+    <span><span class="sw" style="background:var(--red)"></span>Conflit (2 brassins sur la même cuve)</span>
+    <span>Astuce : touche une barre pour la modifier.</span>
+  </div>
+
+  <div class="upcoming">
+    <h2>Brassins à venir</h2>
+    <div id="upList"></div>
+  </div>
+
+  <footer>Données enregistrées sur cet appareil (localStorage). Pense à exporter pour sauvegarder.</footer>
+</div>
+
+<datalist id="beerList"></datalist>
+
+<!-- Modal -->
+<div class="overlay" id="ov">
+  <div class="modal">
+    <h2 id="mTitle">Planifier un brassin</h2>
+    <div class="form">
+      <label>Recette / nom du brassin
+        <input class="input" id="f_name" list="beerList" placeholder="Choisis ou tape un nom">
+      </label>
+      <div class="two">
+        <label>Cuve
+          <select class="input" id="f_tank"></select>
+        </label>
+        <label>Style (optionnel)
+          <input class="input" id="f_style" placeholder="ex. IPA">
+        </label>
+      </div>
+      <div class="two">
+        <label>Mise en cuve
+          <input class="input" id="f_start" type="date">
+        </label>
+        <label>Durée (jours)
+          <input class="input" id="f_days" type="number" min="1" step="1" value="14">
+        </label>
+      </div>
+      <label>Couleur
+        <div class="swatches" id="swatches"></div>
+      </label>
+      <div class="conflict-note" id="confNote"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="danger hidden" id="mDelete">Supprimer</button>
+      <button class="btn-ghost" id="mCancel">Annuler</button>
+      <button class="btn-copper" id="mSave">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORE='brasserie_planning_v1';
+const TANKS=[
+  {id:'c1',name:'Cuve 1',cap:60},{id:'c2',name:'Cuve 2',cap:60},
+  {id:'c3',name:'Cuve 3',cap:60},{id:'c4',name:'Cuve 4',cap:60},
+  {id:'c5',name:'Cuve 5',cap:20},
+  {id:'c6',name:'Cuve 6',cap:16},{id:'c7',name:'Cuve 7',cap:16}
+];
+const COLORS=['#A8541B','#4F6B2F','#B8842F','#7A6485','#3E6B7A','#A8392B','#8A6D3B','#5E7A4F'];
+const DAY=86400000;
+function uid(){return 'b'+Math.random().toString(36).slice(2,9);}
+function todayMid(){const d=new Date();d.setHours(0,0,0,0);return d;}
+function iso(d){return new Date(d).toISOString().slice(0,10);}
+function parse(s){return new Date(s+'T00:00:00');}
+function addDays(d,n){return new Date(+d+n*DAY);}
+function startOfWeek(d){const x=new Date(d);const day=(x.getDay()+6)%7;x.setHours(0,0,0,0);return addDays(x,-day);} // Monday
+
+const BEERS=["Bière Valmy blonde BIO","Bière Valmy blanche BIO","Bière Valmy ambrée BIO","Bière Valmy IPA BIO","Bière Valmy Triple BIO","Bière Valmy Framboise BIO","Bière Valmy Noël BIO","Bière Orgemont blonde BIO","Bière Orgemont brune BIO","Bière Orgemont triple BIO","Bière Orgemont Saison BIO","Bière Orgemont IPA BIO","Bière Rèmes","Bière Tutti Berry BIO","Bière Trouble Jeu BIO","Bière Bouquet Final BIO","Bière Crème de la Crème BIO","Bière Légionnaire Blonde","Bière Légionnaire IPA","Bière Bayard / Baraquine blonde","Bière Bayard / Baraquine triple","Biére Muizon"];
+document.getElementById('beerList').innerHTML=BEERS.map(b=>`<option value="${b.replace(/"/g,'&quot;')}">`).join('');
+let state=load();
+let weeks=10;
+let viewStart=startOfWeek(todayMid());
+let editId=null, pickColor=COLORS[0];
+
+function seed(){
+  const mon=startOfWeek(todayMid());
+  return {brews:[
+    {id:uid(),name:'Blonde maison',style:'Pale Ale',tank:'c1',start:iso(addDays(mon,-2)),days:18,color:'#CF982B'},
+    {id:uid(),name:'IPA d\'été',style:'IPA',tank:'c2',start:iso(addDays(mon,3)),days:21,color:'#4F6B2F'},
+    {id:uid(),name:'Ambrée',style:'Amber',tank:'c5',start:iso(addDays(mon,1)),days:16,color:'#A8541B'},
+    {id:uid(),name:'Saison',style:'Saison',tank:'c6',start:iso(addDays(mon,7)),days:24,color:'#7A6485'},
+    {id:uid(),name:'Stout',style:'Stout',tank:'c2',start:iso(addDays(mon,20)),days:28,color:'#3E6B7A'}
+  ]};
+}
+function load(){try{const s=JSON.parse(localStorage.getItem(STORE));if(s&&s.brews)return s;}catch(e){}return seed();}
+function save(){localStorage.setItem(STORE,JSON.stringify(state));}
+function tank(id){return TANKS.find(t=>t.id===id);}
+function brewEnd(b){return addDays(parse(b.start),Number(b.days));} // exclusive
+function overlaps(a,b){return parse(a.start)<brewEnd(b)&&parse(b.start)<brewEnd(a);}
+
+function conflictSet(){
+  const set=new Set();
+  for(let i=0;i<state.brews.length;i++)for(let j=i+1;j<state.brews.length;j++){
+    const a=state.brews[i],b=state.brews[j];
+    if(a.tank===b.tank&&overlaps(a,b)){set.add(a.id);set.add(b.id);}
+  }
+  return set;
+}
+
+function render(){
+  const conf=conflictSet();
+  const viewEnd=addDays(viewStart,weeks*7);
+  const totalDays=weeks*7;
+  // range label
+  const fmt=d=>new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+  document.getElementById('rangeLbl').textContent=fmt(viewStart)+' – '+fmt(addDays(viewEnd,-1));
+  // conflict flag
+  const cf=document.getElementById('conflictFlag');
+  if(conf.size){cf.className='conflict-flag';cf.innerHTML='⚠ '+(conf.size)+' brassin(s) en conflit de cuve';}
+  else{cf.className='conflict-flag ok';cf.innerHTML='✓ Aucun conflit de cuve';}
+
+  const colW=`minmax(0,1fr)`;
+  const template=`160px repeat(${weeks}, ${colW})`;
+  const today=todayMid();
+  const todayPct=(today>=viewStart&&today<viewEnd)?((+today-+viewStart)/(totalDays*DAY))*100:null;
+
+  let html='';
+  // header
+  html+=`<div class="grow ghead" style="grid-template-columns:${template}">
+    <div class="rowlabel">Cuve</div>`;
+  for(let w=0;w<weeks;w++){
+    const ws=addDays(viewStart,w*7);
+    const isToday=today>=ws&&today<addDays(ws,7);
+    html+=`<div class="gcell ${isToday?'today':''}">S${weekNum(ws)}<br>${fmt(ws)}</div>`;
+  }
+  html+=`</div>`;
+
+  // rows
+  TANKS.forEach(t=>{
+    html+=`<div class="grow" style="grid-template-columns:${template}">
+      <div class="rowlabel">${t.name} <span class="cap">${t.cap}HL</span></div>
+      <div class="track" style="grid-column:2 / span ${weeks}">`;
+    // column separators
+    for(let w=1;w<weeks;w++)html+=`<div class="colsep" style="left:${(w/weeks*100).toFixed(4)}%"></div>`;
+    if(todayPct!=null)html+=`<div class="todayline" style="left:${todayPct.toFixed(3)}%"></div>`;
+    // bars for this tank
+    state.brews.filter(b=>b.tank===t.id).forEach(b=>{
+      const bs=parse(b.start),be=brewEnd(b);
+      if(be<=viewStart||bs>=viewEnd)return; // outside view
+      const clampS=Math.max(+bs,+viewStart),clampE=Math.min(+be,+viewEnd);
+      const left=((clampS-+viewStart)/(totalDays*DAY))*100;
+      const width=((clampE-clampS)/(totalDays*DAY))*100;
+      const isConf=conf.has(b.id);
+      html+=`<div class="bar ${isConf?'conflict':''}" data-id="${b.id}"
+        style="left:${left.toFixed(3)}%;width:calc(${width.toFixed(3)}% - 4px);background:${b.color||'#A8541B'}">
+        <div class="bn">${b.name}</div><div class="bd">${b.days}j${b.style?' · '+b.style:''}</div>
+      </div>`;
+    });
+    html+=`</div></div>`;
+  });
+  document.getElementById('gantt').innerHTML=html;
+
+  // upcoming list (sorted by start, only those ending in the future)
+  const now=todayMid();
+  const up=[...state.brews].filter(b=>brewEnd(b)>=now).sort((a,b)=>parse(a.start)-parse(b.start));
+  document.getElementById('upList').innerHTML=up.length?up.map(b=>{
+    const isConf=conf.has(b.id);
+    const d=Math.round((parse(b.start)-now)/DAY);
+    const when=d>0?`dans ${d} j`:(d===0?'aujourd\'hui':`en cours (${-d} j)`);
+    return `<div class="ucard ${isConf?'conflict':''}" data-id="${b.id}">
+      <div class="swatch" style="background:${b.color}"></div>
+      <div class="uinfo"><div class="un">${b.name}</div>
+        <div class="ud">${new Date(parse(b.start)).toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'})} → ${new Date(brewEnd(b)).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})} · ${b.days} j · ${when}</div></div>
+      <div class="utank">${tank(b.tank)?.name||'—'}</div>
+      ${isConf?'<div class="miniconf">⚠ conflit</div>':''}
+    </div>`;
+  }).join(''):'<div class="ud" style="color:var(--ink-soft);font-style:italic">Aucun brassin planifié. Clique sur « + Brassin ».</div>';
+}
+function weekNum(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()+3-((x.getDay()+6)%7));
+  const w1=new Date(x.getFullYear(),0,4);return 1+Math.round(((x-w1)/DAY-3+((w1.getDay()+6)%7))/7);}
+
+// ---- modal ----
+const ov=document.getElementById('ov');
+function buildSwatches(sel){
+  document.getElementById('swatches').innerHTML=COLORS.map(c=>
+    `<div class="s ${c===sel?'sel':''}" data-c="${c}" style="background:${c}"></div>`).join('');
+}
+function checkConflictPreview(){
+  const tankId=document.getElementById('f_tank').value;
+  const start=document.getElementById('f_start').value;
+  const days=Number(document.getElementById('f_days').value)||1;
+  if(!start)return;
+  const cand={start,days,tank:tankId,id:editId};
+  const hit=state.brews.find(b=>b.id!==editId&&b.tank===tankId&&overlaps(b,cand));
+  const note=document.getElementById('confNote');
+  if(hit){note.classList.add('show');note.textContent='⚠ Chevauche « '+hit.name+' » sur '+(tank(tankId)?.name)+'.';}
+  else note.classList.remove('show');
+}
+function openModal(id){
+  editId=id;const b=id?state.brews.find(x=>x.id===id):null;
+  document.getElementById('mTitle').textContent=b?'Modifier le brassin':'Planifier un brassin';
+  document.getElementById('f_tank').innerHTML=TANKS.map(t=>`<option value="${t.id}">${t.name} — ${t.cap} HL</option>`).join('');
+  document.getElementById('f_name').value=b?.name||'';
+  document.getElementById('f_style').value=b?.style||'';
+  document.getElementById('f_tank').value=b?.tank||'c1';
+  document.getElementById('f_start').value=b?.start||iso(todayMid());
+  document.getElementById('f_days').value=b?.days||14;
+  pickColor=b?.color||COLORS[Math.floor(Math.random()*COLORS.length)];
+  buildSwatches(pickColor);
+  document.getElementById('mDelete').classList.toggle('hidden',!b);
+  document.getElementById('confNote').classList.remove('show');
+  ov.classList.add('show');
+  checkConflictPreview();
+  setTimeout(()=>document.getElementById('f_name').focus(),50);
+}
+function closeModal(){ov.classList.remove('show');editId=null;}
+document.getElementById('mCancel').onclick=closeModal;
+ov.addEventListener('click',e=>{if(e.target===ov)closeModal();});
+document.getElementById('swatches').addEventListener('click',e=>{
+  const s=e.target.closest('.s');if(!s)return;pickColor=s.dataset.c;buildSwatches(pickColor);
+});
+['f_tank','f_start','f_days'].forEach(id=>document.getElementById(id).addEventListener('input',checkConflictPreview));
+document.getElementById('mSave').onclick=()=>{
+  const name=document.getElementById('f_name').value.trim();
+  if(!name){document.getElementById('f_name').focus();return;}
+  const data={name,style:document.getElementById('f_style').value.trim(),
+    tank:document.getElementById('f_tank').value,
+    start:document.getElementById('f_start').value,
+    days:Math.max(1,Number(document.getElementById('f_days').value)||1),
+    color:pickColor};
+  if(editId)Object.assign(state.brews.find(b=>b.id===editId),data);
+  else state.brews.push({id:uid(),...data});
+  save();render();closeModal();
+};
+document.getElementById('mDelete').onclick=()=>{
+  if(confirm('Supprimer ce brassin du planning ?')){state.brews=state.brews.filter(b=>b.id!==editId);save();render();closeModal();}
+};
+document.getElementById('btnAdd').onclick=()=>openModal(null);
+document.getElementById('gantt').addEventListener('click',e=>{const bar=e.target.closest('.bar');if(bar)openModal(bar.dataset.id);});
+document.getElementById('upList').addEventListener('click',e=>{const c=e.target.closest('.ucard');if(c)openModal(c.dataset.id);});
+
+// ---- nav & zoom ----
+document.getElementById('prev').onclick=()=>{viewStart=addDays(viewStart,-7*Math.max(1,Math.round(weeks/2)));render();};
+document.getElementById('next').onclick=()=>{viewStart=addDays(viewStart,7*Math.max(1,Math.round(weeks/2)));render();};
+document.getElementById('today').onclick=()=>{viewStart=startOfWeek(todayMid());render();};
+document.getElementById('zoom').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-w]');if(!b)return;
+  weeks=Number(b.dataset.w);
+  [...document.querySelectorAll('#zoom button')].forEach(x=>x.classList.toggle('active',x===b));
+  render();
+});
+
+// ---- import / export ----
+document.getElementById('btnExport').onclick=()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='planning_'+iso(todayMid())+'.json';a.click();
+};
+document.getElementById('btnImport').onclick=()=>document.getElementById('fileInput').click();
+document.getElementById('fileInput').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{const s=JSON.parse(rd.result);if(s.brews){state=s;save();render();}}catch(err){alert('Fichier invalide');}};
+  rd.readAsText(f);
+};
+
+render();
+</script>
+</body>
+</html>

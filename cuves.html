@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Suivi des cuves">
+<meta name="theme-color" content="#FBF5EC">
+<title>Suivi des cuves — Fermentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FBF5EC; --bg2:#F4ECDC; --card:#FFFDF7; --ink:#1A1612; --ink-soft:#7A6F5C;
+    --amber:#B8842F; --copper:#A8541B; --gold:#CF982B; --green:#4F6B2F; --red:#A8392B;
+    --line:rgba(26,22,18,.12); --line-strong:rgba(26,22,18,.24);
+    --shadow:0 1px 2px rgba(26,22,18,.05),0 8px 24px rgba(26,22,18,.09);
+    --serif:'Fraunces',Georgia,serif; --sans:'Manrope',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:var(--sans);color:var(--ink);line-height:1.45;
+    background:radial-gradient(ellipse at top,#FBF5EC 0%,#F4ECDC 100%);
+    background-attachment:fixed;-webkit-font-smoothing:antialiased;min-height:100vh;
+    padding:max(1rem,env(safe-area-inset-top)) max(.9rem,env(safe-area-inset-right)) max(2.5rem,env(safe-area-inset-bottom)) max(.9rem,env(safe-area-inset-left));
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+  header.app{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+    padding-bottom:1rem;margin-bottom:1.25rem;border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:.85rem}
+  .brand .mark{width:42px;height:42px;flex:0 0 auto;border-radius:11px;background:var(--ink);color:#FBF5EC;
+    display:grid;place-items:center;font-family:var(--serif);font-size:1.4rem;font-weight:600}
+  h1{font-family:var(--serif);font-weight:500;font-size:clamp(1.7rem,5vw,2.3rem);letter-spacing:-.02em;line-height:1;margin:0}
+  .sub{font-family:var(--serif);font-style:italic;font-size:.92rem;color:var(--ink-soft);margin-top:.3rem}
+  .toolbar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  button{font-family:var(--sans);cursor:pointer;border:none;border-radius:10px;font-size:.85rem;font-weight:600;
+    padding:.6rem .9rem;transition:transform .12s,box-shadow .2s,background .2s}
+  button:active{transform:translateY(1px)}
+  .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line-strong)}
+  .btn-ghost:hover{background:rgba(26,22,18,.05)}
+  .btn-primary{background:var(--ink);color:#FBF5EC}
+  .btn-primary:hover{box-shadow:0 6px 18px rgba(26,22,18,.25)}
+  .btn-copper{background:var(--copper);color:#fff}
+  .btn-copper:hover{box-shadow:0 6px 18px rgba(168,84,27,.32)}
+
+  /* Summary strip */
+  .summary{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1.25rem}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:.7rem .95rem;box-shadow:var(--shadow);min-width:110px}
+  .stat .n{font-family:var(--serif);font-size:1.55rem;line-height:1;font-weight:500}
+  .stat .l{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);margin-top:.35rem}
+
+  /* Grid */
+  .grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(310px,1fr))}
+  .cuve{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    overflow:hidden;display:flex;flex-direction:column;position:relative}
+  .cuve .top{padding:.85rem 1rem;display:flex;align-items:flex-start;justify-content:space-between;gap:.6rem;
+    border-bottom:1px solid var(--line)}
+  .cuve.occupee .top{background:linear-gradient(180deg,rgba(207,152,43,.10),transparent)}
+  .cuve-name{font-family:var(--serif);font-size:1.15rem;font-weight:600;line-height:1.1;display:flex;align-items:baseline;gap:.45rem}
+  .cuve-name .cap{font-family:var(--mono);font-size:.72rem;font-weight:500;color:var(--ink-soft)}
+  .badge{font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:.28rem .5rem;border-radius:999px;white-space:nowrap}
+  .badge.libre{background:rgba(79,107,47,.12);color:var(--green)}
+  .badge.ferm{background:rgba(184,132,47,.16);color:var(--amber)}
+  .badge.prete{background:rgba(168,84,27,.14);color:var(--copper)}
+  .badge.retard{background:rgba(168,57,43,.14);color:var(--red)}
+
+  .body{padding:.85rem 1rem 1rem;flex:1;display:flex;flex-direction:column;gap:.7rem}
+  .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.6rem;padding:1.4rem .5rem;color:var(--ink-soft);text-align:center;flex:1}
+  .empty .ic{font-size:1.6rem;opacity:.5}
+
+  .recipe{font-family:var(--serif);font-size:1.05rem;font-weight:600;line-height:1.15}
+  .meta{font-size:.78rem;color:var(--ink-soft)}
+  .meta .style{color:var(--amber);font-weight:600}
+
+  .gauge{height:9px;border-radius:6px;background:rgba(26,22,18,.08);overflow:hidden}
+  .gauge > span{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--gold),var(--copper));transition:width .4s}
+  .figs{display:flex;gap:.5rem;flex-wrap:wrap}
+  .fig{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:.45rem .6rem;flex:1;min-width:72px}
+  .fig .v{font-family:var(--mono);font-size:1rem;font-weight:600;line-height:1}
+  .fig .k{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-top:.3rem}
+  .fig .v small{font-size:.62rem;color:var(--ink-soft);font-weight:500}
+
+  .spark{width:100%;height:46px;display:block}
+  .dates{display:flex;justify-content:space-between;font-size:.72rem;color:var(--ink-soft);gap:.5rem;flex-wrap:wrap}
+  .dates b{color:var(--ink);font-weight:600}
+
+  .row-actions{display:flex;gap:.45rem;flex-wrap:wrap;margin-top:auto;padding-top:.3rem}
+  .row-actions button{flex:1;font-size:.78rem;padding:.5rem .6rem}
+  .mini{background:transparent;border:1.5px solid var(--line-strong);color:var(--ink)}
+  .mini:hover{background:rgba(26,22,18,.05)}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(26,22,18,.42);backdrop-filter:blur(3px);display:none;
+    align-items:flex-start;justify-content:center;padding:1.2rem;z-index:50;overflow:auto}
+  .overlay.show{display:flex}
+  .modal{background:var(--card);border-radius:18px;box-shadow:0 20px 60px rgba(26,22,18,.3);width:100%;max-width:460px;margin:auto;
+    border:1px solid var(--line);overflow:hidden;animation:pop .2s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+  .modal h2{font-family:var(--serif);font-weight:500;font-size:1.35rem;margin:0;padding:1.1rem 1.2rem .2rem}
+  .modal .mhint{padding:0 1.2rem;color:var(--ink-soft);font-size:.82rem;font-style:italic;font-family:var(--serif)}
+  .form{padding:1rem 1.2rem 1.2rem;display:flex;flex-direction:column;gap:.8rem}
+  label{display:flex;flex-direction:column;gap:.3rem;font-size:.74rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:600}
+  .input{font-family:var(--mono);font-size:1rem;padding:.6rem .7rem;background:rgba(255,255,255,.7);border:1px solid #E0D4BE;border-radius:9px;color:var(--ink);width:100%;min-height:42px;-webkit-appearance:none;appearance:none}
+  .input:focus{outline:none;border-color:var(--amber);background:#fff;box-shadow:0 0 0 3px rgba(184,132,47,.12)}
+  select.input{font-family:var(--sans);font-weight:600}
+  .two{display:flex;gap:.6rem}.two > label{flex:1}
+  .modal-actions{display:flex;gap:.5rem;padding:0 1.2rem 1.2rem}
+  .modal-actions button{flex:1}
+  .danger{color:var(--red);background:transparent;border:1.5px solid rgba(168,57,43,.4)}
+  .danger:hover{background:rgba(168,57,43,.07)}
+
+  /* Readings list */
+  .readings{display:flex;flex-direction:column;gap:.4rem;max-height:230px;overflow:auto;padding:0 1.2rem 1rem}
+  .rd{display:flex;justify-content:space-between;align-items:center;gap:.5rem;font-family:var(--mono);font-size:.85rem;
+    padding:.5rem .65rem;background:var(--bg);border:1px solid var(--line);border-radius:9px}
+  .rd .d{color:var(--ink-soft);font-size:.76rem}
+  .rd button{padding:.25rem .45rem;font-size:.7rem;background:transparent;color:var(--red);border:none}
+  .empty-rd{padding:0 1.2rem 1rem;color:var(--ink-soft);font-style:italic;font-family:var(--serif);font-size:.85rem}
+
+  footer{margin-top:2rem;text-align:center;color:var(--ink-soft);font-size:.74rem}
+  .hidden{display:none!important}
+  @media(max-width:560px){.summary{gap:.5rem}.stat{flex:1;min-width:0}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <div class="brand">
+      <div class="mark">F</div>
+      <div>
+        <h1>Suivi des cuves</h1>
+        <div class="sub">Fermentation &amp; maturation — par lot</div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button class="btn-ghost" id="btnExport">Exporter</button>
+      <button class="btn-ghost" id="btnImport">Importer</button>
+      <input type="file" id="fileInput" accept="application/json" class="hidden">
+    </div>
+  </header>
+
+  <div class="summary" id="summary"></div>
+  <div class="grid" id="grid"></div>
+
+  <footer>Données enregistrées sur cet appareil (localStorage). Pense à exporter pour sauvegarder.</footer>
+</div>
+
+<datalist id="beerList"></datalist>
+
+<!-- Modal brassin -->
+<div class="overlay" id="batchOverlay">
+  <div class="modal">
+    <h2 id="batchTitle">Nouveau brassin</h2>
+    <div class="mhint" id="batchHint"></div>
+    <div class="form">
+      <label>Recette / nom du brassin
+        <input class="input" id="f_recipe" list="beerList" placeholder="Choisis ou tape un nom">
+      </label>
+      <div class="two">
+        <label>Style
+          <input class="input" id="f_style" placeholder="ex. Pale Ale">
+        </label>
+        <label>N° de lot
+          <input class="input" id="f_lot" placeholder="ex. 2026-014">
+        </label>
+      </div>
+      <div class="two">
+        <label>Volume réel (HL)
+          <input class="input" id="f_volume" type="number" step="0.5" inputmode="decimal">
+        </label>
+        <label>Densité initiale (°P)
+          <input class="input" id="f_og" type="number" step="0.1" inputmode="decimal" placeholder="ex. 12.5">
+        </label>
+      </div>
+      <div class="two">
+        <label>Mise en cuve
+          <input class="input" id="f_start" type="date">
+        </label>
+        <label>Fin ferm. prévue
+          <input class="input" id="f_end" type="date">
+        </label>
+      </div>
+      <label>Embouteillage / enfûtage prévu
+        <input class="input" id="f_pack" type="date">
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="batchCancel">Annuler</button>
+      <button class="btn-copper" id="batchSave">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal relevé -->
+<div class="overlay" id="readOverlay">
+  <div class="modal">
+    <h2>Relevés</h2>
+    <div class="mhint" id="readHint"></div>
+    <div class="form" style="padding-bottom:.6rem">
+      <div class="two">
+        <label>Date
+          <input class="input" id="r_date" type="date">
+        </label>
+        <label>Densité (°P)
+          <input class="input" id="r_plato" type="number" step="0.1" inputmode="decimal" placeholder="ex. 4.2">
+        </label>
+        <label>Temp. (°C)
+          <input class="input" id="r_temp" type="number" step="0.5" inputmode="decimal" placeholder="ex. 19">
+        </label>
+      </div>
+      <button class="btn-copper" id="readAdd" style="align-self:flex-start">+ Ajouter le relevé</button>
+    </div>
+    <div class="readings" id="readList"></div>
+    <div class="empty-rd hidden" id="readEmpty">Aucun relevé pour l'instant.</div>
+    <div class="modal-actions">
+      <button class="btn-primary" id="readClose">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORE='brasserie_cuves_v1';
+const DEFAULT_TANKS=[
+  {id:'c1',name:'Cuve 1',cap:60},{id:'c2',name:'Cuve 2',cap:60},
+  {id:'c3',name:'Cuve 3',cap:60},{id:'c4',name:'Cuve 4',cap:60},
+  {id:'c5',name:'Cuve 5',cap:20},
+  {id:'c6',name:'Cuve 6',cap:16},{id:'c7',name:'Cuve 7',cap:16}
+];
+const BEERS=["Bière Valmy blonde BIO","Bière Valmy blanche BIO","Bière Valmy ambrée BIO","Bière Valmy IPA BIO","Bière Valmy Triple BIO","Bière Valmy Framboise BIO","Bière Valmy Noël BIO","Bière Orgemont blonde BIO","Bière Orgemont brune BIO","Bière Orgemont triple BIO","Bière Orgemont Saison BIO","Bière Orgemont IPA BIO","Bière Rèmes","Bière Tutti Berry BIO","Bière Trouble Jeu BIO","Bière Bouquet Final BIO","Bière Crème de la Crème BIO","Bière Légionnaire Blonde","Bière Légionnaire IPA","Bière Bayard / Baraquine blonde","Bière Bayard / Baraquine triple","Biére Muizon"];
+document.getElementById('beerList').innerHTML=BEERS.map(b=>`<option value="${b.replace(/"/g,'&quot;')}">`).join('');
+let state=load();
+let editId=null, readId=null;
+
+function load(){
+  try{const s=JSON.parse(localStorage.getItem(STORE));if(s&&s.tanks)return s;}catch(e){}
+  return {tanks:DEFAULT_TANKS.map(t=>({...t,batch:null}))};
+}
+function save(){localStorage.setItem(STORE,JSON.stringify(state));}
+function tank(id){return state.tanks.find(t=>t.id===id);}
+const todayStr=()=>new Date().toISOString().slice(0,10);
+function fmtDate(s){if(!s)return '—';const d=new Date(s+'T00:00:00');return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});}
+function daysBetween(a,b){return Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000);}
+
+function status(t){
+  if(!t.batch)return {key:'libre',label:'Libre'};
+  const today=todayStr();
+  const end=t.batch.end;
+  if(end){
+    const d=daysBetween(today,end);
+    if(d<0)return {key:'retard',label:'À traiter'};
+    if(d===0)return {key:'prete',label:'Prête'};
+  }
+  return {key:'ferm',label:'En ferment.'};
+}
+
+function lastReading(b){
+  if(!b||!b.readings||!b.readings.length)return null;
+  return [...b.readings].sort((x,y)=>x.date<y.date?-1:1).slice(-1)[0];
+}
+
+function sparkline(readings){
+  const pts=[...readings].filter(r=>r.plato!=null).sort((a,b)=>a.date<b.date?-1:1);
+  if(pts.length<2)return '';
+  const w=260,h=46,pad=4;
+  const vals=pts.map(p=>p.plato);
+  const min=Math.min(...vals),max=Math.max(...vals);
+  const range=(max-min)||1;
+  const step=(w-pad*2)/(pts.length-1);
+  const coords=pts.map((p,i)=>{
+    const x=pad+i*step;
+    const y=pad+(h-pad*2)*((p.plato-min)/range); // higher plato -> lower y? we want descending look; plato falls over time
+    return [x,y];
+  });
+  const d=coords.map((c,i)=>(i?'L':'M')+c[0].toFixed(1)+' '+c[1].toFixed(1)).join(' ');
+  const last=coords[coords.length-1];
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <path d="${d}" fill="none" stroke="var(--copper)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3" fill="var(--copper)"/>
+  </svg>`;
+}
+
+function render(){
+  // summary
+  const total=state.tanks.length;
+  const occ=state.tanks.filter(t=>t.batch).length;
+  const ready=state.tanks.filter(t=>{const s=status(t);return s.key==='prete'||s.key==='retard';}).length;
+  const capUse=state.tanks.reduce((a,t)=>a+(t.batch?(t.batch.volume||t.cap):0),0);
+  const capTot=state.tanks.reduce((a,t)=>a+t.cap,0);
+  document.getElementById('summary').innerHTML=`
+    <div class="stat"><div class="n">${occ}/${total}</div><div class="l">Cuves occupées</div></div>
+    <div class="stat"><div class="n">${total-occ}</div><div class="l">Cuves libres</div></div>
+    <div class="stat"><div class="n">${ready}</div><div class="l">À traiter / prêtes</div></div>
+    <div class="stat"><div class="n">${capUse}<small style="font-size:.55em;color:var(--ink-soft)"> / ${capTot} HL</small></div><div class="l">Volume en cuve</div></div>`;
+
+  const grid=document.getElementById('grid');
+  grid.innerHTML='';
+  state.tanks.forEach(t=>{
+    const st=status(t);
+    const el=document.createElement('div');
+    el.className='cuve'+(t.batch?' occupee':'');
+    let inner=`<div class="top">
+        <div class="cuve-name">${t.name} <span class="cap">${t.cap} HL</span></div>
+        <span class="badge ${st.key}">${st.label}</span>
+      </div>`;
+    if(!t.batch){
+      inner+=`<div class="body"><div class="empty"><div class="ic">○</div><div>Cuve vide</div></div>
+        <div class="row-actions"><button class="btn-copper" data-act="new" data-id="${t.id}">+ Lancer un brassin</button></div></div>`;
+    }else{
+      const b=t.batch;
+      const lr=lastReading(b);
+      const og=b.og?parseFloat(b.og):null;
+      const cur=lr&&lr.plato!=null?parseFloat(lr.plato):null;
+      let prog=0;
+      if(og!=null&&cur!=null&&og>0){
+        const fg=og*0.2; // approx terminal gravity ~20% of OG (Plato)
+        prog=Math.max(0,Math.min(100,((og-cur)/(og-fg))*100));
+      }
+      let dayInfo='';
+      if(b.end){const d=daysBetween(todayStr(),b.end);dayInfo=d>0?`J‑${d}`:(d===0?'aujourd\'hui':`+${-d} j`);}
+      inner+=`<div class="body">
+        <div>
+          <div class="recipe">${b.recipe||'Brassin'}</div>
+          <div class="meta">${b.style?`<span class="style">${b.style}</span>`:''}${b.style&&b.lot?' · ':''}${b.lot?`lot ${b.lot}`:''}</div>
+        </div>
+        <div class="figs">
+          <div class="fig"><div class="v">${cur!=null?cur.toFixed(1):'—'}<small> °P</small></div><div class="k">Densité</div></div>
+          <div class="fig"><div class="v">${lr&&lr.temp!=null?parseFloat(lr.temp).toFixed(0):'—'}<small> °C</small></div><div class="k">Temp.</div></div>
+          <div class="fig"><div class="v">${b.volume||t.cap}<small> HL</small></div><div class="k">Volume</div></div>
+        </div>
+        ${og!=null&&cur!=null?`<div><div class="gauge"><span style="width:${prog.toFixed(0)}%"></span></div></div>`:''}
+        ${(b.readings&&b.readings.length>=2)?sparkline(b.readings):''}
+        <div class="dates">
+          <span>Début <b>${fmtDate(b.start)}</b></span>
+          <span>Fin <b>${fmtDate(b.end)}</b>${dayInfo?` (${dayInfo})`:''}</span>
+          <span>Cond. <b>${fmtDate(b.pack)}</b></span>
+        </div>
+        <div class="row-actions">
+          <button class="btn-copper" data-act="read" data-id="${t.id}">+ Relevé</button>
+          <button class="mini" data-act="edit" data-id="${t.id}">Modifier</button>
+          <button class="mini" data-act="empty" data-id="${t.id}">Vider</button>
+        </div>
+      </div>`;
+    }
+    el.innerHTML=inner;
+    grid.appendChild(el);
+  });
+}
+
+// ---- batch modal ----
+const bo=document.getElementById('batchOverlay');
+function openBatch(id){
+  editId=id;const t=tank(id);const b=t.batch;
+  document.getElementById('batchTitle').textContent=b?'Modifier le brassin':'Nouveau brassin';
+  document.getElementById('batchHint').textContent=t.name+' · '+t.cap+' HL';
+  document.getElementById('f_recipe').value=b?.recipe||'';
+  document.getElementById('f_style').value=b?.style||'';
+  document.getElementById('f_lot').value=b?.lot||'';
+  document.getElementById('f_volume').value=b?.volume??t.cap;
+  document.getElementById('f_og').value=b?.og??'';
+  document.getElementById('f_start').value=b?.start||todayStr();
+  document.getElementById('f_end').value=b?.end||'';
+  document.getElementById('f_pack').value=b?.pack||'';
+  bo.classList.add('show');
+}
+function closeBatch(){bo.classList.remove('show');editId=null;}
+document.getElementById('batchCancel').onclick=closeBatch;
+bo.addEventListener('click',e=>{if(e.target===bo)closeBatch();});
+document.getElementById('batchSave').onclick=()=>{
+  const t=tank(editId);if(!t)return;
+  const data={
+    recipe:document.getElementById('f_recipe').value.trim(),
+    style:document.getElementById('f_style').value.trim(),
+    lot:document.getElementById('f_lot').value.trim(),
+    volume:parseFloat(document.getElementById('f_volume').value)||t.cap,
+    og:document.getElementById('f_og').value?parseFloat(document.getElementById('f_og').value):null,
+    start:document.getElementById('f_start').value,
+    end:document.getElementById('f_end').value,
+    pack:document.getElementById('f_pack').value,
+    readings:t.batch?.readings||[]
+  };
+  // seed initial reading from OG if no readings yet
+  if(data.og!=null && (!data.readings.length)){
+    data.readings=[{date:data.start||todayStr(),plato:data.og,temp:null}];
+  }
+  t.batch=data;save();render();closeBatch();
+};
+
+// ---- reading modal ----
+const ro=document.getElementById('readOverlay');
+function openRead(id){
+  readId=id;const t=tank(id);
+  document.getElementById('readHint').textContent=t.name+' · '+(t.batch?.recipe||'Brassin');
+  document.getElementById('r_date').value=todayStr();
+  document.getElementById('r_plato').value='';
+  document.getElementById('r_temp').value='';
+  renderReadings();
+  ro.classList.add('show');
+}
+function closeRead(){ro.classList.remove('show');readId=null;}
+function renderReadings(){
+  const t=tank(readId);const list=document.getElementById('readList');
+  const rs=[...(t.batch.readings||[])].sort((a,b)=>a.date<b.date?1:-1);
+  document.getElementById('readEmpty').classList.toggle('hidden',rs.length>0);
+  list.innerHTML=rs.map(r=>`<div class="rd">
+      <span class="d">${fmtDate(r.date)}</span>
+      <span>${r.plato!=null?parseFloat(r.plato).toFixed(1)+' °P':'—'}</span>
+      <span>${r.temp!=null?parseFloat(r.temp).toFixed(0)+' °C':'—'}</span>
+      <button data-rdate="${r.date}">✕</button>
+    </div>`).join('');
+  list.querySelectorAll('button[data-rdate]').forEach(b=>b.onclick=()=>{
+    t.batch.readings=t.batch.readings.filter(x=>!(x.date===b.dataset.rdate));save();renderReadings();render();
+  });
+}
+document.getElementById('readAdd').onclick=()=>{
+  const t=tank(readId);const date=document.getElementById('r_date').value||todayStr();
+  const plato=document.getElementById('r_plato').value;
+  const temp=document.getElementById('r_temp').value;
+  if(plato===''&&temp===''){return;}
+  t.batch.readings=t.batch.readings||[];
+  t.batch.readings=t.batch.readings.filter(x=>x.date!==date); // one reading per day
+  t.batch.readings.push({date,plato:plato!==''?parseFloat(plato):null,temp:temp!==''?parseFloat(temp):null});
+  save();renderReadings();render();
+  document.getElementById('r_plato').value='';document.getElementById('r_temp').value='';
+};
+document.getElementById('readClose').onclick=closeRead;
+ro.addEventListener('click',e=>{if(e.target===ro)closeRead();});
+
+// ---- grid actions ----
+document.getElementById('grid').addEventListener('click',e=>{
+  const btn=e.target.closest('button[data-act]');if(!btn)return;
+  const id=btn.dataset.id,act=btn.dataset.act;
+  if(act==='new'||act==='edit')openBatch(id);
+  else if(act==='read')openRead(id);
+  else if(act==='empty'){
+    const t=tank(id);
+    if(confirm('Vider '+t.name+' ? Le brassin et ses relevés seront supprimés.')){t.batch=null;save();render();}
+  }
+});
+
+// ---- import / export ----
+document.getElementById('btnExport').onclick=()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='cuves_'+todayStr()+'.json';a.click();
+};
+document.getElementById('btnImport').onclick=()=>document.getElementById('fileInput').click();
+document.getElementById('fileInput').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{const s=JSON.parse(rd.result);if(s.tanks){state=s;save();render();}}catch(err){alert('Fichier invalide');}};
+  rd.readAsText(f);
+};
+
+render();
+</script>
+</body>
+</html>

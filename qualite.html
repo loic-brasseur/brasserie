@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Contrôle qualité">
+<meta name="theme-color" content="#FBF5EC">
+<title>Contrôle qualité — Fiches de dégustation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FBF5EC; --bg2:#F4ECDC; --card:#FFFDF7; --ink:#1A1612; --ink-soft:#7A6F5C;
+    --amber:#B8842F; --copper:#A8541B; --gold:#CF982B; --green:#4F6B2F; --red:#A8392B;
+    --line:rgba(26,22,18,.12); --line-strong:rgba(26,22,18,.24);
+    --shadow:0 1px 2px rgba(26,22,18,.05),0 8px 24px rgba(26,22,18,.09);
+    --serif:'Fraunces',Georgia,serif; --sans:'Manrope',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);line-height:1.45;
+    background:radial-gradient(ellipse at top,#FBF5EC 0%,#F4ECDC 100%);background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;min-height:100vh;
+    padding:max(1rem,env(safe-area-inset-top)) max(.9rem,env(safe-area-inset-right)) max(2.5rem,env(safe-area-inset-bottom)) max(.9rem,env(safe-area-inset-left));}
+  .wrap{max-width:1000px;margin:0 auto}
+  header.app{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+    padding-bottom:1rem;margin-bottom:1.1rem;border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:.85rem}
+  .brand .mark{width:42px;height:42px;flex:0 0 auto;border-radius:11px;background:var(--ink);color:#FBF5EC;
+    display:grid;place-items:center;font-family:var(--serif);font-size:1.4rem;font-weight:600}
+  h1{font-family:var(--serif);font-weight:500;font-size:clamp(1.7rem,5vw,2.3rem);letter-spacing:-.02em;line-height:1;margin:0}
+  .sub{font-family:var(--serif);font-style:italic;font-size:.92rem;color:var(--ink-soft);margin-top:.3rem}
+  .toolbar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  button{font-family:var(--sans);cursor:pointer;border:none;border-radius:10px;font-size:.85rem;font-weight:600;
+    padding:.6rem .9rem;transition:transform .12s,box-shadow .2s,background .2s}
+  button:active{transform:translateY(1px)}
+  .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line-strong)}
+  .btn-ghost:hover{background:rgba(26,22,18,.05)}
+  .btn-primary{background:var(--ink);color:#FBF5EC}
+  .btn-primary:hover{box-shadow:0 6px 18px rgba(26,22,18,.25)}
+  .btn-copper{background:var(--copper);color:#fff}
+  .btn-copper:hover{box-shadow:0 6px 18px rgba(168,84,27,.32)}
+
+  .summary{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:.7rem .95rem;box-shadow:var(--shadow);min-width:110px}
+  .stat .n{font-family:var(--serif);font-size:1.55rem;line-height:1;font-weight:500}
+  .stat .l{font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);margin-top:.35rem}
+
+  .controls{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
+  .search{flex:1;min-width:160px}
+  .input{font-family:var(--mono);font-size:.95rem;padding:.55rem .7rem;background:rgba(255,255,255,.7);
+    border:1px solid #E0D4BE;border-radius:9px;color:var(--ink);width:100%;min-height:42px;-webkit-appearance:none;appearance:none}
+  .input:focus{outline:none;border-color:var(--amber);background:#fff;box-shadow:0 0 0 3px rgba(184,132,47,.12)}
+  select.input{font-family:var(--sans);font-weight:600;min-width:150px;width:auto}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);
+    padding:.9rem 1rem;margin-bottom:.7rem;cursor:pointer}
+  .card .crow{display:flex;align-items:flex-start;gap:.8rem;flex-wrap:wrap}
+  .card .beer{font-family:var(--serif);font-weight:600;font-size:1.12rem;line-height:1.1}
+  .card .lot{font-family:var(--mono);font-size:.74rem;color:var(--ink-soft);margin-top:.15rem}
+  .card .date{font-family:var(--mono);font-size:.78rem;color:var(--ink-soft);margin-left:auto;white-space:nowrap}
+  .score{display:inline-flex;align-items:center;gap:.1rem;font-size:.95rem;letter-spacing:1px}
+  .score .st{color:var(--gold)}.score .so{color:rgba(26,22,18,.18)}
+  .figs{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.7rem}
+  .fig{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:.4rem .6rem;min-width:70px}
+  .fig .v{font-family:var(--mono);font-size:.95rem;font-weight:600;line-height:1}
+  .fig .v small{font-size:.6rem;color:var(--ink-soft);font-weight:500}
+  .fig .k{font-size:.6rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);margin-top:.28rem}
+  .flags{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.6rem}
+  .flag{font-size:.68rem;font-weight:600;padding:.25rem .5rem;border-radius:6px;background:rgba(168,57,43,.12);color:var(--red)}
+  .notes{font-size:.85rem;color:var(--ink-soft);margin-top:.55rem;font-style:italic;font-family:var(--serif)}
+  .empty-state{text-align:center;color:var(--ink-soft);font-style:italic;font-family:var(--serif);padding:2rem 1rem}
+
+  /* Modal */
+  .overlay{position:fixed;inset:0;background:rgba(26,22,18,.42);backdrop-filter:blur(3px);display:none;
+    align-items:flex-start;justify-content:center;padding:1.2rem;z-index:50;overflow:auto}
+  .overlay.show{display:flex}
+  .modal{background:var(--card);border-radius:18px;box-shadow:0 20px 60px rgba(26,22,18,.3);width:100%;max-width:480px;margin:auto;
+    border:1px solid var(--line);overflow:hidden;animation:pop .2s ease}
+  @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+  .modal h2{font-family:var(--serif);font-weight:500;font-size:1.35rem;margin:0;padding:1.1rem 1.2rem .2rem}
+  .form{padding:1rem 1.2rem 1.2rem;display:flex;flex-direction:column;gap:.8rem}
+  label{display:flex;flex-direction:column;gap:.3rem;font-size:.74rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:600}
+  .modal .input{font-size:1rem}
+  textarea.input{font-family:var(--sans);min-height:64px;resize:vertical}
+  .two{display:flex;gap:.6rem}.two>label{flex:1}.three{display:flex;gap:.5rem}.three>label{flex:1}
+  .stars{display:flex;gap:.2rem;font-size:1.6rem;cursor:pointer}
+  .stars .s{color:rgba(26,22,18,.18);transition:color .1s}
+  .stars .s.on{color:var(--gold)}
+  .defs{display:flex;gap:.4rem;flex-wrap:wrap}
+  .def{font-size:.78rem;font-weight:600;padding:.4rem .65rem;border-radius:8px;border:1.5px solid var(--line-strong);
+    background:transparent;color:var(--ink-soft);cursor:pointer}
+  .def.on{background:rgba(168,57,43,.12);border-color:rgba(168,57,43,.4);color:var(--red)}
+  .modal-actions{display:flex;gap:.5rem;padding:0 1.2rem 1.2rem}
+  .modal-actions button{flex:1}
+  .danger{color:var(--red);background:transparent;border:1.5px solid rgba(168,57,43,.4)}
+  .danger:hover{background:rgba(168,57,43,.07)}
+  footer{margin-top:2rem;text-align:center;color:var(--ink-soft);font-size:.74rem}
+  .hidden{display:none!important}
+  @media(max-width:560px){.summary{gap:.5rem}.stat{flex:1;min-width:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="app">
+    <div class="brand">
+      <div class="mark">Q</div>
+      <div>
+        <h1>Contrôle qualité</h1>
+        <div class="sub">Fiches de dégustation par lot</div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button class="btn-copper" id="btnAdd">+ Fiche</button>
+      <button class="btn-ghost" id="btnExport">Exporter</button>
+      <button class="btn-ghost" id="btnImport">Importer</button>
+      <input type="file" id="fileInput" accept="application/json" class="hidden">
+    </div>
+  </header>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="controls">
+    <div class="search"><input class="input" id="search" placeholder="Rechercher (bière, lot, note…)"></div>
+    <select class="input" id="filterBeer"><option value="">Toutes les bières</option></select>
+  </div>
+
+  <div id="list"></div>
+
+  <footer>Données enregistrées sur cet appareil (localStorage). Pense à exporter pour sauvegarder.</footer>
+</div>
+
+<!-- datalist of beers -->
+<datalist id="beerList"></datalist>
+
+<!-- Modal -->
+<div class="overlay" id="ov">
+  <div class="modal">
+    <h2 id="mTitle">Nouvelle fiche</h2>
+    <div class="form">
+      <div class="two">
+        <label>Bière
+          <input class="input" id="f_beer" list="beerList" placeholder="ex. Blonde maison">
+        </label>
+        <label>N° de lot
+          <input class="input" id="f_lot" placeholder="ex. 2026-014">
+        </label>
+      </div>
+      <div class="two">
+        <label>Date de dégustation
+          <input class="input" id="f_date" type="date">
+        </label>
+        <label>Dégustateur
+          <input class="input" id="f_taster" placeholder="ex. Loïc">
+        </label>
+      </div>
+      <div class="three">
+        <label>Densité finale (°P)
+          <input class="input" id="f_fg" type="number" step="0.1" inputmode="decimal" placeholder="ex. 2.6">
+        </label>
+        <label>pH
+          <input class="input" id="f_ph" type="number" step="0.01" inputmode="decimal" placeholder="ex. 4.3">
+        </label>
+        <label>CO₂ (g/L)
+          <input class="input" id="f_co2" type="number" step="0.1" inputmode="decimal" placeholder="ex. 5.0">
+        </label>
+      </div>
+      <label>Défauts détectés (touche pour activer)
+        <div class="defs" id="defs"></div>
+      </label>
+      <label>Notes de dégustation
+        <textarea class="input" id="f_notes" placeholder="Arômes, amertume, équilibre, conformité au profil attendu…"></textarea>
+      </label>
+      <label>Appréciation globale
+        <div class="stars" id="stars"></div>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="danger hidden" id="mDelete">Supprimer</button>
+      <button class="btn-ghost" id="mCancel">Annuler</button>
+      <button class="btn-copper" id="mSave">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORE='brasserie_qc_v1';
+// Liste de bières — gamme de la brasserie. Modifiable.
+const BEERS=["Bière Valmy blonde BIO","Bière Valmy blanche BIO","Bière Valmy ambrée BIO","Bière Valmy IPA BIO","Bière Valmy Triple BIO","Bière Valmy Framboise BIO","Bière Valmy Noël BIO","Bière Orgemont blonde BIO","Bière Orgemont brune BIO","Bière Orgemont triple BIO","Bière Orgemont Saison BIO","Bière Orgemont IPA BIO","Bière Rèmes","Bière Tutti Berry BIO","Bière Trouble Jeu BIO","Bière Bouquet Final BIO","Bière Crème de la Crème BIO","Bière Légionnaire Blonde","Bière Légionnaire IPA","Bière Bayard / Baraquine blonde","Bière Bayard / Baraquine triple","Biére Muizon"];
+const DEFAULTS_DEFECTS=['Diacétyle','Acétaldéhyde','DMS','Oxydation','Phénolique','Astringence','Aigre/Lacto','Infection','Sous-carbonatée','Sur-carbonatée'];
+function uid(){return 'q'+Math.random().toString(36).slice(2,9);}
+const todayStr=()=>new Date().toISOString().slice(0,10);
+function fmtDate(s){if(!s)return '—';return new Date(s+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'});}
+
+let state=load();
+let search='', filterBeer='', editId=null, formScore=0, formDefects=[];
+
+function seed(){
+  return {sheets:[
+    {id:uid(),beer:'Bière Valmy blonde BIO',lot:'2026-011',date:todayStr(),taster:'Loïc',fg:2.5,ph:4.3,co2:5.0,defects:[],notes:'Conforme au profil. Belle amertume nette, finale sèche.',score:4},
+    {id:uid(),beer:'Bière Valmy IPA BIO',lot:'2026-012',date:todayStr(),taster:'Loïc',fg:2.8,ph:4.4,co2:5.4,defects:['Oxydation'],notes:'Houblon un peu en retrait, léger carton en fin de bouche. À reboire dans 1 semaine.',score:3}
+  ]};
+}
+function load(){try{const s=JSON.parse(localStorage.getItem(STORE));if(s&&s.sheets)return s;}catch(e){}return seed();}
+function save(){localStorage.setItem(STORE,JSON.stringify(state));}
+
+function knownBeers(){
+  const set=new Set(BEERS);
+  state.sheets.forEach(s=>{if(s.beer)set.add(s.beer);});
+  return [...set].sort((a,b)=>a.localeCompare(b));
+}
+function starHTML(n){let h='';for(let i=1;i<=5;i++)h+=`<span class="${i<=n?'st':'so'}">★</span>`;return `<span class="score">${h}</span>`;}
+
+function render(){
+  // datalist + filter
+  const beers=knownBeers();
+  document.getElementById('beerList').innerHTML=beers.map(b=>`<option value="${b.replace(/"/g,'&quot;')}">`).join('');
+  const fb=document.getElementById('filterBeer');
+  fb.innerHTML='<option value="">Toutes les bières</option>'+beers.map(b=>`<option value="${b.replace(/"/g,'&quot;')}"${b===filterBeer?' selected':''}>${b}</option>`).join('');
+
+  const sheets=state.sheets;
+  const withDef=sheets.filter(s=>s.defects&&s.defects.length).length;
+  const avg=sheets.length?(sheets.reduce((a,s)=>a+(Number(s.score)||0),0)/sheets.filter(s=>s.score).length):0;
+  document.getElementById('summary').innerHTML=`
+    <div class="stat"><div class="n">${sheets.length}</div><div class="l">Fiches</div></div>
+    <div class="stat"><div class="n">${beers.length}</div><div class="l">Bières suivies</div></div>
+    <div class="stat"><div class="n">${withDef}</div><div class="l">Avec défaut</div></div>
+    <div class="stat"><div class="n">${avg?avg.toFixed(1):'—'}<small style="font-size:.5em;color:var(--ink-soft)"> /5</small></div><div class="l">Note moyenne</div></div>`;
+
+  const q=search.trim().toLowerCase();
+  let shown=sheets.filter(s=>!filterBeer||s.beer===filterBeer)
+    .filter(s=>!q||[s.beer,s.lot,s.notes,s.taster,(s.defects||[]).join(' ')].join(' ').toLowerCase().includes(q))
+    .sort((a,b)=>(a.date<b.date?1:a.date>b.date?-1:0));
+
+  const list=document.getElementById('list');
+  if(!shown.length){list.innerHTML='<div class="empty-state">Aucune fiche. Clique sur « + Fiche » pour en créer une.</div>';return;}
+  list.innerHTML=shown.map(s=>`
+    <div class="card" data-id="${s.id}">
+      <div class="crow">
+        <div>
+          <div class="beer">${s.beer||'(sans nom)'}</div>
+          <div class="lot">lot ${s.lot||'—'}${s.taster?' · '+s.taster:''}</div>
+        </div>
+        ${s.score?starHTML(s.score):''}
+        <div class="date">${fmtDate(s.date)}</div>
+      </div>
+      <div class="figs">
+        <div class="fig"><div class="v">${s.fg!=null&&s.fg!==''?Number(s.fg).toFixed(1):'—'}<small> °P</small></div><div class="k">Densité fin.</div></div>
+        <div class="fig"><div class="v">${s.ph!=null&&s.ph!==''?Number(s.ph).toFixed(2):'—'}</div><div class="k">pH</div></div>
+        <div class="fig"><div class="v">${s.co2!=null&&s.co2!==''?Number(s.co2).toFixed(1):'—'}<small> g/L</small></div><div class="k">CO₂</div></div>
+      </div>
+      ${(s.defects&&s.defects.length)?`<div class="flags">${s.defects.map(d=>`<span class="flag">${d}</span>`).join('')}</div>`:''}
+      ${s.notes?`<div class="notes">« ${s.notes} »</div>`:''}
+    </div>`).join('');
+}
+
+// ---- modal ----
+const ov=document.getElementById('ov');
+function buildStars(){document.getElementById('stars').innerHTML=[1,2,3,4,5].map(i=>`<span class="s ${i<=formScore?'on':''}" data-v="${i}">★</span>`).join('');}
+function buildDefs(){document.getElementById('defs').innerHTML=DEFAULTS_DEFECTS.map(d=>`<span class="def ${formDefects.includes(d)?'on':''}" data-d="${d}">${d}</span>`).join('');}
+function openModal(id){
+  editId=id;const s=id?state.sheets.find(x=>x.id===id):null;
+  document.getElementById('mTitle').textContent=s?'Modifier la fiche':'Nouvelle fiche';
+  document.getElementById('f_beer').value=s?.beer||'';
+  document.getElementById('f_lot').value=s?.lot||'';
+  document.getElementById('f_date').value=s?.date||todayStr();
+  document.getElementById('f_taster').value=s?.taster||'';
+  document.getElementById('f_fg').value=s?.fg??'';
+  document.getElementById('f_ph').value=s?.ph??'';
+  document.getElementById('f_co2').value=s?.co2??'';
+  document.getElementById('f_notes').value=s?.notes||'';
+  formScore=s?.score||0;formDefects=s?.defects?[...s.defects]:[];
+  buildStars();buildDefs();
+  document.getElementById('mDelete').classList.toggle('hidden',!s);
+  ov.classList.add('show');
+  setTimeout(()=>document.getElementById('f_beer').focus(),50);
+}
+function closeModal(){ov.classList.remove('show');editId=null;}
+document.getElementById('mCancel').onclick=closeModal;
+ov.addEventListener('click',e=>{if(e.target===ov)closeModal();});
+document.getElementById('stars').addEventListener('click',e=>{const s=e.target.closest('.s');if(!s)return;
+  const v=Number(s.dataset.v);formScore=(formScore===v)?0:v;buildStars();});
+document.getElementById('defs').addEventListener('click',e=>{const d=e.target.closest('.def');if(!d)return;
+  const v=d.dataset.d;formDefects=formDefects.includes(v)?formDefects.filter(x=>x!==v):[...formDefects,v];buildDefs();});
+document.getElementById('mSave').onclick=()=>{
+  const beer=document.getElementById('f_beer').value.trim();
+  if(!beer){document.getElementById('f_beer').focus();return;}
+  const data={beer,lot:document.getElementById('f_lot').value.trim(),
+    date:document.getElementById('f_date').value||todayStr(),
+    taster:document.getElementById('f_taster').value.trim(),
+    fg:document.getElementById('f_fg').value,ph:document.getElementById('f_ph').value,co2:document.getElementById('f_co2').value,
+    defects:[...formDefects],notes:document.getElementById('f_notes').value.trim(),score:formScore};
+  if(editId)Object.assign(state.sheets.find(s=>s.id===editId),data);
+  else state.sheets.push({id:uid(),...data});
+  save();render();closeModal();
+};
+document.getElementById('mDelete').onclick=()=>{
+  if(confirm('Supprimer cette fiche ?')){state.sheets=state.sheets.filter(s=>s.id!==editId);save();render();closeModal();}
+};
+document.getElementById('btnAdd').onclick=()=>openModal(null);
+document.getElementById('list').addEventListener('click',e=>{const c=e.target.closest('.card');if(c)openModal(c.dataset.id);});
+
+// ---- filters ----
+document.getElementById('search').addEventListener('input',e=>{search=e.target.value;render();});
+document.getElementById('filterBeer').addEventListener('change',e=>{filterBeer=e.target.value;render();});
+
+// ---- import / export ----
+document.getElementById('btnExport').onclick=()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='qualite_'+todayStr()+'.json';a.click();
+};
+document.getElementById('btnImport').onclick=()=>document.getElementById('fileInput').click();
+document.getElementById('fileInput').onchange=e=>{
+  const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{try{const s=JSON.parse(rd.result);if(s.sheets){state=s;save();render();}}catch(err){alert('Fichier invalide');}};
+  rd.readAsText(f);
+};
+
+render();
+</script>
+</body>
+</html>
