@@ -1,0 +1,3723 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planning de brassage 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+:root {
+  --bg: #F2E8D4;
+  --bg-card: #FBF6EB;
+  --bg-card-alt: #F6ECD6;
+  --border: #DCC9A6;
+  --border-strong: #B59A6F;
+  --text: #2A1810;
+  --text-muted: #6B5D4F;
+  --text-faint: #9B8C7A;
+  --accent: #A0531B;
+  --brew: #806000;
+  --brew-bg: #F4E5C8;
+  --cond: #2F4E20;
+  --cond-bg: #DAE3BF;
+  --green: #496B38;
+  --orange: #B86E1F;
+  --red: #913526;
+  --shadow-sm: 0 1px 2px rgba(68, 32, 8, 0.06);
+  --shadow: 0 4px 12px -2px rgba(68, 32, 8, 0.1);
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'DM Sans', -apple-system, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+.container { max-width: 1600px; margin: 0 auto; padding: 28px 24px 80px; }
+
+header { border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 28px; }
+.h-title h1 {
+  font-family: var(--font-display);
+  font-size: clamp(36px, 5vw, 56px);
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.h-title .sub {
+  font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-muted); margin-top: 10px; font-weight: 500;
+}
+.h-title .sub::before {
+  content: ""; display: inline-block; width: 28px; height: 1px;
+  background: var(--accent); vertical-align: middle; margin-right: 12px;
+}
+
+.controls {
+  display: flex; gap: 16px; flex-wrap: wrap; align-items: end;
+  margin-top: 20px; padding: 16px; background: var(--bg-card);
+  border: 1px solid var(--border); border-radius: 6px;
+}
+.control { display: flex; flex-direction: column; gap: 4px; }
+.control label {
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 500;
+}
+.control input, .control select {
+  font-family: var(--font-body); font-size: 14px;
+  background: white; border: 1px solid var(--border); border-radius: 4px;
+  padding: 8px 12px; color: var(--text); outline: none;
+  font-variant-numeric: tabular-nums;
+}
+.control input.num { font-family: var(--font-mono); width: 80px; text-align: right; }
+.controls .spacer { flex: 1; }
+
+button {
+  font-family: var(--font-body); font-size: 13px; font-weight: 500;
+  background: white; border: 1px solid var(--border); border-radius: 4px;
+  padding: 8px 14px; color: var(--text); cursor: pointer;
+  transition: all 0.15s;
+}
+button:hover { border-color: var(--border-strong); background: var(--bg-card-alt); }
+button.primary {
+  background: var(--accent); color: #FBF6EB; border-color: var(--accent); font-weight: 600;
+}
+button.primary:hover { background: #7E3F0F; }
+button.danger:hover { color: var(--red); border-color: var(--red); }
+
+.kpis {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 1px; background: var(--border); border: 1px solid var(--border);
+  border-radius: 4px; margin: 20px 0;
+}
+.kpi { background: var(--bg-card); padding: 14px 18px; }
+.kpi-label {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 500;
+}
+.kpi-value {
+  font-family: var(--font-display); font-size: 28px; font-weight: 500;
+  line-height: 1; letter-spacing: -0.02em; margin-top: 4px;
+}
+.kpi-value .unit { font-size: 13px; color: var(--text-muted); margin-left: 4px; }
+
+section { margin-bottom: 36px; }
+.section-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 14px;
+}
+.section-head h2 {
+  font-family: var(--font-display); font-size: 22px; font-weight: 500;
+  letter-spacing: -0.01em;
+}
+.section-head .hint {
+  font-size: 11px; color: var(--text-faint); letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* === Calendar view === */
+.weeks-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px;
+}
+@media (min-width: 1100px) { .weeks-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1500px) { .weeks-grid { grid-template-columns: repeat(4, 1fr); } }
+
+.week-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.15s;
+  display: flex; flex-direction: column;
+  min-height: 140px;
+}
+.week-card.brew { border-left: 4px solid var(--brew); }
+.week-card.cond { border-left: 4px solid var(--cond); }
+.week-card:hover { box-shadow: var(--shadow); }
+
+.week-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 8px;
+}
+.week-num {
+  font-family: var(--font-display); font-size: 22px; font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.week-date { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.week-type {
+  font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600;
+  padding: 2px 8px; border-radius: 100px;
+}
+.week-card.brew .week-type { background: var(--brew); color: white; }
+.week-card.cond .week-type { background: var(--cond); color: white; }
+
+.week-load {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 8px; background: var(--bg-card-alt); border-radius: 3px;
+  font-size: 11px; margin-bottom: 8px;
+}
+.load-val { font-family: var(--font-mono); font-weight: 600; }
+.load-val.ok { color: var(--green); }
+.load-val.warn { color: var(--orange); }
+.load-val.danger { color: var(--red); }
+.load-val.low { color: var(--text-faint); }
+.load-bar { width: 100%; height: 4px; background: var(--bg-card-alt); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.load-bar-fill { height: 100%; transition: width 0.2s; }
+.load-bar-fill.ok { background: var(--green); }
+.load-bar-fill.warn { background: var(--orange); }
+.load-bar-fill.danger { background: var(--red); }
+.load-bar-fill.low { background: var(--text-faint); }
+
+.brews-list { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.brew-item {
+  display: grid; grid-template-columns: 1fr auto auto;
+  gap: 6px; align-items: center;
+  padding: 6px 9px;
+  background: var(--brew-bg);
+  border-radius: 4px;
+  font-size: 12px;
+}
+.brew-item.fixed { background: #E8DEC0; border-left: 2px solid var(--accent); }
+.brew-item.overload { background: #F4D5CD; }
+.brew-item[draggable="true"] { cursor: grab; }
+.brew-item.dragging { opacity: 0.4; cursor: grabbing; }
+.week-card.drop-target { outline: 2px dashed var(--accent); outline-offset: 2px; background: #FFF8E6; }
+.matrix-table tr.matrix-drop td { background: #FFF3CC !important; box-shadow: inset 0 0 0 1px var(--accent); }
+.brew-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brew-code { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+.brew-size {
+  font-family: var(--font-mono); font-weight: 600;
+  background: white; padding: 2px 6px; border-radius: 3px; font-size: 11px;
+}
+.brew-remove {
+  background: transparent; border: none; padding: 2px 4px;
+  cursor: pointer; color: var(--text-muted); font-size: 14px;
+  line-height: 1; border-radius: 3px; opacity: 0.4;
+}
+.brew-remove:hover { color: var(--red); opacity: 1; background: transparent; }
+.brew-item.fixed .brew-remove { display: none; }
+
+.brew-edit, .cond-edit {
+  background: transparent; border: none; padding: 2px 4px;
+  cursor: pointer; color: var(--text-muted); font-size: 11px;
+  line-height: 1; border-radius: 3px; opacity: 0.4;
+}
+.brew-edit:hover, .cond-edit:hover { color: var(--accent); opacity: 1; background: transparent; }
+
+.brew-exception {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 1px 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-muted);
+  line-height: 1.2;
+  opacity: 0.5;
+  transition: all 0.15s;
+}
+.brew-exception:hover {
+  opacity: 1;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.brew-exception.active {
+  background: #538135;
+  color: white;
+  border-color: #538135;
+  opacity: 1;
+}
+.brew-exception.active:hover {
+  background: #3F6126;
+}
+
+.brew-item.exception {
+  border-left: 3px solid #538135;
+}
+
+.brew-source-badge.exception {
+  background: #538135;
+  color: white;
+  font-size: 8px;
+}
+
+#exclusionsTable tbody tr { border-bottom: 1px solid var(--border); }
+#exclusionsTable tbody tr:hover { background: #FBF6EB; }
+#exclusionsTable tbody tr:nth-child(even) { background: #F8F4EB; }
+#exclusionsTable tbody tr:nth-child(even):hover { background: #F3EDDF; }
+#exclusionsTable td { padding: 5px 10px; }
+#exclusionsTable td:not(:first-child) { text-align: center; }
+#exclusionsTable input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+#exclusionsTable .excl-label { font-size: 11px; color: var(--red); font-weight: 600; }
+
+
+.view-toggle { display:flex; gap:8px; margin-bottom:16px; }
+.view-toggle button { padding:6px 14px; font-size:12px; border-radius:4px; border:1px solid var(--border); background:var(--bg-card); cursor:pointer; font-family:var(--font-body); color:var(--text-muted); }
+.view-toggle button.active { background:var(--accent); color:white; border-color:var(--accent); }
+#matrixView { overflow-x:auto; }
+.matrix-table { border-collapse:collapse; font-size:11px; min-width:900px; width:100%; }
+.matrix-table th { background:#305496; color:white; padding:5px 8px; text-align:center; font-weight:700; font-size:10px; letter-spacing:.04em; position:sticky; top:0; z-index:2; white-space:nowrap; }
+.matrix-table td { padding:3px 6px; border:1px solid #D8D0C0; vertical-align:middle; height:26px; white-space:nowrap; overflow:hidden; max-width:130px; text-overflow:ellipsis; }
+.matrix-table .wk { font-family:var(--font-mono); font-weight:700; font-size:11px; color:#1F4E78; background:#F8F4EB; text-align:center; width:36px; position:sticky; left:0; z-index:1; border-right:2px solid #B59A6F; }
+.matrix-table .empty-cell { background:#FAFAFA; }
+.matrix-table .cuve-start { font-weight:700; font-size:11px; }
+.matrix-table .cuve-cont { font-size:10px; color:#888; font-style:italic; }
+.matrix-table .cond-cell { text-align:center; font-family:var(--font-mono); font-size:11px; min-width:100px; padding:3px 8px; background:#F0F6FF; }
+.matrix-table .cond-over { background:#F4D5CD !important; }
+.matrix-table .row-brew td.wk { border-left:3px solid var(--accent); }
+.matrix-table .row-other td.wk { border-left:3px solid #DDD; }
+
+/* === Ruptures alert === */
+.ruptures-alert {
+  background: #F8E1D9;
+  border-left: 4px solid #C00000;
+  border-radius: 4px;
+  padding: 14px 18px;
+  margin-top: 16px;
+  font-size: 13px;
+}
+.ruptures-alert h3 {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: #6B1E13;
+  margin: 0 0 8px 0;
+}
+.ruptures-alert .rupt-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+.ruptures-alert .rupt-item {
+  background: white;
+  border: 1px solid #E8C8C0;
+  border-radius: 3px;
+  padding: 6px 10px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.ruptures-alert .rupt-beer { font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ruptures-alert .rupt-info {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: #6B1E13;
+  font-weight: 600;
+}
+.ruptures-alert .rupt-fix {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+.search-bar {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 16px; padding: 12px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.search-bar input {
+  flex: 1; min-width: 0; max-width: 480px;
+  font-family: var(--font-body); font-size: 14px;
+  background: white; border: 1px solid var(--border); border-radius: 4px;
+  padding: 8px 12px; color: var(--text); outline: none;
+  transition: border-color 0.15s;
+}
+.search-bar input:focus { border-color: var(--accent); }
+.search-result {
+  font-size: 13px; color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.search-result strong { color: var(--accent); }
+
+/* Highlight matched brews + dim non-matched */
+.weeks-grid.searching .week-card { opacity: 0.4; transition: opacity 0.15s; }
+.weeks-grid.searching .week-card.has-match { opacity: 1; }
+.weeks-grid.searching .brew-item:not(.match) { opacity: 0.25; }
+.weeks-grid.searching .cond-item:not(.match) { opacity: 0.25; }
+.brew-item.match {
+  box-shadow: 0 0 0 2px var(--accent);
+  outline-offset: 1px;
+}
+.cond-item.match {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.brew-actions, .cond-actions { display: flex; gap: 2px; align-items: center; }
+.cond-item.overridden { background: #E0DCC6; border-left: 2px solid var(--accent); }
+.cond-item .cond-edit { opacity: 0.4; }
+.cond-item:hover .cond-edit, .brew-item:hover .brew-edit, .brew-item:hover .brew-remove { opacity: 0.9; }
+
+.brew-item.manual { background: #F0E8C8; border-left: 2px solid var(--brew); }
+.brew-item.cuve-conflict {
+  background: #F4D5CD !important;
+  border-left: 2px solid var(--red);
+}
+.brew-item.cuve-conflict .brew-name::before {
+  content: '🛑 ';
+  font-size: 11px;
+}
+.brew-source-badge {
+  font-size: 8px; padding: 1px 4px; border-radius: 2px;
+  font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  margin-right: 4px;
+}
+.brew-source-badge.fixed { background: var(--accent); color: white; }
+.brew-source-badge.manual { background: var(--brew); color: white; }
+
+.drop-zone {
+  border: 2px dashed var(--border-strong); border-radius: 6px;
+  padding: 32px 24px; text-align: center; cursor: pointer;
+  transition: all 0.15s; background: var(--bg-card-alt);
+}
+.drop-zone:hover, .drop-zone.dragover {
+  border-color: var(--accent); background: #EFE2C7;
+}
+.drop-zone .icon {
+  font-size: 32px; color: var(--text-faint); margin-bottom: 8px;
+}
+.drop-zone .label {
+  font-family: var(--font-display); font-size: 16px; color: var(--text);
+}
+.drop-zone .hint {
+  font-size: 12px; color: var(--text-muted); margin-top: 6px;
+}
+
+.import-status {
+  margin-top: 16px; padding: 10px 14px; border-radius: 4px;
+  font-size: 12px; line-height: 1.5;
+  background: var(--cond-bg); color: var(--cond);
+  border-left: 3px solid var(--cond);
+  display: none;
+}
+.import-status.show { display: block; }
+.import-status.error { background: #F4D5CD; color: var(--red); border-left-color: var(--red); }
+
+.modal.wide { max-width: 560px; }
+
+.split-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  margin-bottom: 8px;
+}
+.split-stat {
+  background: var(--bg-card-alt); border-radius: 4px;
+  padding: 8px 10px; font-size: 11px; color: var(--text-muted);
+}
+.split-stat strong {
+  display: block; font-size: 16px; color: var(--text);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.cond-list { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.cond-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  padding: 6px 9px;
+  background: var(--cond-bg);
+  border-radius: 4px;
+  font-size: 12px;
+  align-items: center;
+}
+.cond-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cond-volumes { display: flex; gap: 6px; font-size: 10px; font-family: var(--font-mono); }
+.cond-volumes .v { background: white; padding: 1px 5px; border-radius: 3px; }
+.cond-days { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); }
+
+.week-empty {
+  text-align: center; padding: 20px 8px;
+  color: var(--text-faint); font-style: italic; font-size: 12px;
+}
+.add-brew-btn {
+  margin-top: 8px; padding: 4px 8px; font-size: 11px;
+  background: transparent; border: 1px dashed var(--border-strong);
+  color: var(--text-muted); width: 100%;
+}
+.add-brew-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--bg-card-alt); }
+
+.summary-grid {
+  display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px;
+}
+.summary-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 6px; padding: 18px;
+}
+.summary-card h3 {
+  font-family: var(--font-display); font-size: 16px; font-weight: 500;
+  margin-bottom: 12px;
+}
+.summary-table { width: 100%; border-collapse: collapse; }
+.summary-table th {
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-faint); font-weight: 600;
+  text-align: left; padding: 4px 8px 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.summary-table th.num { text-align: right; }
+.summary-table td {
+  padding: 6px 8px 6px 0; font-size: 12px;
+  border-bottom: 1px solid #EADCBF;
+}
+.summary-table td.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.summary-table tr:last-child td { border-bottom: none; }
+.summary-table .delta { font-size: 11px; }
+.summary-table .delta.pos { color: var(--orange); }
+.summary-table .delta.neg { color: var(--red); }
+.summary-table .delta.zero { color: var(--green); }
+
+footer {
+  margin-top: 60px; padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+
+/* === Modal === */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(42, 24, 16, 0.4);
+  display: none; align-items: center; justify-content: center; z-index: 100;
+  backdrop-filter: blur(2px);
+}
+.modal-bg.show { display: flex; }
+.modal {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px;
+  padding: 24px; max-width: 420px; width: 92%; box-shadow: var(--shadow);
+}
+.modal h3 {
+  font-family: var(--font-display); font-size: 20px; font-weight: 500;
+  margin-bottom: 14px;
+}
+.modal .field { margin-bottom: 12px; }
+.modal label {
+  display: block; font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--text-muted); font-weight: 500;
+  margin-bottom: 4px;
+}
+.modal select, .modal input {
+  width: 100%; font-family: var(--font-body); font-size: 14px;
+  background: white; border: 1px solid var(--border); border-radius: 4px;
+  padding: 8px 12px;
+}
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--bg); padding: 10px 20px; border-radius: 6px;
+  font-size: 13px; opacity: 0; pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s; z-index: 1000;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+/* Print-only block (hidden on screen, shown only when printing) */
+.print-only { display: none; }
+
+@media print {
+  @page { size: A4 portrait; margin: 12mm 10mm 12mm 10mm; }
+  body, html {
+    background: white !important;
+    font-size: 9pt;
+    color: #000;
+  }
+  .container { padding: 0; max-width: 100%; }
+
+  /* Hide all interactive UI in print */
+  header .controls, .kpis, .section-head, .weeks-grid, .summary-grid,
+  footer, .modal-bg, .add-brew-btn, .brew-remove, .brew-edit, .cond-edit { display: none !important; }
+  /* Hide the screen sections entirely */
+  body > .container > section { display: none !important; }
+  /* Show only the print block */
+  .print-only { display: block !important; }
+
+  /* Print header */
+  .print-header {
+    border-bottom: 2pt solid #1F4E78;
+    padding-bottom: 6pt;
+    margin-bottom: 10pt;
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .print-header h1 {
+    font-family: var(--font-display);
+    font-size: 22pt; font-weight: 600;
+    color: #1F4E78; margin: 0;
+    line-height: 1;
+  }
+  .print-header .meta {
+    font-size: 9pt; color: #555;
+    text-align: right;
+    line-height: 1.4;
+  }
+
+  /* KPI strip — compact */
+  .print-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4pt;
+    margin-bottom: 10pt;
+  }
+  .print-kpi {
+    border: 0.5pt solid #B59A6F;
+    background: #FBF6EB;
+    padding: 4pt 8pt;
+    text-align: center;
+  }
+  .print-kpi .l {
+    font-size: 7pt; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #6B5D4F; font-weight: 600;
+  }
+  .print-kpi .v {
+    font-family: var(--font-display);
+    font-size: 16pt; font-weight: 600;
+    color: #1F4E78; line-height: 1.1;
+  }
+  .print-kpi .v .u { font-size: 9pt; color: #6B5D4F; font-weight: 400; }
+
+  /* Trimester section */
+  .print-trim {
+    margin-bottom: 10pt;
+    page-break-inside: avoid;
+  }
+  .print-trim-head {
+    background: #1F4E78;
+    color: white;
+    font-family: var(--font-display);
+    font-size: 12pt; font-weight: 600;
+    padding: 4pt 10pt;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .print-trim-head .stat {
+    font-size: 9pt; font-weight: 400;
+    color: #DCE7F0;
+    font-family: var(--font-body);
+  }
+  .print-trim.t2 .print-trim-head { background: #BF8F00; }
+  .print-trim.t3 .print-trim-head { background: #538135; }
+  .print-trim.t4 .print-trim-head { background: #305496; }
+
+  /* Print table */
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-table th {
+    background: #F2F2F2;
+    color: #1F4E78;
+    font-weight: 700;
+    text-align: left;
+    padding: 4pt 6pt;
+    border: 0.5pt solid #B4B4B4;
+    font-size: 8pt;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .print-table th.num { text-align: center; }
+  .print-table td {
+    padding: 3pt 6pt;
+    border: 0.5pt solid #DCDCDC;
+    vertical-align: middle;
+  }
+  .print-table td.week {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    text-align: center;
+    background: #F8F4EB;
+    color: #1F4E78;
+    width: 50pt;
+  }
+  .print-table td.date {
+    font-family: var(--font-mono);
+    font-size: 8pt;
+    color: #555;
+    width: 80pt;
+  }
+  .print-table td.beers {
+    line-height: 1.5;
+  }
+  .print-table td.total {
+    text-align: center;
+    font-family: var(--font-mono);
+    font-weight: 700;
+    width: 50pt;
+    color: #1F4E78;
+    background: #F8F4EB;
+  }
+  .print-table tr.empty td.beers {
+    color: #999; font-style: italic;
+  }
+  .print-table .pill {
+    display: inline-block;
+    background: #FBF6EB;
+    border: 0.5pt solid #B59A6F;
+    padding: 1pt 5pt;
+    border-radius: 2pt;
+    font-size: 8pt;
+    margin: 1pt 2pt 1pt 0;
+    white-space: nowrap;
+  }
+  .print-table .pill.fixed { background: #FCE4D6; border-color: #C65911; }
+  .print-table .pill .qty {
+    font-weight: 700;
+    color: #1F4E78;
+    margin-left: 3pt;
+  }
+  .print-table .pill .qty.fixed { color: #C65911; }
+
+  /* Footer note */
+  .print-footer {
+    margin-top: 10pt;
+    font-size: 7pt;
+    color: #888;
+    text-align: center;
+    border-top: 0.5pt solid #DCDCDC;
+    padding-top: 4pt;
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="print-only" id="printBlock"></div>
+
+<header>
+  <div class="h-title">
+    <h1>Planning de brassage</h1>
+    <div class="sub">2026 — Recalcul automatique</div>
+  </div>
+
+  <div class="controls">
+    <div class="control">
+      <label>Croissance (% sur données)</label>
+      <input type="number" id="growth" class="num" value="0" min="-50" max="100" step="1">
+    </div>
+    <div class="control">
+      <label>Max HL/sem (cuves)</label>
+      <input type="number" id="maxWeek" class="num" value="180" min="20" max="280" step="10">
+    </div>
+    <div class="control">
+      <label>Pertes 20/40/60 HL</label>
+      <input type="text" id="losses" value="18/36/56" style="width:90px; font-family: var(--font-mono);">
+    </div>
+    <div class="control">
+      <label>Marge (sem. avant besoin)</label>
+      <input type="number" id="leadWeeks" class="num" value="3" min="0" max="12" step="1">
+    </div>
+    <div class="control">
+      <label>Lot mini auto (HL/an)</label>
+      <input type="number" id="minLotHl" class="num" value="0" min="0" max="100" step="1">
+    </div>
+    <div class="spacer"></div>
+    <button id="recalcBtn" class="primary">Recalculer le planning</button>
+    <button id="resetBtn">Réinitialiser</button>
+  </div>
+
+  <div class="controls" style="margin-top: 8px;">
+    <div class="control">
+      <label>Brassage HL/jour</label>
+      <input type="number" id="brewHlPerDay" class="num" value="40" min="10" max="200" step="5">
+    </div>
+    <div class="control">
+      <label>Brassage jours/sem</label>
+      <input type="number" id="brewDays" class="num" value="5" min="1" max="7" step="1">
+    </div>
+    <div class="control">
+      <label>Fût HL/jour</label>
+      <input type="number" id="kegHlPerDay" class="num" value="60" min="10" max="300" step="5">
+    </div>
+    <div class="control">
+      <label>Bouteille HL/jour (mixé)</label>
+      <input type="number" id="bottleHlPerDay" class="num" value="20" min="5" max="200" step="5">
+    </div>
+    <div class="control">
+      <label>Condit. jours/sem</label>
+      <input type="number" id="condDays" class="num" value="5" min="1" max="7" step="1">
+    </div>
+    <div class="spacer"></div>
+    <button id="exclusionsBtn">Exclusions contenants</button>
+    <span style="font-size:11px; color:var(--text-faint); letter-spacing:0.08em; text-transform:uppercase;">Capacités</span>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kpi-label">Total à brasser (HL brut)</div>
+      <div class="kpi-value"><span id="kpiTotalBrut">—</span><span class="unit">HL</span></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Total fini estimé</div>
+      <div class="kpi-value"><span id="kpiTotalFini">—</span><span class="unit">HL</span></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Besoin net à produire (mois en cours →)</div>
+      <div class="kpi-value"><span id="kpiNeed">—</span><span class="unit">HL</span></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Conflits (surcharge / cuve)</div>
+      <div class="kpi-value" id="kpiOverload">—</div>
+    </div>
+  </div>
+  <div id="rupturesAlert" class="ruptures-alert" style="display:none"></div>
+  <div id="stockBanner" style="display:none;margin-top:8px;padding:8px 12px;border-radius:6px;background:#EAF3E5;border:1px solid #538135;font-size:12px;color:#2F5219"></div>
+</header>
+
+<section>
+  <div class="section-head">
+    <h2>Calendrier hebdomadaire</h2>
+    <span class="hint">S21 à S52 · Impair = Brassage · Pair = Conditionnement (S+3)</span>
+  </div>
+  <div class="view-toggle">
+    <button id="viewCalBtn" class="active">Vue calendrier</button>
+    <button id="viewMatBtn">Vue matrice</button>
+  </div>
+  <div class="search-bar" id="searchBarWrap">
+    <input type="text" id="searchBeer" placeholder="Rechercher une bière dans le planning…" list="beerOptions" autocomplete="off">
+    <datalist id="beerOptions"></datalist>
+    <span class="search-result" id="searchResult"></span>
+    <button class="ghost" id="clearSearch" style="display:none">Effacer</button>
+  </div>
+  <div class="weeks-grid" id="weeksGrid"></div>
+  <div id="matrixView" style="display:none"></div>
+</section>
+
+<section>
+  <div class="section-head">
+    <h2>Synthèses</h2>
+    <span class="hint">Volumes en HL</span>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <h3>Par bière</h3>
+      <table class="summary-table" id="summaryBeer">
+        <thead>
+          <tr>
+            <th>Bière</th>
+            <th class="num">Besoin (mois en cours →)</th>
+            <th class="num">Planifié (fini)</th>
+            <th class="num">Δ</th>
+            <th class="num">Brassins</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="summary-card">
+      <h3>Par contenant prévu</h3>
+      <table class="summary-table" id="summaryCont">
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th class="num">HL</th>
+            <th class="num">Jours condit.</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <button id="importExcelBtn" class="primary">Importer Excel</button>
+  <button id="importInvBtn">Importer inventaire</button>
+  <button id="exportPdfBtn">Exporter PDF</button>
+  <button id="excelMatrixBtn">Exporter Excel matrice</button>
+  <button id="exportPlanningBtn">Exporter Planning (Excel)</button>
+  <button id="exportJsonBtn">Sauvegarder (JSON)</button>
+  <button id="importJsonBtn">Charger (JSON)</button>
+  <input type="file" id="importFile" accept=".json" style="display:none">
+  <input type="file" id="invFile" accept=".json" style="display:none">
+  <input type="file" id="excelFile" accept=".xlsx,.xlsm,.xls" style="display:none">
+</footer>
+
+</div>
+
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h3 id="modalTitle">Ajouter un brassin</h3>
+    <div class="field">
+      <label>Bière</label>
+      <select id="mBeer"></select>
+    </div>
+    <div class="field">
+      <label>Taille (HL brut)</label>
+      <select id="mSize">
+        <option value="20">20 HL</option>
+        <option value="40">40 HL</option>
+        <option value="60" selected>60 HL</option>
+      </select>
+    </div>
+    <div class="field" id="mWeekField" style="display:none">
+      <label>Semaine (déplacer)</label>
+      <select id="mWeek"></select>
+    </div>
+    <div class="modal-actions">
+      <button id="mCancel">Annuler</button>
+      <button id="mOk" class="primary">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="condModal">
+  <div class="modal wide">
+    <h3 id="condModalTitle">Conditionnement</h3>
+    <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;" id="condModalSub"></p>
+    <div class="split-grid">
+      <div class="split-stat">
+        Volume fini disponible
+        <strong id="condFiniTotal">— HL</strong>
+      </div>
+      <div class="split-stat">
+        Répartition des besoins (réf.)
+        <strong id="condDefaultMix">— / — / —</strong>
+      </div>
+    </div>
+    <div class="field">
+      <label>Semaine de conditionnement</label>
+      <select id="condWeek"></select>
+    </div>
+    <div class="field">
+      <label>Fût (HL) — <span id="condKegRate">60</span> HL/jour</label>
+      <input type="number" id="condKegHl" step="0.1" min="0">
+    </div>
+    <div class="field">
+      <label>Bouteille 33cl (HL) — <span id="condBottleRate">20</span> HL/jour mixé avec 75cl</label>
+      <input type="number" id="condBottle33Hl" step="0.1" min="0">
+    </div>
+    <div class="field">
+      <label>Bouteille 75cl (HL) — partage la capacité avec 33cl</label>
+      <input type="number" id="condBottle75Hl" step="0.1" min="0">
+    </div>
+    <div class="split-stat" style="margin-top: 8px;">
+      Jours estimés
+      <strong id="condDaysPreview">— j</strong>
+    </div>
+    <div class="modal-actions">
+      <button id="condReset">Recalculer selon les besoins</button>
+      <button id="condCancel">Annuler</button>
+      <button id="condOk" class="primary">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="exclusionsModal">
+  <div class="modal wide" style="max-width:680px">
+    <h3>Exclusions de conditionnement</h3>
+    <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px">
+      Décocher = ce format n'est pas conditionné pour cette bière. Les proportions sont redistribuées automatiquement entre les formats restants.
+    </p>
+    <div style="overflow-y:auto;max-height:55vh;border:1px solid var(--border);border-radius:4px">
+      <table id="exclusionsTable" style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:#305496;color:white;position:sticky;top:0">
+            <th style="text-align:left;padding:7px 10px;font-weight:600">Bière</th>
+            <th style="text-align:center;padding:7px 12px;font-weight:600">Fût<br><span style="font-weight:400;font-size:10px">20L / 30L</span></th>
+            <th style="text-align:center;padding:7px 12px;font-weight:600">B33<br><span style="font-weight:400;font-size:10px">33cl/44cl/6P</span></th>
+            <th style="text-align:center;padding:7px 12px;font-weight:600">B75<br><span style="font-weight:400;font-size:10px">75cl</span></th>
+          </tr>
+        </thead>
+        <tbody id="exclusionsTbody"></tbody>
+      </table>
+    </div>
+    <div class="modal-actions">
+      <button id="exclusionsReset">Tout inclure</button>
+      <button id="exclusionsClose" class="primary">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="importModal">
+  <div class="modal wide">
+    <h3>Importer le fichier des ventes (Excel)</h3>
+    <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 14px;">
+      Glisse ton fichier Excel de ventes/prévisions (ex. <code>Stats_ventes_2026</code>). L'app lit uniquement : les bières (onglet LISTES), les besoins mensuels (onglet Recap_Production) et le mix fût/bouteille (onglet Historique_2025). Le stock n'est <strong>pas</strong> lu ici — il vient du bouton « Importer inventaire ».
+    </p>
+    <div class="drop-zone" id="dropZone">
+      <div class="icon">📊</div>
+      <div class="label">Dépose le fichier ici</div>
+      <div class="hint">ou clique pour parcourir · .xlsx, .xlsm</div>
+    </div>
+    <div class="import-status" id="importStatus"></div>
+    <div class="modal-actions">
+      <button id="importClose">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="cuveModal">
+  <div class="modal">
+    <h3 id="cuveModalTitle">Affecter à une cuve</h3>
+    <p id="cuveModalSub" style="color:var(--text-muted);font-size:13px;margin-bottom:14px;"></p>
+    <div id="cuveButtons" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;"></div>
+    <div class="modal-actions">
+      <button id="cuveReset">Auto (par défaut)</button>
+      <button id="cuveCancel">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="expiredModal">
+  <div class="modal wide" style="max-width:680px">
+    <h3>Lots à DDM dépassée</h3>
+    <p style="color:var(--text-muted);font-size:13px;margin-bottom:12px">
+      Coche les lots périmés que tu veux quand même compter dans le stock disponible. Les non cochés sont exclus. Les lots non périmés sont toujours inclus.
+    </p>
+    <div style="margin-bottom:8px">
+      <button id="expiredAll" class="ghost" style="font-size:12px">Tout cocher</button>
+      <button id="expiredNone" class="ghost" style="font-size:12px">Tout décocher</button>
+    </div>
+    <div style="overflow-y:auto;max-height:50vh;border:1px solid var(--border);border-radius:4px">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:#305496;color:white;position:sticky;top:0">
+            <th style="padding:7px 10px;text-align:center;font-weight:600">✓</th>
+            <th style="padding:7px 10px;text-align:left;font-weight:600">Bière</th>
+            <th style="padding:7px 10px;text-align:left;font-weight:600">Contenant</th>
+            <th style="padding:7px 10px;text-align:right;font-weight:600">Qté</th>
+            <th style="padding:7px 10px;text-align:right;font-weight:600">HL</th>
+            <th style="padding:7px 10px;text-align:center;font-weight:600">DDM</th>
+            <th style="padding:7px 10px;text-align:left;font-weight:600">Lot</th>
+          </tr>
+        </thead>
+        <tbody id="expiredTbody"></tbody>
+      </table>
+    </div>
+    <div class="split-stat" style="margin-top:8px">
+      Sélectionné (périmés)
+      <strong id="expiredSelTotal">0 HL</strong>
+    </div>
+    <div class="modal-actions">
+      <button id="expiredCancel">Annuler l'import</button>
+      <button id="expiredOk" class="primary">Importer la sélection</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ============ DATA EMBED ============
+const DATA = {"beers": [{"name": "Bière Valmy blonde BIO", "code": "VAL-BLD"}, {"name": "Bière Valmy blanche BIO", "code": "VAL-BLC"}, {"name": "Bière Valmy ambrée BIO", "code": "VAL-AMB"}, {"name": "Bière Valmy IPA BIO", "code": "VAL-IPA"}, {"name": "Bière Valmy Triple BIO", "code": "VAL-TRI"}, {"name": "Bière Valmy Framboise BIO", "code": "VAL-FRA"}, {"name": "Bière Valmy Noël BIO", "code": "VAL-NOE"}, {"name": "Bière Orgemont blonde BIO", "code": "ORG-BLD"}, {"name": "Bière Orgemont brune BIO", "code": "ORG-BRN"}, {"name": "Bière Orgemont triple BIO", "code": "ORG-TRI"}, {"name": "Bière Orgemont Saison BIO", "code": "ORG-SAI"}, {"name": "Bière Orgemont IPA BIO", "code": "ORG-IPA"}, {"name": "Bière Rèmes", "code": "REMES"}, {"name": "Bière Tutti Berry BIO", "code": "TUTTI"}, {"name": "Bière Trouble Jeu BIO", "code": "TROUB"}, {"name": "Bière Bouquet Final BIO", "code": "BOUQU"}, {"name": "Bière Crème de la Crème BIO", "code": "CREME"}, {"name": "Bière Légionnaire Blonde", "code": "LEG-BLD"}, {"name": "Bière Légionnaire IPA", "code": "LEG-IPA"}, {"name": "Bière Bayard / Baraquine blonde", "code": "BAY-BLD"}, {"name": "Bière Bayard / Baraquine triple", "code": "BAY-TRI"}, {"name": "Biére Muizon", "code": "MUIZ"}], "monthlyNeed": {"Bière Valmy blonde BIO": [5.21, 10.84, 26.25, 32.99, 31.92, 40.76, 54.3, 58.43, 89.18, 35.25, 9.2, 39.2], "Bière Valmy blanche BIO": [0.0, 0.0, 1.77, 4.1, 4.32, 6.08, 6.09, 6.26, 4.49, 4.22, 2.25, 2.03], "Bière Valmy ambrée BIO": [0.0, 1.4, 3.89, 6.6, 7.52, 18.98, 2.53, 6.36, 15.65, 4.88, 5.08, 2.49], "Bière Valmy IPA BIO": [5.67, 9.57, 14.52, 21.12, 26.4, 33.99, 20.46, 20.46, 10.11, 16.58, 16.93, 32.8], "Bière Valmy Triple BIO": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.11, 0.31, 0.1, 0.49, 0.0, 0.02], "Bière Valmy Framboise BIO": [0.0, 0.0, 0.0, 0.0, 0.0, 4.84, 0.0, 0.0, 15.79, 0.22, 0.44, 0.0], "Bière Valmy Noël BIO": [0.01, 0.0, 0.09, 0.0, 0.02, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "Bière Orgemont blonde BIO": [0.0, 0.0, 8.7, 5.47, 6.8, 15.71, 4.12, 9.79, 6.41, 4.84, 5.31, 6.89], "Bière Orgemont brune BIO": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "Bière Orgemont triple BIO": [0.0, 0.0, 1.81, 2.86, 8.06, 8.4, 11.55, 6.59, 13.37, 10.35, 4.32, 5.91], "Bière Orgemont Saison BIO": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "Bière Orgemont IPA BIO": [0.0, 0.0, 0.0, 0.33, 3.3, 0.66, 0.0, 0.0, 3.96, 0.0, 0.0, 0.0], "Bière Rèmes": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "Bière Tutti Berry BIO": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "Bière Trouble Jeu BIO": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.83, 0.01, 0.13], "Bière Bouquet Final BIO": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.84, 0.39, 0.03, 0.04, 0.18, 0.23], "Bière Crème de la Crème BIO": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "Bière Légionnaire Blonde": [0.0, 0.0, 19.14, 0.0, 19.47, 0.0, 19.69, 0.0, 0.0, 0.0, 19.47, 0.0], "Bière Légionnaire IPA": [0.0, 17.16, 36.96, 0.0, 39.6, 0.0, 59.07, 0.0, 0.0, 38.28, 38.28, 0.0], "Bière Bayard / Baraquine blonde": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "Bière Bayard / Baraquine triple": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.97, 0.0, 0.0, 0.0], "Biére Muizon": [0.0, 0.0, 0.0, 1.49, 0.0, 0.0, 1.49, 0.99, 0.0, 1.29, 0.0, 0.0]}, "mix": {"Bière Valmy blonde BIO": {"bottle33": 0.154, "bottle75": 0.064, "keg": 0.782}, "Bière Valmy blanche BIO": {"bottle33": 0.529, "bottle75": 0.233, "keg": 0.238}, "Bière Valmy ambrée BIO": {"bottle33": 0.307, "bottle75": 0.138, "keg": 0.555}, "Bière Valmy IPA BIO": {"bottle33": 0.128, "bottle75": 0.052, "keg": 0.819}, "Bière Valmy Triple BIO": {"bottle33": 0.514, "bottle75": 0.486, "keg": 0.0}, "Bière Valmy Framboise BIO": {"bottle33": 0.245, "bottle75": 0.0, "keg": 0.755}, "Bière Valmy Noël BIO": {"bottle33": 1.0, "bottle75": 0.0, "keg": 0.0}, "Bière Orgemont blonde BIO": {"bottle33": 0.397, "bottle75": 0.164, "keg": 0.439}, "Bière Orgemont brune BIO": {"bottle33": 0.696, "bottle75": 0.304, "keg": 0.0}, "Bière Orgemont triple BIO": {"bottle33": 0.289, "bottle75": 0.108, "keg": 0.603}, "Bière Orgemont Saison BIO": {"bottle33": 0.2, "bottle75": 0.1, "keg": 0.7}, "Bière Orgemont IPA BIO": {"bottle33": 0.272, "bottle75": 0.05, "keg": 0.679}, "Bière Rèmes": {"bottle33": 1.0, "bottle75": 0.0, "keg": 0.0}, "Bière Tutti Berry BIO": {"bottle33": 1.0, "bottle75": 0.0, "keg": 0.0}, "Bière Trouble Jeu BIO": {"bottle33": 1.0, "bottle75": 0.0, "keg": 0.0}, "Bière Bouquet Final BIO": {"bottle33": 0.585, "bottle75": 0.0, "keg": 0.415}, "Bière Crème de la Crème BIO": {"bottle33": 1.0, "bottle75": 0.0, "keg": 0.0}, "Bière Légionnaire Blonde": {"bottle33": 0.0, "bottle75": 0.0, "keg": 1.0}, "Bière Légionnaire IPA": {"bottle33": 0.0, "bottle75": 0.0, "keg": 1.0}, "Bière Bayard / Baraquine blonde": {"bottle33": 1.0, "bottle75": 0.0, "keg": 0.0}, "Bière Bayard / Baraquine triple": {"bottle33": 0.853, "bottle75": 0.147, "keg": 0.0}, "Biére Muizon": {"bottle33": 0.398, "bottle75": 0.602, "keg": 0.0}}};
+const STORAGE_KEY = 'brasserie_planning_v1';
+
+// ============ CONSTANTS ============
+const YEAR = 2026;
+const BREW_WEEKS = []; for (let w = 21; w <= 51; w += 2) BREW_WEEKS.push(w);
+const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+// Volume (HL) d'une unité de chaque contenant — pour convertir l'inventaire (en unités) en HL
+const CONTAINER_HL = { '33cl': 0.0033, '44cl': 0.0044, '75cl': 0.0075, '20L': 0.20, '30L': 0.30 };
+
+// Beers NOT included in automatic planning (managed separately by Loïc)
+const EXCLUDED_BEERS = [
+  'Bière Tutti Berry BIO',
+  'Bière Trouble Jeu BIO',
+  'Bière Légionnaire Blonde',
+  'Bière Légionnaire IPA',
+  'Bière Bayard / Baraquine blonde',
+  'Bière Bayard / Baraquine triple',
+  'Biére Muizon'
+];
+const FIXED_BREWS = {
+  // Week 19: Valmy ambrée already in cuves 16a+16b, conditioning at S22
+  19: [
+    {beer: 'Bière Valmy ambrée BIO', brut: 20}
+  ],
+  21: [
+    {beer: 'Bière Légionnaire IPA', brut: 60},
+    {beer: 'Bière Valmy blonde BIO', brut: 60},
+    {beer: 'Bière Légionnaire Blonde', brut: 40}
+  ],
+  23: [
+    {beer: 'Bière Légionnaire IPA', brut: 60},
+    {beer: 'Bière Valmy blanche BIO', brut: 60}
+  ]
+};
+
+// Default cuve assignments (user-confirmed physical positions)
+// Index: 0=C60-1, 1=C60-2, 2=C60-3, 3=C60-4, 4=C20, 5=16a, 6=16b
+const DEFAULT_CUVE_ASSIGNMENTS = {
+  'fixed_21_Bière Légionnaire IPA_60':    1,  // Cuve 60-2
+  'fixed_21_Bière Valmy blonde BIO_60':   2,  // Cuve 60-3
+  'fixed_21_Bière Légionnaire Blonde_40': 3,  // Cuve 60-4
+  'fixed_19_Bière Valmy ambrée BIO_20':   5   // Cuves 16a+16b (split auto)
+};
+
+// ============ STATE ============
+let params = {
+  growth: 0, maxWeek: 180,
+  losses: {20: 18, 40: 36, 60: 56},
+  brewHlPerDay: 40, brewDays: 5,
+  kegHlPerDay: 60, bottleHlPerDay: 20, condDays: 5,
+  leadWeeks: 3,        // marge : brasser X semaines avant le besoin
+  minLotHl: 0          // ne pas auto-planifier une bière sous ce besoin annuel (0 = désactivé)
+};
+let brewsByWeek = {};      // {week: [{id, beer, brut, fini, source: 'fixed'|'auto'|'manual', note, overload, exception}]}
+let manualBrews = {};      // {week: [{id, beer, brut, note}]}
+let removedAutoIds = [];   // [autoId]
+let condOverrides = {};    // {"week|beer": {bottleHl, kegHl}}
+let exceptionIds = [];
+let cuveAssignments = {};
+let containerExclusions = {}; // {beerName: {keg:true, bottle33:true, bottle75:true}} true=exclu
+let initialStock = {};     // {beerName: HL} — stock dispo, importé de l'app Inventaire
+let initialStockSplit = {}; // {beerName: {bottle, keg}} — stock scindé par format
+let editing = null;
+let searchQuery = '';      // current search filter text
+
+// ============ HELPERS ============
+const $ = id => document.getElementById(id);
+const fmtN = n => new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 }).format(n);
+const fmtI = n => new Intl.NumberFormat('fr-FR').format(Math.round(n));
+
+function yieldFor(brut) {
+  return params.losses[brut] || Math.round(brut * 0.9);
+}
+
+// Returns normalized mix for a beer, applying containerExclusions
+function getEffectiveMix(beer) {
+  const raw = DATA.mix[beer] || { keg: 0.7, bottle33: 0.15, bottle75: 0.15 };
+  const ex = containerExclusions[beer] || {};
+  const k  = ex.keg      ? 0 : (raw.keg      || 0);
+  const b3 = ex.bottle33 ? 0 : (raw.bottle33  || 0);
+  const b7 = ex.bottle75 ? 0 : (raw.bottle75  || 0);
+  const tot = k + b3 + b7;
+  return tot > 0
+    ? { keg: k/tot, bottle33: b3/tot, bottle75: b7/tot }
+    : { keg: 1, bottle33: 0, bottle75: 0 };
+}
+
+// Fractions bouteille/fût effectives d'une bière (après exclusions)
+function effFrac(beer) {
+  const mx = getEffectiveMix(beer);
+  return { bottle: (mx.bottle33 || 0) + (mx.bottle75 || 0), keg: mx.keg || 0,
+           b33: mx.bottle33 || 0, b75: mx.bottle75 || 0 };
+}
+
+// initialStockSplit (rempli à l'import inventaire) : {beer: {b33, b75, keg}}.
+// À défaut, on répartit le stock total selon le mix.
+function stockSplitFor(beer) {
+  const sp = initialStockSplit[beer];
+  if (sp) {
+    if (sp.b33 !== undefined || sp.b75 !== undefined)
+      return { b33: Math.max(0, sp.b33 || 0), b75: Math.max(0, sp.b75 || 0), keg: Math.max(0, sp.keg || 0) };
+    // rétro-compat : ancien format {bottle, keg} → répartir bouteille par mix
+    const f0 = effFrac(beer);
+    const r = f0.bottle > 0 ? f0.b33 / f0.bottle : 0.6;
+    const bottle = Math.max(0, sp.bottle || 0);
+    return { b33: bottle * r, b75: bottle * (1 - r), keg: Math.max(0, sp.keg || 0) };
+  }
+  const tot = Math.max(0, initialStock[beer] || 0);
+  const f = effFrac(beer);
+  return { b33: tot * f.b33, b75: tot * f.b75, keg: tot * f.keg };
+}
+
+// Répartition de conditionnement (HL) d'un groupe de brassins d'une même bière
+// la même semaine. Priorité à un override utilisateur ; sinon somme des
+// répartitions par brassin (b.format = 'bottle' | 'keg' | undefined = mix).
+function condSplitFor(brewWeek, beer, brews) {
+  const ov = condOverrides[`${brewWeek}|${beer}`];
+  if (ov && ov._user) {
+    return {
+      bottle33Hl: ov.bottle33Hl || 0, bottle75Hl: ov.bottle75Hl || 0,
+      kegHl: ov.kegHl || 0, week: ov.week ?? (brewWeek + 3), overridden: true
+    };
+  }
+  const f = effFrac(beer);
+  let b33 = 0, b75 = 0, keg = 0;
+  brews.forEach(b => {
+    if (b.format === 'b33') b33 += b.fini;
+    else if (b.format === 'b75') b75 += b.fini;
+    else if (b.format === 'keg') keg += b.fini;
+    else if (b.format === 'bottle') {           // sécurité rétro-compat
+      const r = f.bottle > 0 ? f.b33 / f.bottle : 0.6;
+      b33 += b.fini * r; b75 += b.fini * (1 - r);
+    } else { b33 += b.fini * f.b33; b75 += b.fini * f.b75; keg += b.fini * f.keg; }
+  });
+  return {
+    bottle33Hl: +b33.toFixed(1), bottle75Hl: +b75.toFixed(1),
+    kegHl: +keg.toFixed(1), week: brewWeek + 3, overridden: false
+  };
+}
+
+function isoWeekDates(year, week) {
+  // Monday of ISO week
+  const simple = new Date(year, 0, 1 + (week - 1) * 7);
+  const dow = simple.getDay();
+  const monday = new Date(simple);
+  if (dow <= 4) monday.setDate(simple.getDate() - simple.getDay() + 1);
+  else monday.setDate(simple.getDate() + 8 - simple.getDay());
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return [monday, sunday];
+}
+
+function fmtWeekRange(week) {
+  const [a, b] = isoWeekDates(YEAR, week);
+  const f = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+  return `${f(a)} – ${f(b)}`;
+}
+
+function brewWeekForMonth(m) {
+  // First day of month m
+  const d = new Date(YEAR, m-1, 1);
+  // Compute ISO week
+  const target = d.getDay() === 0 ? new Date(d.getTime() - 86400000) : d;
+  const jan4 = new Date(YEAR, 0, 4);
+  const dayDiff = Math.floor((target - jan4) / 86400000);
+  const week = Math.ceil((dayDiff + jan4.getDay() + (jan4.getDay() === 0 ? 7 : 0)) / 7);
+  // Brew 4 weeks before
+  let desired = Math.max(25, week - 4);
+  const cands = BREW_WEEKS.filter(w => w >= 25 && w <= desired);
+  return cands.length ? cands[cands.length - 1] : 25;
+}
+
+function isoWeekOfDate(date) {
+  // Get ISO 8601 week number for a Date object
+  const target = new Date(date.getTime());
+  target.setHours(0, 0, 0, 0);
+  // Set to nearest Thursday: current date + 4 - current day number (Monday = 1)
+  target.setDate(target.getDate() + 3 - (target.getDay() + 6) % 7);
+  // First Thursday of year
+  const firstThursday = new Date(target.getFullYear(), 0, 4);
+  // Calculate full weeks between
+  return 1 + Math.round(((target - firstThursday) / 86400000 - 3 + (firstThursday.getDay() + 6) % 7) / 7);
+}
+
+function lastIsoWeekOfMonth(year, month1to12) {
+  // Get last day of month and its ISO week
+  const lastDay = new Date(year, month1to12, 0);  // day 0 of next month = last of this month
+  return isoWeekOfDate(lastDay);
+}
+
+function firstIsoWeekOfMonth(year, month1to12) {
+  const firstDay = new Date(year, month1to12 - 1, 1);
+  return isoWeekOfDate(firstDay);
+}
+
+// Mois (0-indexé) du lundi d'une semaine ISO
+function monthOfWeek(week) {
+  const [monday] = isoWeekDates(YEAR, week);
+  return Math.max(0, Math.min(11, monday.getMonth()));
+}
+
+const beerCode = b => (DATA.beers.find(x => x.name === b) || {}).code || '';
+
+// Associe chaque brassin (et le stock initial) aux mois de besoin qu'il couvre.
+// Allocation FIFO par bière, respectant la disponibilité : un brassin ne peut
+// couvrir un besoin qu'à partir du mois où il est conditionné (semaine + 3).
+// Retourne une liste de "sources" {beer, kind, week, availMonth, hlTotal, alloc:[{month,hl}], surplus}.
+function buildBrewAllocation() {
+  const g = (1 + params.growth / 100);
+  const nowMonth = new Date().getMonth();
+  const perBeer = {};
+  const beers = new Set();
+
+  BREW_WEEKS.forEach(w => (brewsByWeek[w] || []).forEach(b => {
+    if (EXCLUDED_BEERS.includes(b.beer)) return;
+    beers.add(b.beer);
+    (perBeer[b.beer] = perBeer[b.beer] || []).push({
+      kind: 'brew', week: w, availMonth: monthOfWeek(w + 3),
+      remaining: b.fini, hlTotal: b.fini, source: b.source, brut: b.brut, alloc: []
+    });
+  }));
+  Object.keys(initialStock).forEach(b => {
+    if (!EXCLUDED_BEERS.includes(b) && (initialStock[b] || 0) > 0.05) beers.add(b);
+  });
+
+  const out = [];
+  beers.forEach(beer => {
+    const supplies = [];
+    const stock = Math.max(0, initialStock[beer] || 0);
+    if (stock > 0.001)
+      supplies.push({ kind: 'stock', week: null, availMonth: nowMonth, remaining: stock, hlTotal: stock, alloc: [] });
+    (perBeer[beer] || []).sort((a, b) => a.availMonth - b.availMonth || a.week - b.week)
+      .forEach(s => supplies.push(s));
+
+    for (let M = nowMonth; M < 12; M++) {
+      let need = DATA.monthlyNeed[beer] ? (DATA.monthlyNeed[beer][M] || 0) * g : 0;
+      if (need < 0.001) continue;
+      // FIFO par disponibilité (stock d'abord, puis brassins les plus tôt).
+      // Modèle cumulé, cohérent avec le moteur de planning : la colonne
+      // "Dispo (mois)" rend la chronologie transparente.
+      for (const s of supplies) {
+        if (need < 0.001) break;
+        if (s.remaining < 0.001) continue;
+        const take = Math.min(s.remaining, need);
+        s.remaining -= take; need -= take;
+        s.alloc.push({ month: M, hl: +take.toFixed(2) });
+      }
+    }
+    supplies.forEach(s => out.push({
+      beer, code: beerCode(beer), kind: s.kind, week: s.week, availMonth: s.availMonth,
+      hlTotal: +s.hlTotal.toFixed(2), alloc: s.alloc, surplus: +s.remaining.toFixed(2)
+    }));
+  });
+  return out;
+}
+
+function showToast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ============ CORE ALGORITHM ============
+function genId() { return 'b_' + Math.random().toString(36).slice(2, 9); }
+
+function computePlanning() {
+  for (const k in condOverrides)
+    if (condOverrides[k]?._autoShifted && !condOverrides[k]?._user) delete condOverrides[k];
+
+  brewsByWeek = {};
+  [19, ...BREW_WEEKS].forEach(w => brewsByWeek[w] = []);
+
+  // Default conditioning override for Valmy ambrée in 16a+16b (conditioned S22)
+  // ~3.7HL 75cl, rest in 33cl, no fût — set only if not already user-defined
+  const valAmbKey = '19|Bière Valmy ambrée BIO';
+  if (!condOverrides[valAmbKey] || condOverrides[valAmbKey]._autoShifted) {
+    condOverrides[valAmbKey] = { kegHl: 0, bottle33Hl: 14.3, bottle75Hl: 3.7, week: 22, _user: true };
+  }
+
+  // Fixed brews
+  for (const [wStr, items] of Object.entries(FIXED_BREWS)) {
+    const wn = parseInt(wStr);
+    items.forEach(it => {
+      const id = `fixed_${wn}_${it.beer}_${it.brut}`;
+      brewsByWeek[wn].push({ id, beer: it.beer, brut: it.brut, fini: yieldFor(it.brut),
+        source: 'fixed', note: wn === 21 ? 'Déjà brassé' : 'Prévu',
+        exception: (wn === 21) || exceptionIds.includes(id),
+        cuveIdx: cuveAssignments[id] });
+    });
+  }
+
+  // Manual brews
+  for (const [wStr, items] of Object.entries(manualBrews)) {
+    const wn = parseInt(wStr);
+    if (!brewsByWeek[wn]) brewsByWeek[wn] = [];
+    items.forEach(it => brewsByWeek[wn].push({
+      id: it.id, beer: it.beer, brut: it.brut, fini: yieldFor(it.brut),
+      source: 'manual', note: it.note || 'Ajout manuel',
+      exception: exceptionIds.includes(it.id),
+      cuveIdx: cuveAssignments[it.id] ?? it.cuveIdx
+    }));
+  }
+
+  // Cuve state tracker — calendrier d'occupation par cuve (et non filigrane).
+  // cuveOcc[i] = Set des semaines occupées par la cuve i. Permet un placement
+  // non chronologique correct (une cuve libre en S25 le reste même si elle est
+  // utilisée en S51 par un autre brassin).
+  const cuveOcc = Array.from({ length: 7 }, () => new Set());
+  function cuveFree(i, w, occ) {
+    for (let k = 0; k < occ; k++) if (cuveOcc[i].has(w + k)) return false;
+    return true;
+  }
+  function cuveTake(i, w, occ) {
+    for (let k = 0; k < occ; k++) cuveOcc[i].add(w + k);
+  }
+  function refreshCuveOcc() {
+    cuveOcc.forEach(s => s.clear());
+    BREW_WEEKS.filter(w => (brewsByWeek[w] || []).length).sort((a, b) => a - b).forEach(bw => {
+      [...brewsByWeek[bw]].sort((a, b) => b.brut - a.brut).forEach(b => {
+        const occ = b.exception ? 1 : CUVE_OCCUPATION_WEEKS;
+        if (b.brut >= 40) {
+          for (let i = 3; i >= 0; i--) { if (cuveFree(i, bw, occ)) { cuveTake(i, bw, occ); break; } }
+        } else {
+          if (cuveFree(4, bw, occ)) { cuveTake(4, bw, occ); }
+          else if (cuveFree(5, bw, occ) && cuveFree(6, bw, occ)) { cuveTake(5, bw, occ); cuveTake(6, bw, occ); }
+        }
+      });
+    });
+  }
+  refreshCuveOcc();
+
+  // Conditioning calendar: per-beer tracking (1 beer = 1 bottling day)
+  // condEntries[cw][beer] = {kegHl, botHl}
+  const condEntries = {};
+
+  function condDaysForEntries(entries) {
+    let d = 0;
+    for (const beer in entries) {
+      const e = entries[beer];
+      if (e.kegHl > 0.1) d += Math.ceil(e.kegHl / params.kegHlPerDay);
+      if (e.botHl > 0.1) d += Math.ceil(e.botHl / params.bottleHlPerDay);
+    }
+    return d;
+  }
+  // Simule l'ajout d'une répartition (botHl/kegHl) à la semaine cw
+  function condDaysIfAdd(cw, beer, botHl, kegHl) {
+    const sim = {};
+    for (const b in (condEntries[cw] || {}))
+      sim[b] = { kegHl: condEntries[cw][b].kegHl, botHl: condEntries[cw][b].botHl };
+    if (!sim[beer]) sim[beer] = { kegHl: 0, botHl: 0 };
+    sim[beer].kegHl += kegHl;
+    sim[beer].botHl += botHl;
+    return condDaysForEntries(sim);
+  }
+  function addToCondEntries(cw, beer, botHl, kegHl) {
+    if (!condEntries[cw]) condEntries[cw] = {};
+    if (!condEntries[cw][beer]) condEntries[cw][beer] = { kegHl: 0, botHl: 0 };
+    condEntries[cw][beer].kegHl += kegHl;
+    condEntries[cw][beer].botHl += botHl;
+  }
+  // Répartition (b33Hl, b75Hl, kegHl) d'un brassin selon son format (ou le mix)
+  function splitOfBrew(beer, fini, format) {
+    if (format === 'b33') return { b33Hl: fini, b75Hl: 0, kegHl: 0 };
+    if (format === 'b75') return { b33Hl: 0, b75Hl: fini, kegHl: 0 };
+    if (format === 'keg') return { b33Hl: 0, b75Hl: 0, kegHl: fini };
+    const f = effFrac(beer);
+    return { b33Hl: fini * f.b33, b75Hl: fini * f.b75, kegHl: fini * f.keg };
+  }
+
+  // Init cond cal from existing brews (groupés par semaine+bière, override utilisateur prioritaire)
+  {
+    const groups = {};
+    BREW_WEEKS.forEach(bw => (brewsByWeek[bw] || []).forEach(b => {
+      const key = bw + '|' + b.beer;
+      (groups[key] = groups[key] || { bw, beer: b.beer, brews: [] }).brews.push(b);
+    }));
+    Object.values(groups).forEach(grp => {
+      const sp = condSplitFor(grp.bw, grp.beer, grp.brews);
+      addToCondEntries(sp.week, grp.beer, sp.bottle33Hl + sp.bottle75Hl, sp.kegHl);
+    });
+  }
+
+  // Try to place a brew at week w (format: 'bottle' | 'keg' | undefined = mix)
+  function tryPlace(w, beer, brut, autoId, note, format) {
+    if (removedAutoIds.includes(autoId)) return 'removed';
+    const fini = yieldFor(brut);
+    const isExc = exceptionIds.includes(autoId);
+    const occ = isExc ? 1 : CUVE_OCCUPATION_WEEKS;
+    const cw = w + 3;
+    const sp = splitOfBrew(beer, fini, format);
+    const botHl = sp.b33Hl + sp.b75Hl;
+    // Check conditioning (jours bouteille = 33+75 partagés, jours fût à part)
+    if (condDaysIfAdd(cw, beer, botHl, sp.kegHl) > params.condDays) return false;
+    const mkBrew = (cuveIdx) => ({ id: autoId, beer, brut, fini, source: 'auto', note,
+      exception: isExc, format, b33Hl: sp.b33Hl, b75Hl: sp.b75Hl, kegHl: sp.kegHl, cuveIdx });
+    // Check cuve
+    if (brut >= 40) {
+      const preferredCuve = cuveAssignments[autoId];
+      const order = preferredCuve !== undefined
+        ? [preferredCuve, ...[3,2,1,0].filter(i => i !== preferredCuve)]
+        : [3, 2, 1, 0];
+      for (const i of order) {
+        if (i <= 3 && cuveFree(i, w, occ)) {
+          cuveTake(i, w, occ);
+          addToCondEntries(cw, beer, botHl, sp.kegHl);
+          brewsByWeek[w].push(mkBrew(cuveAssignments[autoId]));
+          return true;
+        }
+      }
+    } else {
+      if (cuveFree(4, w, occ)) {
+        cuveTake(4, w, occ);
+        addToCondEntries(cw, beer, botHl, sp.kegHl);
+        brewsByWeek[w].push(mkBrew(undefined));
+        return true;
+      }
+      if (cuveFree(5, w, occ) && cuveFree(6, w, occ)) {
+        cuveTake(5, w, occ); cuveTake(6, w, occ);
+        addToCondEntries(cw, beer, botHl, sp.kegHl);
+        brewsByWeek[w].push(mkBrew(undefined));
+        return true;
+      }
+    }
+    return 'cuve';
+  }
+
+  // Monthly needs — scindés en trois flux : 33cl(+44+6P), 75cl, fût (HL)
+  const nowMonth = new Date().getMonth();          // 0-indexed (mois en cours)
+  const nowWeek = isoWeekOfDate(new Date());       // semaine ISO en cours
+  const g = (1 + params.growth / 100);
+  const need33 = {}, need75 = {}, needKeg = {};
+  for (const beer in DATA.monthlyNeed) {
+    const f = effFrac(beer);
+    const n3 = new Array(12).fill(0), n7 = new Array(12).fill(0), nk = new Array(12).fill(0);
+    for (let m = nowMonth; m < 12; m++) {
+      const v = DATA.monthlyNeed[beer][m] * g;
+      n3[m] = v * f.b33; n7[m] = v * f.b75; nk[m] = v * f.keg;
+    }
+    need33[beer] = n3; need75[beer] = n7; needKeg[beer] = nk;
+  }
+  // Pré-stock par flux issu de la production déjà planifiée (fixés + manuels),
+  // réparti par format (override utilisateur prioritaire, sinon mix). Ce volume
+  // alimente le carry de départ de la boucle ; les need* restent la demande
+  // brute pour que la détection des flux "actifs" reste correcte.
+  const preStock = {};   // {beer: {b33, b75, keg}}
+  {
+    const groups = {};
+    BREW_WEEKS.forEach(bw => (brewsByWeek[bw] || []).forEach(b => {
+      const key = bw + '|' + b.beer;
+      (groups[key] = groups[key] || { bw, beer: b.beer, brews: [] }).brews.push(b);
+    }));
+    Object.values(groups).forEach(grp => {
+      if (!need33[grp.beer]) return;
+      const sp = condSplitFor(grp.bw, grp.beer, grp.brews);
+      const p = preStock[grp.beer] = preStock[grp.beer] || { b33: 0, b75: 0, keg: 0 };
+      p.b33 += sp.bottle33Hl; p.b75 += sp.bottle75Hl; p.keg += sp.kegHl;
+    });
+  }
+
+  // Semaines de brassage disponibles : uniquement le futur (>= S25 et > semaine en cours)
+  const availableWeeks = BREW_WEEKS.filter(w => w >= 25 && w > nowWeek);
+  const ruptures = [];
+
+  // ===== Placement "juste à temps" =====
+  // On brasse au plus près du besoin (et non dès que possible). Un brassin est
+  // disponible LEAD semaines après brassage (conditionnement +3). Pour couvrir
+  // le mois M, on vise une semaine de brassage <= (1re semaine de M − LEAD),
+  // en privilégiant la plus tardive possible. Le stock initial (app Inventaire)
+  // et le surplus d'un brassin sont reportés sur les mois suivants.
+  const LEAD = Math.max(0, params.leadWeeks || 0);
+
+  // Place un brassin au plus près de targetWeek : d'abord les semaines <= cible
+  // (la plus tardive d'abord), sinon la plus proche après.
+  function placeNear(beer, brut, autoId, targetWeek, note, format) {
+    const cand = availableWeeks.slice().sort((a, b) => {
+      const aLate = a <= targetWeek, bLate = b <= targetWeek;
+      if (aLate && bLate) return b - a;   // avant la cible : la plus tardive d'abord
+      if (aLate) return -1;
+      if (bLate) return 1;
+      return a - b;                       // après la cible : la plus proche d'abord
+    });
+    for (const w of cand) {
+      if (tryPlace(w, beer, brut, autoId, note, format) === true) return w;
+    }
+    return null;
+  }
+
+  const minLot = Math.max(0, params.minLotHl || 0);
+  const sumAll = arr => arr.reduce((s, v) => s + v, 0);
+  const totalNeed = beer => sumAll(need33[beer]) + sumAll(need75[beer]) + sumAll(needKeg[beer]);
+  const beerOrder = Object.keys(need33)
+    .filter(beer => !EXCLUDED_BEERS.includes(beer) && totalNeed(beer) >= Math.max(1, minLot))
+    .sort((a, b) => totalNeed(b) - totalNeed(a));
+
+  const sumFrom = (arr, M) => arr.slice(M).reduce((s, v) => s + v, 0);
+
+  beerOrder.forEach(beer => {
+    const st = stockSplitFor(beer);
+    const ps = preStock[beer] || { b33: 0, b75: 0, keg: 0 };
+    let c33 = Math.max(0, st.b33) + ps.b33;   // stock inventaire + production déjà planifiée
+    let c75 = Math.max(0, st.b75) + ps.b75;
+    let cK  = Math.max(0, st.keg) + ps.keg;
+    const f = effFrac(beer);
+    // Flux "actifs" = ceux avec une demande annuelle réelle
+    const act33 = sumAll(need33[beer]) > 0.01, act75 = sumAll(need75[beer]) > 0.01, actK = sumAll(needKeg[beer]) > 0.01;
+    const nActive = (act33 ? 1 : 0) + (act75 ? 1 : 0) + (actK ? 1 : 0);
+    let brewIdx = 0;
+    for (let M = nowMonth; M < 12; M++) {
+      const n3 = need33[beer][M], n7 = need75[beer][M], nk = needKeg[beer][M];
+      let safety = 0;
+      // Couvrir AVANT le mois les trois flux (33, 75, fût).
+      while ((c33 < n3 - 0.01 || c75 < n7 - 0.01 || cK < nk - 0.01) && safety++ < 30) {
+        const s3 = c33 < n3 - 0.01, s7 = c75 < n7 - 0.01, sk = cK < nk - 0.01;
+        const fut3 = sumFrom(need33[beer], M) - c33;
+        const fut7 = sumFrom(need75[beer], M) - c75;
+        const futK = sumFrom(needKeg[beer], M) - cK;
+        const nShort = (s3 ? 1 : 0) + (s7 ? 1 : 0) + (sk ? 1 : 0);
+
+        // Mix si TOUS les flux actifs manquent (cas normal, sans gaspillage) ;
+        // sinon on cible le flux le plus déficitaire (rattrapage après override).
+        let format, deficit;
+        if (nShort === nActive) {
+          format = undefined; deficit = fut3 + fut7 + futK;
+        } else {
+          // flux court le plus déficitaire
+          const cands = [];
+          if (s3) cands.push(['b33', fut3]);
+          if (s7) cands.push(['b75', fut7]);
+          if (sk) cands.push(['keg', futK]);
+          cands.sort((a, b) => b[1] - a[1]);
+          format = cands[0][0]; deficit = cands[0][1];
+        }
+
+        const brut = deficit > 18 ? 60 : 20;
+        const fini = yieldFor(brut);
+        const fc = format === 'b33' ? '3' : format === 'b75' ? '7' : format === 'keg' ? 'k' : 'm';
+        const autoId = `auto_${beer.replace(/\s+/g, '_')}_M${M}_${brewIdx}_${brut}_${fc}`;
+        brewIdx++;
+
+        const creditCarry = () => {
+          if (format === 'b33') c33 += fini;
+          else if (format === 'b75') c75 += fini;
+          else if (format === 'keg') cK += fini;
+          else { c33 += fini * f.b33; c75 += fini * f.b75; cK += fini * f.keg; }
+        };
+        if (removedAutoIds.includes(autoId)) { creditCarry(); continue; }
+        const target = firstIsoWeekOfMonth(YEAR, M + 1) - LEAD;
+        const placedW = placeNear(beer, brut, autoId, target, `Pour ${MOIS_FR[M]}`, format);
+        if (placedW === null) {
+          const miss = Math.max(s3 ? n3 - c33 : 0, s7 ? n7 - c75 : 0, sk ? nk - cK : 0);
+          ruptures.push({ beer, month: M, missing: +miss.toFixed(1) });
+          break;
+        }
+        creditCarry();
+      }
+      c33 -= n3; if (c33 < 0) c33 = 0;
+      c75 -= n7; if (c75 < 0) c75 = 0;
+      cK  -= nk; if (cK  < 0) cK  = 0;
+    }
+  });
+
+  window._condEntries = condEntries;
+  const ruptureMap = {};
+  ruptures.forEach(r => { if (!ruptureMap[r.beer] || r.month < ruptureMap[r.beer].month) ruptureMap[r.beer] = r; });
+  window._planningRuptures = Object.values(ruptureMap);
+
+  try {
+    const { conflicts } = assignCuves(brewsByWeek);
+    conflicts.forEach(c => {
+      const arr = brewsByWeek[c.week]; if (!arr) return;
+      for (const b of arr) {
+        if (b.beer === c.beer && b.brut === c.brut && !b.cuveConflict)
+          { b.cuveConflict = true; b.note = (b.note || '') + ' ⚠ Conflit cuve'; break; }
+      }
+    });
+  } catch (e) {}
+}
+
+// ============ RENDER ============
+function render() {
+  computePlanning();
+
+  // KPIs
+  let totBrut = 0, totFini = 0, overload = 0;
+  // "Besoin à produire" = besoins de mai→déc (mois en cours) ajustés croissance,
+  // moins ce qui est déjà brassé (fixés + manuels + auto)
+  const currentMonthKpi = new Date().getMonth(); // 0-indexed
+  const g = (1 + params.growth / 100);
+  let totNeed = 0;
+  for (const beer in DATA.monthlyNeed) {
+    if (EXCLUDED_BEERS.includes(beer)) continue;
+    // Besoin du mois en cours →, net du stock initial dispo
+    const remaining = DATA.monthlyNeed[beer]
+      .slice(currentMonthKpi)
+      .reduce((s, v) => s + v * g, 0) - Math.max(0, initialStock[beer] || 0);
+    totNeed += Math.max(0, remaining);
+  }
+  // Subtract already-planned production (fini) from the need
+  const alreadyPlanned = {};
+  BREW_WEEKS.forEach(w => {
+    brewsByWeek[w].forEach(b => {
+      alreadyPlanned[b.beer] = (alreadyPlanned[b.beer] || 0) + b.fini;
+    });
+  });
+  // Deduct planned supply beer by beer (can't go below 0)
+  for (const beer in alreadyPlanned) {
+    if (EXCLUDED_BEERS.includes(beer)) continue;
+    const beerNeedRemaining = DATA.monthlyNeed[beer]
+      .slice(currentMonthKpi)
+      .reduce((s, v) => s + v * g, 0) - Math.max(0, initialStock[beer] || 0);
+    const deduct = Math.min(alreadyPlanned[beer], Math.max(0, beerNeedRemaining));
+    totNeed -= deduct;
+  }
+  totNeed = Math.max(0, totNeed);
+  BREW_WEEKS.forEach(w => {
+    const load = brewsByWeek[w].reduce((s, b) => s + b.brut, 0);
+    totBrut += load;
+    totFini += brewsByWeek[w].reduce((s, b) => s + b.fini, 0);
+    if (load > params.maxWeek) overload++;
+  });
+  $('kpiTotalBrut').textContent = fmtI(totBrut);
+  $('kpiTotalFini').textContent = fmtI(totFini);
+  $('kpiNeed').textContent = fmtI(totNeed);
+  // Count cuve conflicts (brews with cuveConflict flag)
+  let cuveConflicts = 0;
+  BREW_WEEKS.forEach(w => {
+    brewsByWeek[w].forEach(b => { if (b.cuveConflict) cuveConflicts++; });
+  });
+  $('kpiOverload').textContent = `${overload} / ${cuveConflicts}`;
+
+  // Ruptures alert — only show ruptures for current month and beyond
+  const allRuptures = window._planningRuptures || [];
+  const currentMonth = new Date().getMonth();  // 0-indexed (mai=4)
+  const ruptures = allRuptures.filter(r => r.month >= currentMonth);
+  const rupturesEl = $('rupturesAlert');
+  if (ruptures.length === 0) {
+    rupturesEl.style.display = 'none';
+  } else {
+    // Aggregate ruptures by beer (keep earliest month + total missing)
+    const aggMap = {};
+    ruptures.forEach(r => {
+      const ex = aggMap[r.beer];
+      if (!ex || r.month < ex.month) {
+        aggMap[r.beer] = { month: r.month, missing: r.missing };
+      } else if (r.month === ex.month) {
+        ex.missing = Math.max(ex.missing, r.missing);
+      }
+    });
+    const nBeers = Object.keys(aggMap).length;
+    const items = Object.entries(aggMap)
+      .sort(([,a], [,b]) => a.month - b.month)
+      .map(([beer, info]) => `
+        <div class="rupt-item">
+          <span class="rupt-beer">${beer}</span>
+          <span class="rupt-info">${MOIS_FR[info.month]} · ~${fmtN(info.missing)} HL</span>
+        </div>`).join('');
+    rupturesEl.innerHTML = `
+      <h3>⚠ Ruptures projetées à partir de ${MOIS_FR[currentMonth]} (${nBeers} bière${nBeers>1?'s':''})</h3>
+      <div>Même en brassant au plus tôt, la production ne peut pas être conditionnée à temps pour couvrir ces mois (capacité cuves / conditionnement saturée).</div>
+      <div class="rupt-list">${items}</div>
+      <div class="rupt-fix">→ Solutions : marquer un brassin S21/S23 comme exception pour le déplacer, ou accepter la rupture / décaler la vente.</div>
+    `;
+    rupturesEl.style.display = '';
+  }
+
+  // Bannière stock initial (importé de l'app Inventaire)
+  const stockBanner = $('stockBanner');
+  const stockBeers = Object.keys(initialStock).filter(b => (initialStock[b] || 0) > 0.05);
+  if (stockBeers.length) {
+    const totStock = stockBeers.reduce((s, b) => s + initialStock[b], 0);
+    stockBanner.innerHTML = `<strong>Stock initial pris en compte :</strong> ${stockBeers.length} bière${stockBeers.length>1?'s':''}, ${fmtN(totStock)} HL au total — il réduit d'autant les brassins à produire. <a href="#" id="clearStockLink" style="color:#1F4E78">Effacer le stock</a>`;
+    stockBanner.style.display = '';
+    const link = $('clearStockLink');
+    if (link) link.onclick = (e) => {
+      e.preventDefault();
+      initialStock = {}; initialStockSplit = {}; saveOverrides(); render(); showToast('Stock initial effacé');
+    };
+  } else {
+    stockBanner.style.display = 'none';
+  }
+
+  // Weeks grid
+  const grid = $('weeksGrid');
+  let html = '';
+
+  // Build condit by week from brews (cond default = brew + 3, can be overridden)
+  const condByWeek = {};
+  BREW_WEEKS.forEach(bw => {
+    // Regroupe les brassins de cette semaine par bière
+    const groups = {};
+    brewsByWeek[bw].forEach(b => {
+      (groups[b.beer] = groups[b.beer] || { fini: 0, brews: [] });
+      groups[b.beer].fini += b.fini; groups[b.beer].brews.push(b);
+    });
+    for (const beer in groups) {
+      const sp = condSplitFor(bw, beer, groups[beer].brews);
+      const bottle33Hl = sp.bottle33Hl, bottle75Hl = sp.bottle75Hl, kegHl = sp.kegHl;
+      const condWeek = sp.week, overridden = sp.overridden;
+      const totalBottle = bottle33Hl + bottle75Hl;
+      const daysBottle = totalBottle > 0.05 ? Math.ceil(totalBottle / params.bottleHlPerDay) : 0;
+      const daysKeg = kegHl > 0.05 ? Math.ceil(kegHl / params.kegHlPerDay) : 0;
+      condByWeek[condWeek] = condByWeek[condWeek] || [];
+      condByWeek[condWeek].push({
+        beer, fini: groups[beer].fini,
+        bottle33Hl, bottle75Hl, kegHl,
+        daysBottle, daysKeg,
+        brewWeek: bw, condWeek, overridden
+      });
+    }
+  });
+
+  for (let w = 21; w <= 52; w++) {
+    const isBrew = w % 2 === 1;
+    if (isBrew) {
+      const items = brewsByWeek[w] || [];
+      const load = items.reduce((s, b) => s + b.brut, 0);
+      const loadPct = Math.min(100, load / params.maxWeek * 100);
+      let zoneClass = 'low';
+      if (load > params.maxWeek) zoneClass = 'danger';
+      else if (load >= 120) zoneClass = 'ok';
+      else if (load >= 80) zoneClass = 'warn';
+
+      // Brewing days needed
+      const brewDaysNeeded = load > 0 ? Math.ceil(load / params.brewHlPerDay * 10) / 10 : 0;
+      const brewDaysClass = brewDaysNeeded > params.brewDays ? 'danger' :
+                            brewDaysNeeded === params.brewDays ? 'warn' :
+                            brewDaysNeeded > 0 ? 'ok' : 'low';
+
+      html += `<div class="week-card brew">
+        <div class="week-head">
+          <div>
+            <span class="week-num">S${w}</span>
+            <span class="week-date" style="margin-left:8px">${fmtWeekRange(w)}</span>
+          </div>
+          <span class="week-type">Brassage</span>
+        </div>
+        <div class="week-load">
+          <span>Charge</span>
+          <span><span class="load-val ${zoneClass}">${load}</span> / ${params.maxWeek} HL</span>
+        </div>
+        <div class="load-bar"><div class="load-bar-fill ${zoneClass}" style="width:${loadPct}%"></div></div>
+        <div class="week-load" style="margin-top: 4px;">
+          <span>Jours</span>
+          <span><span class="load-val ${brewDaysClass}">${brewDaysNeeded}</span> / ${params.brewDays} j</span>
+        </div>
+        <div class="load-bar"><div class="load-bar-fill ${brewDaysClass}" style="width:${Math.min(100, brewDaysNeeded / params.brewDays * 100)}%"></div></div>
+        <div style="height:8px"></div>
+        <div class="brews-list">
+          ${items.length === 0 ? '<div class="week-empty">Aucun brassage</div>' :
+            items.map((b, i) => {
+              const sourceClass = b.source === 'fixed' ? 'fixed' : (b.source === 'manual' ? 'manual' : '');
+              const conflictClass = b.cuveConflict ? 'cuve-conflict' : '';
+              const exceptionClass = b.exception ? 'exception' : '';
+              const sourceBadge = b.source === 'fixed' ? '<span class="brew-source-badge fixed">F</span>' :
+                                  b.source === 'manual' ? '<span class="brew-source-badge manual">M</span>' : '';
+              const excBadge = b.exception ? '<span class="brew-source-badge exception" title="Exception : cuve libérée plus tôt">EX</span>' : '';
+              const canEdit = b.source !== 'fixed';
+              const canToggleException = b.source !== 'fixed';  // S21/S23 exception forced, others toggleable
+              const excTitle = b.exception
+                ? 'Exception activée — clic pour désactiver'
+                : 'Marquer comme exception (libère la cuve plus tôt)';
+              return `
+              <div class="brew-item ${sourceClass} ${conflictClass} ${exceptionClass} ${b.overload ? 'overload' : ''}"${canEdit ? ` draggable="true" data-w="${w}" data-i="${i}"` : ''} title="${b.note || ''}${canEdit ? ' · glisser pour déplacer' : ''}">
+                <div>
+                  <div class="brew-name">${sourceBadge}${excBadge}${b.beer}</div>
+                  <div class="brew-code">${(DATA.beers.find(x => x.name === b.beer) || {}).code || ''}</div>
+                </div>
+                <div class="brew-size">${b.brut}HL→${b.fini}</div>
+                <div class="brew-actions">
+                  ${canToggleException ? `<button class="brew-exception ${b.exception ? 'active' : ''}" data-w="${w}" data-i="${i}" title="${excTitle}">EX</button>` : ''}
+                  ${canEdit ? `<button class="brew-edit" data-w="${w}" data-i="${i}" title="Modifier">✎</button>` : ''}
+                  ${canEdit ? `<button class="brew-remove" data-w="${w}" data-i="${i}" title="Supprimer">×</button>` : ''}
+                </div>
+              </div>`;
+            }).join('')
+          }
+        </div>
+        <button class="add-brew-btn" data-w="${w}">+ Ajouter un brassin</button>
+      </div>`;
+    } else {
+      const items = condByWeek[w] || [];
+      const totalDays = items.reduce((s, c) => s + c.daysBottle + c.daysKeg, 0);
+      let zoneClass = 'low';
+      if (totalDays > params.condDays) zoneClass = 'danger';
+      else if (totalDays === params.condDays) zoneClass = 'warn';
+      else if (totalDays > 0) zoneClass = 'ok';
+      const loadPct = Math.min(100, totalDays / params.condDays * 100);
+
+      html += `<div class="week-card cond">
+        <div class="week-head">
+          <div>
+            <span class="week-num">S${w}</span>
+            <span class="week-date" style="margin-left:8px">${fmtWeekRange(w)}</span>
+          </div>
+          <span class="week-type">Condit.</span>
+        </div>
+        <div class="week-load">
+          <span>Jours</span>
+          <span><span class="load-val ${zoneClass}">${totalDays}</span> / ${params.condDays} j</span>
+        </div>
+        <div class="load-bar"><div class="load-bar-fill ${zoneClass}" style="width:${loadPct}%"></div></div>
+        <div style="height:8px"></div>
+        <div class="cond-list">
+          ${items.length === 0 ? '<div class="week-empty">Pas de conditionnement</div>' :
+            items.map((c, i) => {
+              const offset = c.condWeek - c.brewWeek;
+              const moved = offset !== 3;
+              return `
+              <div class="cond-item ${c.overridden ? 'overridden' : ''}" title="${moved ? 'Décalé : brassage S' + c.brewWeek + ', condit. S' + c.condWeek : 'Brassage S' + c.brewWeek}">
+                <div>
+                  <div class="cond-name">${c.beer}</div>
+                  <div class="cond-volumes">
+                    ${c.kegHl > 0 ? `<span class="v">Fût ${c.kegHl}</span>` : ''}
+                    ${c.bottle33Hl > 0 ? `<span class="v">B33 ${c.bottle33Hl}</span>` : ''}
+                    ${c.bottle75Hl > 0 ? `<span class="v">B75 ${c.bottle75Hl}</span>` : ''}
+                  </div>
+                </div>
+                <div class="cond-days">${c.daysKeg + c.daysBottle}j</div>
+                <button class="cond-edit" data-bw="${c.brewWeek}" data-beer="${encodeURIComponent(c.beer)}" title="Modifier le mix / décaler">✎</button>
+              </div>`;
+            }).join('')
+          }
+        </div>
+      </div>`;
+    }
+  }
+
+  grid.innerHTML = html;
+  applySearchFilter();
+  if (currentView === 'mat') renderMatrix();
+
+  // Wire up buttons
+  grid.querySelectorAll('.brew-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const w = parseInt(btn.dataset.w);
+      const i = parseInt(btn.dataset.i);
+      const b = brewsByWeek[w][i];
+      if (!b || b.source === 'fixed') return;
+      if (b.source === 'manual') {
+        // Remove from manualBrews
+        if (manualBrews[w]) {
+          manualBrews[w] = manualBrews[w].filter(x => x.id !== b.id);
+          if (!manualBrews[w].length) delete manualBrews[w];
+        }
+      } else if (b.source === 'auto') {
+        if (!removedAutoIds.includes(b.id)) removedAutoIds.push(b.id);
+      }
+      saveOverrides();
+      render();
+      showToast('Brassin supprimé');
+    });
+  });
+  grid.querySelectorAll('.brew-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const w = parseInt(btn.dataset.w);
+      const i = parseInt(btn.dataset.i);
+      const b = brewsByWeek[w][i];
+      if (!b || b.source === 'fixed') return;
+      openEditBrewModal(w, i, b);
+    });
+  });
+  grid.querySelectorAll('.brew-exception').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const w = parseInt(btn.dataset.w);
+      const i = parseInt(btn.dataset.i);
+      const b = brewsByWeek[w][i];
+      if (!b || b.source === 'fixed') return;
+      const idx = exceptionIds.indexOf(b.id);
+      if (idx >= 0) {
+        exceptionIds.splice(idx, 1);
+        showToast('Exception désactivée');
+      } else {
+        exceptionIds.push(b.id);
+        showToast('Exception activée — cuve libérée plus tôt');
+      }
+      saveOverrides();
+      render();
+    });
+  });
+  grid.querySelectorAll('.add-brew-btn').forEach(btn => {
+    btn.addEventListener('click', () => openAddModal(parseInt(btn.dataset.w)));
+  });
+
+  // Glisser-déposer : déplacer un brassin d'une semaine de brassage à une autre
+  let dragSrc = null;
+  grid.querySelectorAll('.brew-item[draggable="true"]').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      dragSrc = { w: parseInt(item.dataset.w), i: parseInt(item.dataset.i) };
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', `${dragSrc.w}:${dragSrc.i}`); } catch (_) {}
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+      grid.querySelectorAll('.week-card.drop-target').forEach(c => c.classList.remove('drop-target'));
+    });
+  });
+  grid.querySelectorAll('.week-card.brew').forEach(card => {
+    const targetW = parseInt((card.querySelector('.add-brew-btn') || {}).dataset?.w);
+    if (!targetW) return;
+    card.addEventListener('dragover', e => {
+      if (!dragSrc) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+      card.classList.add('drop-target');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drop-target'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      card.classList.remove('drop-target');
+      if (!dragSrc) return;
+      const brew = (brewsByWeek[dragSrc.w] || [])[dragSrc.i];
+      const from = dragSrc.w; dragSrc = null;
+      if (!brew || brew.source === 'fixed' || targetW === from) return;
+      if (targetW < 25) { showToast('Semaine non planifiable'); return; }
+      if (moveBrewToWeek(from, brew, targetW)) {
+        saveOverrides();
+        render();
+        showToast(`Brassin déplacé en S${targetW}`);
+      }
+    });
+  });
+  grid.querySelectorAll('.cond-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const bw = parseInt(btn.dataset.bw);
+      const beer = decodeURIComponent(btn.dataset.beer);
+      openCondModal(bw, beer);
+    });
+  });
+
+  // Summaries
+  renderSummaries();
+}
+
+// ============ MATRIX VIEW ============
+let currentView = 'cal';
+let _cuveEditContext = null;
+
+function hexToRgba(argb, alpha) {
+  const r = parseInt(argb.substr(2,2),16), g = parseInt(argb.substr(4,2),16), b = parseInt(argb.substr(6,2),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function openCuveModal(brewId, week, currentCuve) {
+  const brew = (brewsByWeek[week] || []).find(b => b.id === brewId);
+  if (!brew) return;
+  _cuveEditContext = { brewId, week, brew };
+  $('cuveModalTitle').textContent = `Affecter à une cuve — ${shortName(brew.beer)}`;
+  $('cuveModalSub').textContent = `S${week} · ${brew.brut} HL · actuellement Cuve ${currentCuve + 1}`;
+  const { schedule } = assignCuves(brewsByWeek);
+  const usedByOther = new Set((schedule[week] || []).filter(p => p.id !== brewId).map(p => p.cuveIdx));
+  const CUVE_NAMES = ['60-1 (60HL)','60-2 (60HL)','60-3 (60HL)','60-4 (60HL)','20 (20HL)','16a','16b'];
+  const validCuves = brew.brut === 60 ? [0,1,2,3] : [4,5,6];
+  $('cuveButtons').innerHTML = validCuves.map(i => {
+    const isCurr = i === currentCuve;
+    const isBusy = usedByOther.has(i);
+    const style = isCurr ? 'background:var(--accent);color:white;border-color:var(--accent);' :
+                  isBusy ? 'opacity:.4;cursor:not-allowed;' : '';
+    return `<button onclick="selectCuve(${i})" ${isBusy&&!isCurr?'disabled':''} style="padding:8px 16px;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:13px;font-family:var(--font-body);${style}">
+      Cuve ${CUVE_NAMES[i]}${isCurr?' ✓':''}${isBusy&&!isCurr?' (occupée)':''}
+    </button>`;
+  }).join('');
+  $('cuveModal').classList.add('show');
+}
+
+function selectCuve(ci) {
+  if (!_cuveEditContext) return;
+  cuveAssignments[_cuveEditContext.brewId] = ci;
+  saveOverrides();
+  $('cuveModal').classList.remove('show');
+  if (currentView === 'mat') renderMatrix(); else render();
+  showToast(`Cuve ${ci+1} assignée`);
+}
+
+$('cuveReset').addEventListener('click', () => {
+  if (!_cuveEditContext) return;
+  delete cuveAssignments[_cuveEditContext.brewId];
+  saveOverrides();
+  $('cuveModal').classList.remove('show');
+  if (currentView === 'mat') renderMatrix(); else render();
+  showToast('Cuve automatique rétablie');
+});
+$('cuveCancel').addEventListener('click', () => $('cuveModal').classList.remove('show'));
+$('cuveModal').addEventListener('click', e => { if (e.target.id === 'cuveModal') $('cuveModal').classList.remove('show'); });
+
+function renderMatrix() {
+  const el = $('matrixView');
+  if (!el) return;
+  const { schedule } = assignCuves(brewsByWeek);
+  const state = {};
+  for (let w = 19; w <= 52; w++) state[w] = {};
+  Object.entries(schedule).forEach(([wStr, items]) => {
+    const w = parseInt(wStr);
+    items.forEach(p => {
+      state[w][p.cuveIdx] = { id: p.id, beer: p.beer, name: p.name, qty: p.qty, isStart: true, manual: p.manual };
+      const occ = p.exceptional ? 1 : CUVE_OCCUPATION_WEEKS;
+      for (let k = 1; k < occ; k++) {
+        const wk = w + k; if (wk > 52) break;
+        if (!state[wk][p.cuveIdx])
+          state[wk][p.cuveIdx] = { id: p.id, beer: p.beer, name: p.name, qty: p.qty, isStart: false };
+      }
+    });
+  });
+  const condEntries = window._condEntries || {};
+  const CUVE_DISPLAY = [3,2,1,0,4,5,6];
+  const CUVE_HEADS = ['C60-4','C60-3','C60-2','C60-1','C20','16a','16b'];
+  const trimBorders = {T2:'#BF8F00',T3:'#538135',T4:'#305496'};
+  const trimLabels = {T2:'T2 — Avr/Mai/Juin',T3:'T3 — Juil/Août/Sept',T4:'T4 — Oct/Nov/Déc'};
+  const trimOf = w => w<=13?'':w<=26?'T2':w<=39?'T3':'T4';
+  let lastTrim = ''; let html = '';
+  html += `<table class="matrix-table"><thead><tr><th>Sem</th>${CUVE_HEADS.map(h=>`<th>${h}</th>`).join('')}<th style="min-width:180px">Conditionnement</th></tr></thead><tbody>`;
+  for (let w = 19; w <= 52; w++) {
+    const trim = trimOf(w);
+    if (trim !== lastTrim && trim) {
+      html += `<tr><td colspan="9" style="background:${trimBorders[trim]};color:white;font-weight:700;font-size:11px;padding:4px 10px;letter-spacing:.06em">${trimLabels[trim]}</td></tr>`;
+      lastTrim = trim;
+    }
+    const isBrew = BREW_WEEKS.includes(w);
+    html += `<tr data-w="${w}" style="background:${isBrew?'#FAFAF2':'#FFFFFF'}">`;
+    html += `<td class="wk" style="${isBrew?'border-left:3px solid var(--accent)':'border-left:3px solid #DDD'}">S${w}</td>`;
+    CUVE_DISPLAY.forEach(ci => {
+      const cell = state[w][ci];
+      if (!cell) { html += `<td class="empty-cell"></td>`; return; }
+      const c = colorForBeer(cell.beer);
+      if (cell.isStart) {
+        const mb = cell.manual ? ' <span style="font-size:9px;background:#806000;color:white;border-radius:2px;padding:1px 3px;vertical-align:middle">M</span>' : '';
+        const brewObj = (brewsByWeek[w] || []).find(b => b.id === cell.id);
+        const isFixed = brewObj && brewObj.source === 'fixed';
+        const drag = isFixed ? '' : ` draggable="true" data-id="${cell.id}" data-w="${w}"`;
+        const tip = isFixed ? 'Clic pour changer de cuve' : 'Clic = changer de cuve · glisser = déplacer la semaine';
+        html += `<td class="cuve-start" style="background:${hexToRgba(c.fg,'1')};color:${c.text};cursor:${isFixed?'pointer':'grab'}"${drag} onclick="openCuveModal('${cell.id}',${w},${ci})" title="${tip}">
+          ${cell.name}${mb}<br><span class="matrix-qty">${cell.qty}HL</span></td>`;
+      } else {
+        html += `<td class="cuve-cont" style="background:${hexToRgba(c.fg,'0.28')}">↓</td>`;
+      }
+    });
+    const entries = condEntries[w] || {};
+    const beers = Object.keys(entries);
+    if (!beers.length) { html += `<td class="cond-cell"></td>`; }
+    else {
+      let totalDays = 0;
+      const lines = beers.map(beer => {
+        const e = entries[beer];
+        const kd = e.kegHl > 0.1 ? Math.ceil(e.kegHl / params.kegHlPerDay) : 0;
+        const bd = e.botHl > 0.1 ? Math.ceil(e.botHl / params.bottleHlPerDay) : 0;
+        totalDays += kd + bd;
+        const c = colorForBeer(beer);
+        const parts = []; if (kd) parts.push(`F${e.kegHl.toFixed(0)}`); if (bd) parts.push(`B${e.botHl.toFixed(0)}`);
+        return `<span style="display:inline-block;background:${hexToRgba(c.fg,'1')};color:${c.text};border-radius:3px;padding:1px 5px;font-size:10px;margin:1px;white-space:nowrap">${shortName(beer)}: ${parts.join('+')} ${kd+bd}j</span>`;
+      }).join('');
+      const over = totalDays > params.condDays;
+      html += `<td class="cond-cell${over?' cond-over':''}" style="line-height:1.8">${lines}<br><strong>${totalDays}j${over?' ⚠':''}</strong></td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</tbody></table><div style="margin-top:10px;font-size:11px;color:var(--text-muted)">
+    Clic sur une cellule colorée = changer de cuve · <strong>glisser une cellule = déplacer le brassin de semaine</strong> · ↓ = fermentation · M = cuve assignée manuellement · F=fût B=bouteille
+  </div>`;
+  el.innerHTML = html;
+
+  // Glisser-déposer : déplacer un brassin d'une semaine de brassage à une autre
+  let dragData = null;
+  el.querySelectorAll('.cuve-start[draggable="true"]').forEach(cellEl => {
+    cellEl.addEventListener('dragstart', e => {
+      dragData = { w: parseInt(cellEl.dataset.w), id: cellEl.dataset.id };
+      cellEl.style.opacity = '0.4';
+      e.dataTransfer.effectAllowed = 'move';
+      try { e.dataTransfer.setData('text/plain', cellEl.dataset.id); } catch (_) {}
+    });
+    cellEl.addEventListener('dragend', () => {
+      cellEl.style.opacity = '';
+      el.querySelectorAll('tr.matrix-drop').forEach(r => r.classList.remove('matrix-drop'));
+    });
+  });
+  el.querySelectorAll('tr[data-w]').forEach(row => {
+    const targetW = parseInt(row.dataset.w);
+    row.addEventListener('dragover', e => {
+      if (!dragData || dragData.w === targetW) return;
+      e.preventDefault(); e.dataTransfer.dropEffect = 'move';
+      row.classList.add('matrix-drop');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('matrix-drop'));
+    row.addEventListener('drop', e => {
+      e.preventDefault(); row.classList.remove('matrix-drop');
+      if (!dragData) return;
+      const from = dragData.w, id = dragData.id; dragData = null;
+      if (targetW === from) return;
+      if (!BREW_WEEKS.includes(targetW)) { showToast('Semaine non brassable (brassage 1 sem/2)'); return; }
+      const brew = (brewsByWeek[from] || []).find(b => b.id === id);
+      if (!brew || brew.source === 'fixed') return;
+      if (moveBrewToWeek(from, brew, targetW)) {
+        saveOverrides();
+        render();
+        showToast(`Brassin déplacé en S${targetW}`);
+      }
+    });
+  });
+}
+
+function setView(v) {
+  currentView = v;
+  $('weeksGrid').style.display = v === 'cal' ? '' : 'none';
+  $('searchBarWrap').style.display = v === 'cal' ? '' : 'none';
+  $('matrixView').style.display = v === 'mat' ? '' : 'none';
+  $('viewCalBtn').classList.toggle('active', v === 'cal');
+  $('viewMatBtn').classList.toggle('active', v === 'mat');
+  if (v === 'mat') renderMatrix();
+}
+
+function applySearchFilter() {
+  const grid = $('weeksGrid');
+  const result = $('searchResult');
+  const clearBtn = $('clearSearch');
+  const q = (searchQuery || '').trim().toLowerCase();
+
+  if (!q) {
+    grid.classList.remove('searching');
+    grid.querySelectorAll('.week-card').forEach(c => c.classList.remove('has-match'));
+    grid.querySelectorAll('.brew-item, .cond-item').forEach(el => el.classList.remove('match'));
+    result.innerHTML = '';
+    clearBtn.style.display = 'none';
+    return;
+  }
+
+  clearBtn.style.display = '';
+  grid.classList.add('searching');
+
+  // Resolve full beer name(s) matching the query
+  const matchedBeers = DATA.beers
+    .filter(b => b.name.toLowerCase().includes(q) || (b.code || '').toLowerCase().includes(q))
+    .map(b => b.name);
+
+  let brewCount = 0, brewHL = 0, condCount = 0;
+  const brewWeeks = new Set();
+  const condWeeks = new Set();
+
+  grid.querySelectorAll('.week-card').forEach(c => c.classList.remove('has-match'));
+  grid.querySelectorAll('.brew-item, .cond-item').forEach(el => el.classList.remove('match'));
+
+  // Mark matching brew items
+  grid.querySelectorAll('.week-card.brew').forEach(card => {
+    const items = card.querySelectorAll('.brew-item');
+    let cardMatched = false;
+    items.forEach(el => {
+      const nameEl = el.querySelector('.brew-name');
+      if (!nameEl) return;
+      const txt = nameEl.textContent.toLowerCase();
+      if (matchedBeers.some(b => txt.includes(b.toLowerCase())) || txt.includes(q)) {
+        el.classList.add('match');
+        cardMatched = true;
+        brewCount++;
+        const sizeEl = el.querySelector('.brew-size');
+        if (sizeEl) {
+          const m = sizeEl.textContent.match(/(\d+)HL/);
+          if (m) brewHL += parseInt(m[1]);
+        }
+        // Extract week from card header
+        const wn = card.querySelector('.week-num');
+        if (wn) brewWeeks.add(wn.textContent);
+      }
+    });
+    if (cardMatched) card.classList.add('has-match');
+  });
+
+  // Mark matching cond items
+  grid.querySelectorAll('.week-card.cond').forEach(card => {
+    const items = card.querySelectorAll('.cond-item');
+    let cardMatched = false;
+    items.forEach(el => {
+      const nameEl = el.querySelector('.cond-name');
+      if (!nameEl) return;
+      const txt = nameEl.textContent.toLowerCase();
+      if (matchedBeers.some(b => txt.includes(b.toLowerCase())) || txt.includes(q)) {
+        el.classList.add('match');
+        cardMatched = true;
+        condCount++;
+        const wn = card.querySelector('.week-num');
+        if (wn) condWeeks.add(wn.textContent);
+      }
+    });
+    if (cardMatched) card.classList.add('has-match');
+  });
+
+  if (brewCount === 0 && condCount === 0) {
+    result.innerHTML = `<span style="color:var(--red)">Aucun résultat</span>`;
+  } else {
+    const brewWeeksStr = brewCount > 0 ? `<strong>${brewCount}</strong> brassin${brewCount>1?'s':''} (${brewHL} HL) en ${[...brewWeeks].sort().join(', ')}` : '';
+    const condWeeksStr = condCount > 0 ? `<strong>${condCount}</strong> conditionnement${condCount>1?'s':''} en ${[...condWeeks].sort().join(', ')}` : '';
+    result.innerHTML = [brewWeeksStr, condWeeksStr].filter(Boolean).join(' · ');
+  }
+}
+
+function populateBeerOptions() {
+  const dl = $('beerOptions');
+  if (!dl) return;
+  dl.innerHTML = DATA.beers.map(b => `<option value="${b.name}">${b.code || ''}</option>`).join('');
+}
+
+function renderSummaries() {
+  const g = (1 + params.growth / 100);
+  const currentMonth = new Date().getMonth(); // 0-indexed, mai=4
+
+  const planned = {};
+  let totFini = 0;
+  BREW_WEEKS.forEach(w => {
+    brewsByWeek[w].forEach(b => {
+      planned[b.beer] = planned[b.beer] || { fini: 0, brews: 0, sizes: [] };
+      planned[b.beer].fini += b.fini;
+      planned[b.beer].brews += 1;
+      planned[b.beer].sizes.push(b.brut);
+      totFini += b.fini;
+    });
+  });
+
+  const rows = DATA.beers.map(b => {
+    // Besoin du mois en cours →, net du stock initial dispo
+    const gross = (DATA.monthlyNeed[b.name] || [])
+      .slice(currentMonth)
+      .reduce((s, v) => s + v * g, 0);
+    const stock = Math.max(0, initialStock[b.name] || 0);
+    const need = Math.max(0, gross - stock);
+    const p = planned[b.name] || { fini: 0, brews: 0, sizes: [] };
+    return { name: b.name, code: b.code, need, stock, planned: p.fini, brews: p.brews, sizes: p.sizes };
+  }).filter(r => r.need > 1 || r.planned > 1 || r.stock > 1)
+    .sort((a, b) => b.need - a.need);
+
+  const tbody = document.querySelector('#summaryBeer tbody');
+  tbody.innerHTML = rows.map(r => {
+    const delta = r.planned - r.need;
+    const dClass = Math.abs(delta) < 5 ? 'zero' : (delta > 0 ? 'pos' : 'neg');
+    const sizesStr = r.sizes.length ?
+      Object.entries(r.sizes.reduce((a,s) => (a[s]=(a[s]||0)+1, a), {}))
+        .map(([sz, c]) => `${c}×${sz}`).join(', ') : '—';
+    const stockHint = r.stock > 0.5
+      ? `<div style="font-size:10px;color:#538135">stock : ${fmtN(r.stock)} HL</div>` : '';
+    return `<tr>
+      <td><strong>${r.name}</strong><div style="font-family:var(--font-mono); font-size:10px; color:var(--text-muted)">${r.code}</div>${stockHint}</td>
+      <td class="num">${fmtN(r.need)}</td>
+      <td class="num">${fmtN(r.planned)}</td>
+      <td class="num delta ${dClass}">${delta > 0 ? '+' : ''}${fmtN(delta)}</td>
+      <td class="num" style="font-size:11px">${sizesStr}</td>
+    </tr>`;
+  }).join('');
+
+  // By container family
+  let bottle33Hl = 0, bottle75Hl = 0, kegHl = 0, daysBottle = 0, daysKeg = 0;
+  BREW_WEEKS.forEach(w => {
+    const groups = {};
+    brewsByWeek[w].forEach(b => { (groups[b.beer] = groups[b.beer] || []).push(b); });
+    for (const beer in groups) {
+      const sp = condSplitFor(w, beer, groups[beer]);
+      const b33 = sp.bottle33Hl, b75 = sp.bottle75Hl, kg = sp.kegHl;
+      bottle33Hl += b33;
+      bottle75Hl += b75;
+      kegHl += kg;
+      const totBot = b33 + b75;
+      if (totBot > 0.05) daysBottle += Math.ceil(totBot / params.bottleHlPerDay);
+      if (kg > 0.05) daysKeg += Math.ceil(kg / params.kegHlPerDay);
+    }
+  });
+
+  const ctb = document.querySelector('#summaryCont tbody');
+  ctb.innerHTML = `
+    <tr><td>Fût (20L, 30L)</td><td class="num">${fmtN(kegHl)}</td><td class="num">${daysKeg}</td></tr>
+    <tr><td>Bouteille 33cl / 44cl / 6P</td><td class="num">${fmtN(bottle33Hl)}</td><td class="num">—</td></tr>
+    <tr><td>Bouteille 75cl</td><td class="num">${fmtN(bottle75Hl)}</td><td class="num">—</td></tr>
+    <tr><td style="font-style:italic; color:var(--text-muted)">  Total bouteille (jours partagés)</td><td class="num" style="font-style:italic; color:var(--text-muted)">${fmtN(bottle33Hl + bottle75Hl)}</td><td class="num">${daysBottle}</td></tr>
+    <tr style="border-top:2px solid var(--border-strong);"><td><strong>Total</strong></td><td class="num"><strong>${fmtN(bottle33Hl + bottle75Hl + kegHl)}</strong></td><td class="num"><strong>${daysBottle + daysKeg}</strong></td></tr>
+  `;
+}
+
+// ============ CUVE ASSIGNMENT ============
+// Cuves are occupied for 3 weeks after a brew starts (incl. the brew week).
+// So a cuve used in S21 (W21) is busy W21, W22, W23 → free starting W24.
+const CUVE_LIST = ['Cuve 60-1', 'Cuve 60-2', 'Cuve 60-3', 'Cuve 60-4', 'Cuve 20', 'Cuve 16-a', 'Cuve 16-b'];
+const CUVE_CAP_LIST = [60, 60, 60, 60, 20, 16, 16];
+const CUVE_OCCUPATION_WEEKS = 3;
+
+function shortName(name) {
+  const m = {
+    'Bière Valmy blonde BIO': 'V Blonde',
+    'Bière Valmy blanche BIO': 'V Blanche',
+    'Bière Valmy ambrée BIO': 'V Ambrée',
+    'Bière Valmy IPA BIO': 'V IPA',
+    'Bière Valmy Triple BIO': 'V Triple',
+    'Bière Valmy Framboise BIO': 'V Framb',
+    'Bière Valmy Noël BIO': 'V Noël',
+    'Bière Orgemont blonde BIO': 'O Blonde',
+    'Bière Orgemont brune BIO': 'O Brune',
+    'Bière Orgemont triple BIO': 'O Triple',
+    'Bière Orgemont Saison BIO': 'O Saison',
+    'Bière Orgemont IPA BIO': 'O IPA',
+    'Bière Rèmes': 'Rèmes',
+    'Bière Tutti Berry BIO': 'Tutti B',
+    'Bière Trouble Jeu BIO': 'Trouble J',
+    'Bière Bouquet Final BIO': 'Bouquet F',
+    'Bière Crème de la Crème BIO': 'Crème',
+    'Bière Légionnaire Blonde': 'LEG Blonde',
+    'Bière Légionnaire IPA': 'LEG IPA',
+    'Bière Bayard / Baraquine blonde': 'Bay Blonde',
+    'Bière Bayard / Baraquine triple': 'Bay Triple',
+    'Biére Muizon': 'Muizon'
+  };
+  return m[name] || name.replace(/^Bière |^Biére /, '').slice(0, 12);
+}
+
+// Build a per-week cuve assignment honoring the 3-week occupation rule.
+// Returns { schedule, conflicts } where:
+//   schedule[w] = [{cuveIdx, name, qty, beer}]
+//   conflicts = [{week, beer, brut, reason}]
+function assignCuves(brewsByWeekParam) {
+  const cuveBusyUntil = CUVE_CAP_LIST.map(() => 0);
+  const conflicts = [];
+  const schedule = {};
+  const sortedWeeks = Object.keys(brewsByWeekParam).map(Number)
+    .filter(w => (brewsByWeekParam[w] || []).length).sort((a, b) => a - b);
+
+  sortedWeeks.forEach(w => {
+    schedule[w] = [];
+    const wf = {}; for (let i = 0; i < 7; i++) wf[i] = cuveBusyUntil[i] <= w;
+    // Sort: 60HL first, then 40HL, then 20HL
+    const items = [...brewsByWeekParam[w]].sort((a, b) => b.brut - a.brut);
+
+    items.forEach(it => {
+      const sn = shortName(it.beer);
+      const isExc = it.exception === true;
+      const occ = isExc ? 1 : CUVE_OCCUPATION_WEEKS;
+      let ok = false;
+      const preferred = cuveAssignments[it.id] ?? DEFAULT_CUVE_ASSIGNMENTS[it.id];
+
+      if (it.brut >= 40) {
+        // 60HL or 40HL → big cuves (0–3)
+        const order = preferred !== undefined && preferred <= 3
+          ? [preferred, ...[3,2,1,0].filter(i => i !== preferred)]
+          : [3, 2, 1, 0];
+        for (const i of order) {
+          if (wf[i]) {
+            schedule[w].push({ id: it.id, cuveIdx: i, name: sn, qty: it.brut, beer: it.beer,
+              exceptional: isExc, manual: (cuveAssignments[it.id] !== undefined || DEFAULT_CUVE_ASSIGNMENTS[it.id] !== undefined) });
+            cuveBusyUntil[i] = w + occ; wf[i] = false; ok = true; break;
+          }
+        }
+      } else {
+        // 20HL → cuve 20 (4) or split 16a+16b (5+6)
+        const preferSmall = preferred !== undefined && preferred >= 4 ? preferred : null;
+        if (preferSmall === 5 || preferSmall === 6) {
+          // Force split on 16a+16b
+          if (wf[5] && wf[6]) {
+            schedule[w].push({ id: it.id, cuveIdx: 5, name: sn + ' (16a)', qty: 10, beer: it.beer, exceptional: isExc, manual: true });
+            schedule[w].push({ id: it.id, cuveIdx: 6, name: sn + ' (16b)', qty: 10, beer: it.beer, exceptional: isExc, manual: true });
+            cuveBusyUntil[5] = cuveBusyUntil[6] = w + occ; wf[5] = wf[6] = false; ok = true;
+          }
+        } else if (wf[4]) {
+          schedule[w].push({ id: it.id, cuveIdx: 4, name: sn, qty: 20, beer: it.beer, exceptional: isExc });
+          cuveBusyUntil[4] = w + occ; wf[4] = false; ok = true;
+        } else if (wf[5] && wf[6]) {
+          schedule[w].push({ id: it.id, cuveIdx: 5, name: sn + ' (16a)', qty: 10, beer: it.beer, exceptional: isExc });
+          schedule[w].push({ id: it.id, cuveIdx: 6, name: sn + ' (16b)', qty: 10, beer: it.beer, exceptional: isExc });
+          cuveBusyUntil[5] = cuveBusyUntil[6] = w + occ; wf[5] = wf[6] = false; ok = true;
+        }
+      }
+      if (!ok) conflicts.push({ week: w, beer: it.beer, brut: it.brut, reason: 'Pas de cuve dispo' });
+    });
+  });
+  return { schedule, conflicts };
+}
+
+
+
+
+
+// ============ EXCEL MATRIX EXPORT ============
+// Beer color palette based on type (blonde=yellow, ipa=green, etc.)
+function colorForBeer(beerName) {
+  const n = beerName.toLowerCase();
+  // Specific overrides first
+  if (n.includes('framboise')) return {fg: 'FFE8CCE0', text: 'FF7A2A5C'};   // rose
+  if (n.includes('tutti'))     return {fg: 'FFF8D2D2', text: 'FF8E2A2A'};   // baie
+  if (n.includes('noël') || n.includes('noel')) return {fg: 'FFD9CCE8', text: 'FF4B2A7A'}; // pourpre
+  if (n.includes('saison'))    return {fg: 'FFFFD9A8', text: 'FF8A4E0F'};   // orangé
+  if (n.includes('blanche'))   return {fg: 'FFCFE2F3', text: 'FF1F4E78'};   // bleu
+  if (n.includes('brune'))     return {fg: 'FFD3B999', text: 'FF5A3614'};   // marron
+  if (n.includes('ambr'))      return {fg: 'FFE8C9A1', text: 'FF7A4910'};   // ambré
+  if (n.includes('triple'))    return {fg: 'FFF4CCCC', text: 'FF800000'};   // rouge
+  if (n.includes('ipa'))       return {fg: 'FFD9EAD3', text: 'FF274E13'};   // vert
+  if (n.includes('blonde'))    return {fg: 'FFFFF2CC', text: 'FF7F6000'};   // jaune
+  // Generic fallbacks for unnamed beers
+  if (n.includes('bouquet'))   return {fg: 'FFEAD9F5', text: 'FF4B0082'};   // violet
+  if (n.includes('crème') || n.includes('creme')) return {fg: 'FFFFF7E0', text: 'FF8B7500'};
+  if (n.includes('trouble'))   return {fg: 'FFE0E8D9', text: 'FF3E5F2F'};
+  if (n.includes('rèmes') || n.includes('remes')) return {fg: 'FFE6E6E6', text: 'FF333333'};
+  if (n.includes('muizon'))    return {fg: 'FFDDE5F0', text: 'FF263959'};
+  if (n.includes('légionnaire') || n.includes('legionnaire')) return {fg: 'FFF4D9C0', text: 'FF6B3500'};
+  if (n.includes('bayard') || n.includes('baraquine')) return {fg: 'FFF5DEDE', text: 'FF6B1E1E'};
+  return {fg: 'FFEEEEEE', text: 'FF333333'};
+}
+
+async function exportPlanningExcel() {
+  if (typeof ExcelJS === 'undefined') { showToast("Bibliothèque ExcelJS non chargée"); return; }
+  const wb = new ExcelJS.Workbook();
+  const hdrFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF305496' } };
+  const hdrFont = { bold: true, color: { argb: 'FFFFFFFF' } };
+  const codeOf = b => (DATA.beers.find(x => x.name === b) || {}).code || '';
+
+  // --- Feuille 1 : brassins chronologiques ---
+  const ws = wb.addWorksheet(`Planning ${YEAR}`);
+  ws.columns = [
+    { header: 'Semaine', key: 'sem', width: 10 },
+    { header: 'Dates', key: 'dates', width: 18 },
+    { header: 'Mois cible', key: 'mois', width: 12 },
+    { header: 'Bière', key: 'beer', width: 30 },
+    { header: 'Code', key: 'code', width: 10 },
+    { header: 'HL brut', key: 'brut', width: 9 },
+    { header: 'HL fini', key: 'fini', width: 9 },
+    { header: 'Conditionnement', key: 'cond', width: 14 },
+    { header: 'Type', key: 'src', width: 10 },
+    { header: 'Note', key: 'note', width: 22 }
+  ];
+  ws.getRow(1).eachCell(c => { c.fill = hdrFill; c.font = hdrFont; c.alignment = { horizontal: 'center' }; });
+  const srcLabel = { fixed: 'Fixé', manual: 'Manuel', auto: 'Auto' };
+  BREW_WEEKS.filter(w => (brewsByWeek[w] || []).length).sort((a, b) => a - b).forEach(w => {
+    [...brewsByWeek[w]].sort((a, b) => b.brut - a.brut).forEach(b => {
+      const mMatch = (b.note || '').match(/Pour (\w+)/);
+      const r = ws.addRow({
+        sem: `S${w}`, dates: fmtWeekRange(w), mois: mMatch ? mMatch[1] : '',
+        beer: b.beer, code: codeOf(b.beer), brut: b.brut, fini: b.fini,
+        cond: `S${w + 3}`, src: srcLabel[b.source] || b.source, note: b.note || ''
+      });
+      const col = colorForBeer(b.beer);
+      r.getCell('beer').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: col.fg } };
+      r.getCell('beer').font = { color: { argb: col.text } };
+      ['brut', 'fini', 'sem', 'cond'].forEach(k => r.getCell(k).alignment = { horizontal: 'center' });
+    });
+  });
+  ws.addRow({});
+  const totBrut = BREW_WEEKS.reduce((s, w) => s + (brewsByWeek[w] || []).reduce((x, b) => x + b.brut, 0), 0);
+  const totFini = BREW_WEEKS.reduce((s, w) => s + (brewsByWeek[w] || []).reduce((x, b) => x + b.fini, 0), 0);
+  const tot = ws.addRow({ beer: 'TOTAL', brut: totBrut, fini: +totFini.toFixed(1) });
+  tot.font = { bold: true };
+  ws.views = [{ state: 'frozen', ySplit: 1 }];
+
+  // --- Feuille 2 : récap par bière (besoin net / planifié / stock) ---
+  const ws2 = wb.addWorksheet('Récap bière');
+  ws2.columns = [
+    { header: 'Bière', key: 'beer', width: 30 },
+    { header: 'Code', key: 'code', width: 10 },
+    { header: 'Stock initial (HL)', key: 'stock', width: 16 },
+    { header: 'Besoin net (HL)', key: 'need', width: 15 },
+    { header: 'Planifié fini (HL)', key: 'plan', width: 16 },
+    { header: 'Écart (HL)', key: 'delta', width: 12 },
+    { header: 'Brassins', key: 'brews', width: 10 }
+  ];
+  ws2.getRow(1).eachCell(c => { c.fill = hdrFill; c.font = hdrFont; c.alignment = { horizontal: 'center' }; });
+  const g = (1 + params.growth / 100);
+  const nowM = new Date().getMonth();
+  const plannedBy = {};
+  BREW_WEEKS.forEach(w => (brewsByWeek[w] || []).forEach(b => {
+    plannedBy[b.beer] = plannedBy[b.beer] || { fini: 0, n: 0 };
+    plannedBy[b.beer].fini += b.fini; plannedBy[b.beer].n++;
+  }));
+  DATA.beers.forEach(b => {
+    const gross = (DATA.monthlyNeed[b.name] || []).slice(nowM).reduce((s, v) => s + v * g, 0);
+    const stock = Math.max(0, initialStock[b.name] || 0);
+    const need = Math.max(0, gross - stock);
+    const p = plannedBy[b.name] || { fini: 0, n: 0 };
+    if (need < 0.5 && p.fini < 0.5 && stock < 0.5) return;
+    ws2.addRow({
+      beer: b.name, code: b.code, stock: +stock.toFixed(1), need: +need.toFixed(1),
+      plan: +p.fini.toFixed(1), delta: +(p.fini - need).toFixed(1), brews: p.n
+    });
+  });
+  ws2.views = [{ state: 'frozen', ySplit: 1 }];
+
+  // --- Feuille 3 : Brassins → Besoins (quel brassin couvre quels mois) ---
+  const alloc = buildBrewAllocation();
+  const ws3 = wb.addWorksheet('Brassins → Besoins');
+  ws3.columns = [
+    { header: 'Origine', key: 'kind', width: 12 },
+    { header: 'Semaine', key: 'sem', width: 10 },
+    { header: 'Dispo (mois)', key: 'avail', width: 13 },
+    { header: 'Bière', key: 'beer', width: 30 },
+    { header: 'Code', key: 'code', width: 10 },
+    { header: 'HL fini', key: 'fini', width: 9 },
+    { header: 'Couvre les besoins de', key: 'cover', width: 46 },
+    { header: 'Surplus (HL)', key: 'surplus', width: 12 }
+  ];
+  ws3.getRow(1).eachCell(c => { c.fill = hdrFill; c.font = hdrFont; c.alignment = { horizontal: 'center' }; });
+  // tri : par bière, stock d'abord, puis par semaine
+  alloc.slice().sort((a, b) =>
+    a.beer.localeCompare(b.beer) ||
+    (a.kind === 'stock' ? -1 : 0) - (b.kind === 'stock' ? -1 : 0) ||
+    ((a.week || 0) - (b.week || 0))
+  ).forEach(s => {
+    const cover = s.alloc.length
+      ? s.alloc.map(x => `${MOIS_FR[x.month]} (${fmtN(x.hl)})`).join(' · ')
+      : '— (non utilisé cette année)';
+    const r = ws3.addRow({
+      kind: s.kind === 'stock' ? 'Stock' : 'Brassin',
+      sem: s.kind === 'stock' ? '—' : `S${s.week}`,
+      avail: MOIS_FR[s.availMonth],
+      beer: s.beer, code: s.code, fini: s.hlTotal,
+      cover, surplus: s.surplus > 0.05 ? s.surplus : ''
+    });
+    const col = colorForBeer(s.beer);
+    r.getCell('beer').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: col.fg } };
+    r.getCell('beer').font = { color: { argb: col.text } };
+    if (s.kind === 'stock') r.getCell('kind').font = { italic: true, color: { argb: 'FF538135' } };
+    ['sem', 'avail', 'fini', 'surplus'].forEach(k => r.getCell(k).alignment = { horizontal: 'center' });
+  });
+  ws3.views = [{ state: 'frozen', ySplit: 1 }];
+
+  // --- Feuille 4 : Besoins → Brassins (pour chaque mois/bière, ce qui le couvre) ---
+  const ws4 = wb.addWorksheet('Besoins → Brassins');
+  ws4.columns = [
+    { header: 'Bière', key: 'beer', width: 30 },
+    { header: 'Code', key: 'code', width: 10 },
+    { header: 'Mois', key: 'mois', width: 12 },
+    { header: 'Besoin (HL)', key: 'need', width: 12 },
+    { header: 'Couvert par', key: 'by', width: 50 }
+  ];
+  ws4.getRow(1).eachCell(c => { c.fill = hdrFill; c.font = hdrFont; c.alignment = { horizontal: 'center' }; });
+  // index beer|month -> [{label, hl}]
+  const byBeerMonth = {};
+  alloc.forEach(s => {
+    const label = s.kind === 'stock' ? 'Stock initial' : `S${s.week}`;
+    s.alloc.forEach(x => {
+      const k = `${s.beer}|${x.month}`;
+      (byBeerMonth[k] = byBeerMonth[k] || []).push({ label, hl: x.hl });
+    });
+  });
+  DATA.beers.forEach(b => {
+    if (EXCLUDED_BEERS.includes(b.name)) return;
+    const arr = DATA.monthlyNeed[b.name]; if (!arr) return;
+    for (let M = nowM; M < 12; M++) {
+      const need = (arr[M] || 0) * g;
+      if (need < 0.05) continue;
+      const cov = byBeerMonth[`${b.name}|${M}`] || [];
+      const covered = cov.reduce((s, c) => s + c.hl, 0);
+      const by = cov.length
+        ? cov.map(c => `${c.label} (${fmtN(c.hl)})`).join(' · ') + (need - covered > 0.5 ? ` · ⚠ manque ${fmtN(need - covered)}` : '')
+        : '⚠ non couvert';
+      const r = ws4.addRow({ beer: b.name, code: b.code, mois: MOIS_FR[M], need: +need.toFixed(1), by });
+      const col = colorForBeer(b.name);
+      r.getCell('beer').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: col.fg } };
+      r.getCell('beer').font = { color: { argb: col.text } };
+      r.getCell('need').alignment = { horizontal: 'center' };
+    }
+  });
+  ws4.views = [{ state: 'frozen', ySplit: 1 }];
+
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Planning_Production_${YEAR}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Planning Excel téléchargé');
+}
+
+async function exportExcelMatrix() {
+  if (typeof ExcelJS === 'undefined') {
+    showToast("Bibliothèque ExcelJS non chargée");
+    return;
+  }
+  const CUVES = CUVE_LIST;
+  const CUVE_CAP = CUVE_CAP_LIST;
+
+  const { schedule, conflicts } = assignCuves(brewsByWeek);
+
+  // weekCuveCells[w][cuveIdx] = [{name, qty, isStart, beer}]
+  const weekCuveCells = {};
+  for (let w = 1; w <= 52; w++) weekCuveCells[w] = {};
+  Object.entries(schedule).forEach(([wStr, items]) => {
+    const w = parseInt(wStr);
+    items.forEach(p => {
+      if (!weekCuveCells[w][p.cuveIdx]) weekCuveCells[w][p.cuveIdx] = [];
+      weekCuveCells[w][p.cuveIdx].push({name: p.name, qty: p.qty, isStart: true, beer: p.beer});
+      const occupationSpan = p.exceptional ? 1 : CUVE_OCCUPATION_WEEKS;
+      for (let k = 1; k < occupationSpan; k++) {
+        const wk = w + k;
+        if (wk > 52) break;
+        if (!weekCuveCells[wk][p.cuveIdx]) weekCuveCells[wk][p.cuveIdx] = [];
+        weekCuveCells[wk][p.cuveIdx].push({name: p.name, qty: p.qty, isStart: false, beer: p.beer});
+      }
+    });
+  });
+
+  // Build workbook with ExcelJS
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Planning', {
+    views: [{state: 'frozen', xSplit: 2, ySplit: 3}]
+  });
+
+  // Common border style
+  const thinBorder = {
+    top:    {style: 'thin', color: {argb: 'FF808080'}},
+    left:   {style: 'thin', color: {argb: 'FF808080'}},
+    bottom: {style: 'thin', color: {argb: 'FF808080'}},
+    right:  {style: 'thin', color: {argb: 'FF808080'}}
+  };
+  const mediumBorder = {
+    top:    {style: 'medium', color: {argb: 'FF1F4E78'}},
+    left:   {style: 'medium', color: {argb: 'FF1F4E78'}},
+    bottom: {style: 'medium', color: {argb: 'FF1F4E78'}},
+    right:  {style: 'medium', color: {argb: 'FF1F4E78'}}
+  };
+
+  const numCols = 2 + CUVES.length * 2;
+
+  // Row 1: title
+  ws.mergeCells(1, 1, 1, numCols);
+  const titleCell = ws.getCell(1, 1);
+  titleCell.value = 'Planning de Brassage 2026';
+  titleCell.font = {bold: true, size: 14, color: {argb: 'FFFFFFFF'}};
+  titleCell.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF1F4E78'}};
+  titleCell.alignment = {horizontal: 'center', vertical: 'middle'};
+  ws.getRow(1).height = 26;
+
+  // Row 2: cuve headers (merged across 2 cols each)
+  ws.getCell(2, 1).value = 'Trim';
+  ws.getCell(2, 2).value = 'Sem';
+  for (let i = 0; i < CUVES.length; i++) {
+    const c = 3 + i * 2;
+    ws.mergeCells(2, c, 2, c + 1);
+    ws.getCell(2, c).value = CUVES[i];
+  }
+  // Style row 2
+  for (let c = 1; c <= numCols; c++) {
+    const cell = ws.getCell(2, c);
+    cell.font = {bold: true, color: {argb: 'FFFFFFFF'}, size: 10};
+    cell.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF305496'}};
+    cell.alignment = {horizontal: 'center', vertical: 'middle', wrapText: true};
+    cell.border = thinBorder;
+  }
+  ws.getRow(2).height = 22;
+
+  // Row 3: capacities
+  ws.getCell(3, 2).value = 'Cap.';
+  for (let i = 0; i < CUVES.length; i++) {
+    const c = 3 + i * 2;
+    ws.mergeCells(3, c, 3, c + 1);
+    ws.getCell(3, c).value = CUVE_CAP[i] + ' HL';
+  }
+  for (let c = 1; c <= numCols; c++) {
+    const cell = ws.getCell(3, c);
+    cell.font = {italic: true, size: 9, color: {argb: 'FF606060'}};
+    cell.alignment = {horizontal: 'center', vertical: 'middle'};
+    cell.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FFF2F2F2'}};
+    cell.border = thinBorder;
+  }
+  ws.getRow(3).height = 16;
+
+  // Data rows (week 1 → 52)
+  const trimOf = w => w <= 13 ? 'T1' : w <= 26 ? 'T2' : w <= 39 ? 'T3' : 'T4';
+  const trimColor = {
+    T1: 'FFEAEAEA',
+    T2: 'FFFFE699',
+    T3: 'FFC6E0B4',
+    T4: 'FFBDD7EE'
+  };
+
+  const trimStartRow = {};
+  let lastTrim = null;
+  for (let w = 1; w <= 52; w++) {
+    const t = trimOf(w);
+    const rowIdx = 3 + w;
+
+    if (t !== lastTrim) {
+      trimStartRow[t] = rowIdx;
+      const trimCell = ws.getCell(rowIdx, 1);
+      trimCell.value = t;
+      trimCell.font = {bold: true, size: 12, color: {argb: 'FFFFFFFF'}};
+      trimCell.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF806000'}};
+      trimCell.alignment = {horizontal: 'center', vertical: 'middle'};
+    }
+    lastTrim = t;
+
+    // Week number
+    const wkCell = ws.getCell(rowIdx, 2);
+    wkCell.value = w;
+    wkCell.alignment = {horizontal: 'center', vertical: 'middle'};
+    wkCell.font = {bold: w % 2 === 1, size: 10};
+    wkCell.fill = {type: 'pattern', pattern: 'solid',
+                   fgColor: {argb: w % 2 === 1 ? 'FFF8F4EB' : 'FFFFFFFF'}};
+    wkCell.border = thinBorder;
+
+    // Cuve cells
+    for (let i = 0; i < CUVES.length; i++) {
+      const nameCol = 3 + i * 2;
+      const qtyCol = nameCol + 1;
+      const cells = weekCuveCells[w][i];
+      const nameCell = ws.getCell(rowIdx, nameCol);
+      const qtyCell = ws.getCell(rowIdx, qtyCol);
+      nameCell.border = thinBorder;
+      qtyCell.border = thinBorder;
+      nameCell.alignment = {horizontal: 'left', vertical: 'middle', wrapText: true};
+      qtyCell.alignment = {horizontal: 'center', vertical: 'middle'};
+      if (!cells || cells.length === 0) {
+        // Empty — keep no fill
+        continue;
+      }
+      // Single brew or multi-stack in same cuve
+      const starts = cells.filter(c => c.isStart);
+      const conts = cells.filter(c => !c.isStart);
+      const allItems = cells;
+      // Choose primary beer for coloring: the one with biggest qty or first start
+      const primary = starts.length ? starts.reduce((a, b) => a.qty > b.qty ? a : b) : allItems[0];
+      const color = colorForBeer(primary.beer);
+
+      // Name : join with newlines, use distinct prefix for occupied
+      const nameLines = cells.map(c => c.isStart ? c.name : '· ' + c.name);
+      nameCell.value = nameLines.join('\n');
+      nameCell.font = {bold: true, size: 10, color: {argb: color.text}};
+
+      // Quantity : sum of starts (no quantity for occupation-only)
+      const qtyLines = starts.map(c => c.qty);
+      qtyCell.value = qtyLines.length ? qtyLines.join('+') : '';
+      qtyCell.font = {bold: true, size: 10, color: {argb: color.text}};
+      qtyCell.numFmt = '0" HL"';
+
+      // Fill color (lighter for continuation-only)
+      const fgColor = starts.length ? color.fg : color.fg.replace(/^FF/, 'FFE8'); // lighten
+      const isContinuationOnly = !starts.length;
+      const finalFg = isContinuationOnly
+        ? lightenHex(color.fg, 0.5)
+        : color.fg;
+      nameCell.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: finalFg}};
+      qtyCell.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: finalFg}};
+
+      if (cells.length > 1 || nameLines.some(l => l.length > 12)) {
+        ws.getRow(rowIdx).height = 32;
+      }
+    }
+  }
+
+  // Merge trim cells (column A) for each trim
+  ['T1', 'T2', 'T3', 'T4'].forEach(t => {
+    if (!trimStartRow[t]) return;
+    const startR = trimStartRow[t];
+    let endR = 55; // beyond week 52
+    if (t === 'T1') endR = trimStartRow['T2'] - 1;
+    else if (t === 'T2') endR = trimStartRow['T3'] - 1;
+    else if (t === 'T3') endR = trimStartRow['T4'] - 1;
+    else endR = 55;
+    if (endR > startR) {
+      ws.mergeCells(startR, 1, endR, 1);
+    }
+    // Apply trim color overlay to col A
+    const cell = ws.getCell(startR, 1);
+    cell.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF806000'}};
+    cell.border = mediumBorder;
+  });
+
+  // Column widths
+  ws.getColumn(1).width = 6;
+  ws.getColumn(2).width = 6;
+  for (let i = 0; i < CUVES.length; i++) {
+    ws.getColumn(3 + i * 2).width = 14;
+    ws.getColumn(3 + i * 2 + 1).width = 7;
+  }
+
+  // Add conflicts at the bottom if any
+  if (conflicts.length) {
+    const startConfR = 56;
+    ws.getCell(startConfR, 1).value = '⚠ Conflits cuves';
+    ws.getCell(startConfR, 1).font = {bold: true, color: {argb: 'FFC00000'}, size: 11};
+    ws.mergeCells(startConfR, 1, startConfR, 5);
+    conflicts.forEach((c, i) => {
+      const r = startConfR + 1 + i;
+      ws.getCell(r, 1).value = 'S' + c.week;
+      ws.getCell(r, 2).value = c.beer;
+      ws.getCell(r, 4).value = c.brut;
+      ws.getCell(r, 5).value = c.reason;
+    });
+  }
+
+  // === Sheet 2 : Bières (legend) ===
+  const wsL = wb.addWorksheet('Bières');
+  wsL.getCell(1, 1).value = 'Légende des couleurs et codes courts';
+  wsL.getCell(1, 1).font = {bold: true, size: 14, color: {argb: 'FFFFFFFF'}};
+  wsL.getCell(1, 1).fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF1F4E78'}};
+  wsL.mergeCells(1, 1, 1, 3);
+  wsL.getRow(1).height = 24;
+
+  ['Nom complet', 'Code court', 'Aperçu couleur'].forEach((h, i) => {
+    const c = wsL.getCell(2, i + 1);
+    c.value = h;
+    c.font = {bold: true, color: {argb: 'FFFFFFFF'}};
+    c.fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: 'FF305496'}};
+    c.alignment = {horizontal: 'center'};
+    c.border = thinBorder;
+  });
+  DATA.beers.forEach((b, i) => {
+    const r = 3 + i;
+    wsL.getCell(r, 1).value = b.name;
+    wsL.getCell(r, 2).value = shortName(b.name);
+    wsL.getCell(r, 3).value = '   ';
+    const color = colorForBeer(b.name);
+    wsL.getCell(r, 3).fill = {type: 'pattern', pattern: 'solid', fgColor: {argb: color.fg}};
+    wsL.getCell(r, 2).font = {bold: true, color: {argb: color.text}};
+    [1, 2, 3].forEach(c => wsL.getCell(r, c).border = thinBorder);
+  });
+
+  wsL.getColumn(1).width = 36;
+  wsL.getColumn(2).width = 16;
+  wsL.getColumn(3).width = 16;
+
+  // Download
+  const buffer = await wb.xlsx.writeBuffer();
+  const blob = new Blob([buffer], {type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.download = `Planning_Brassage_${stamp}.xlsx`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  const msg = conflicts.length
+    ? `Excel téléchargé · ${conflicts.length} conflit${conflicts.length>1?'s':''} de cuve`
+    : 'Excel matrice téléchargé';
+  showToast(msg);
+}
+
+function lightenHex(argb, amount) {
+  // argb is "FFRRGGBB" — blend toward white
+  const r = parseInt(argb.substr(2, 2), 16);
+  const g = parseInt(argb.substr(4, 2), 16);
+  const b = parseInt(argb.substr(6, 2), 16);
+  const lr = Math.round(r + (255 - r) * amount);
+  const lg = Math.round(g + (255 - g) * amount);
+  const lb = Math.round(b + (255 - b) * amount);
+  return 'FF' + [lr, lg, lb].map(v => v.toString(16).padStart(2, '0').toUpperCase()).join('');
+}
+
+
+
+// ============ PRINT BLOCK BUILDER ============
+function buildPrintBlock() {
+  const block = $('printBlock');
+  if (!block) return;
+
+  // Short name lookup
+  const SHORT_NAMES = {
+    'Bière Valmy blonde BIO': 'V Blonde',
+    'Bière Valmy blanche BIO': 'V Blanche',
+    'Bière Valmy ambrée BIO': 'V Ambrée',
+    'Bière Valmy IPA BIO': 'V IPA',
+    'Bière Valmy Triple BIO': 'V Triple',
+    'Bière Valmy Framboise BIO': 'V Framb',
+    'Bière Valmy Noël BIO': 'V Noël',
+    'Bière Orgemont blonde BIO': 'O Blonde',
+    'Bière Orgemont brune BIO': 'O Brune',
+    'Bière Orgemont triple BIO': 'O Triple',
+    'Bière Orgemont Saison BIO': 'O Saison',
+    'Bière Orgemont IPA BIO': 'O IPA',
+    'Bière Rèmes': 'Rèmes',
+    'Bière Tutti Berry BIO': 'Tutti B',
+    'Bière Trouble Jeu BIO': 'Trouble J',
+    'Bière Bouquet Final BIO': 'Bouquet F',
+    'Bière Crème de la Crème BIO': 'Crème',
+    'Bière Légionnaire Blonde': 'LEG Blonde',
+    'Bière Légionnaire IPA': 'LEG IPA',
+    'Bière Bayard / Baraquine blonde': 'Bay Blonde',
+    'Bière Bayard / Baraquine triple': 'Bay Triple',
+    'Biére Muizon': 'Muizon'
+  };
+  const shortName = name => SHORT_NAMES[name] || name.replace(/^Bière |^Biére /, '').slice(0, 12);
+
+  // KPIs
+  let totBrut = 0, totFini = 0, overload = 0;
+  BREW_WEEKS.forEach(w => {
+    const load = brewsByWeek[w].reduce((s, b) => s + b.brut, 0);
+    totBrut += load;
+    totFini += brewsByWeek[w].reduce((s, b) => s + b.fini, 0);
+    if (load > params.maxWeek) overload++;
+  });
+  const totWeeks = BREW_WEEKS.filter(w => brewsByWeek[w].length > 0).length;
+
+  let html = `
+    <div class="print-header">
+      <div>
+        <h1>Planning de brassage 2026</h1>
+      </div>
+      <div class="meta">
+        Édité le ${new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'})}<br>
+        Croissance ${params.growth}% · Max ${params.maxWeek} HL/sem · ${params.brewHlPerDay} HL/jour
+      </div>
+    </div>
+
+    <div class="print-kpis">
+      <div class="print-kpi">
+        <div class="l">Total brut</div>
+        <div class="v">${totBrut}<span class="u"> HL</span></div>
+      </div>
+      <div class="print-kpi">
+        <div class="l">Total fini</div>
+        <div class="v">${Math.round(totFini)}<span class="u"> HL</span></div>
+      </div>
+      <div class="print-kpi">
+        <div class="l">Semaines actives</div>
+        <div class="v">${totWeeks}<span class="u"> / 16</span></div>
+      </div>
+      <div class="print-kpi">
+        <div class="l">Surcharges</div>
+        <div class="v">${overload}</div>
+      </div>
+    </div>
+  `;
+
+  // Group brewing weeks by trimester (using week numbers, not month assignment)
+  const TRIM_BUCKETS = [
+    {label: 'T2', name: 'Trimestre 2 — Avril → Juin', cls: 't2', from: 14, to: 26},
+    {label: 'T3', name: 'Trimestre 3 — Juillet → Septembre', cls: 't3', from: 27, to: 39},
+    {label: 'T4', name: 'Trimestre 4 — Octobre → Décembre', cls: 't4', from: 40, to: 52}
+  ];
+
+  TRIM_BUCKETS.forEach(trim => {
+    const weeksInTrim = BREW_WEEKS.filter(w => w >= trim.from && w <= trim.to);
+    if (!weeksInTrim.length) return;
+
+    let trimBrut = 0, trimBrews = 0;
+    weeksInTrim.forEach(w => {
+      brewsByWeek[w].forEach(b => { trimBrut += b.brut; trimBrews++; });
+    });
+    if (trimBrews === 0) return; // skip empty trim
+
+    html += `
+      <div class="print-trim ${trim.cls}">
+        <div class="print-trim-head">
+          <span>${trim.name}</span>
+          <span class="stat">${trimBrews} brassins · ${trimBrut} HL brut</span>
+        </div>
+        <table class="print-table">
+          <thead>
+            <tr>
+              <th>Sem</th>
+              <th>Période</th>
+              <th>Brassins</th>
+              <th class="num">HL</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    weeksInTrim.forEach(w => {
+      const items = brewsByWeek[w];
+      const load = items.reduce((s, b) => s + b.brut, 0);
+      const pills = items.map(b => {
+        const isFixed = b.source === 'fixed';
+        return `<span class="pill${isFixed ? ' fixed' : ''}">${shortName(b.beer)}<span class="qty${isFixed ? ' fixed' : ''}">${b.brut}</span></span>`;
+      }).join('');
+      const dateRange = (() => {
+        const [a, _] = isoWeekDates(YEAR, w);
+        const b = new Date(a); b.setDate(a.getDate() + 6);
+        const f = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;
+        return `${f(a)} → ${f(b)}`;
+      })();
+
+      html += `
+        <tr ${items.length === 0 ? 'class="empty"' : ''}>
+          <td class="week">S${w}</td>
+          <td class="date">${dateRange}</td>
+          <td class="beers">${items.length === 0 ? '—' : pills}</td>
+          <td class="total">${load > 0 ? load : '—'}</td>
+        </tr>
+      `;
+    });
+
+    html += `</tbody></table></div>`;
+  });
+
+  html += `
+    <div class="print-footer">
+      Légende : pastille orange = brassins déjà réalisés ou fixés · pastille beige = brassins planifiés automatiquement
+    </div>
+  `;
+
+  block.innerHTML = html;
+}
+
+// ============ MODAL — BREW ADD/EDIT ============
+// Déplace un brassin (manuel ou auto) vers une autre semaine de brassage.
+// Le brassin déplacé devient "manuel" sur la semaine cible.
+function moveBrewToWeek(oldW, brew, newW) {
+  if (!brew || brew.source === 'fixed' || newW === oldW) return false;
+  if (brew.source === 'manual') {
+    manualBrews[oldW] = (manualBrews[oldW] || []).filter(x => x.id !== brew.id);
+    if (!manualBrews[oldW].length) delete manualBrews[oldW];
+  } else if (brew.source === 'auto') {
+    if (!removedAutoIds.includes(brew.id)) removedAutoIds.push(brew.id);
+  }
+  if (!manualBrews[newW]) manualBrews[newW] = [];
+  manualBrews[newW].push({ id: genId(), beer: brew.beer, brut: brew.brut, note: 'Déplacé manuellement' });
+  return true;
+}
+
+function openAddModal(week) {
+  editing = { mode: 'add', week };
+  const sel = $('mBeer');
+  sel.innerHTML = DATA.beers.map(b => `<option value="${b.name}">${b.name} · ${b.code}</option>`).join('');
+  $('mSize').value = '60';
+  $('mWeekField').style.display = 'none';
+  $('modalTitle').textContent = `Ajouter un brassin en S${week}`;
+  $('mOk').textContent = 'Ajouter';
+  $('modal').classList.add('show');
+}
+
+function openEditBrewModal(week, index, brew) {
+  editing = { mode: 'edit', week, index, brew };
+  const sel = $('mBeer');
+  sel.innerHTML = DATA.beers.map(b => `<option value="${b.name}">${b.name} · ${b.code}</option>`).join('');
+  sel.value = brew.beer;
+  $('mSize').value = String(brew.brut);
+  // Populate week dropdown for moving
+  const wSel = $('mWeek');
+  wSel.innerHTML = BREW_WEEKS.filter(w => w >= 25).map(w =>
+    `<option value="${w}"${w === week ? ' selected' : ''}>S${w} · ${fmtWeekRange(w)}</option>`
+  ).join('');
+  $('mWeekField').style.display = '';
+  $('modalTitle').textContent = `Modifier brassin (S${week})`;
+  $('mOk').textContent = 'Enregistrer';
+  $('modal').classList.add('show');
+}
+
+function closeModal() { $('modal').classList.remove('show'); editing = null; }
+
+$('mCancel').addEventListener('click', closeModal);
+$('mOk').addEventListener('click', () => {
+  const beer = $('mBeer').value;
+  const brut = parseInt($('mSize').value);
+  if (!editing) return;
+
+  if (editing.mode === 'add') {
+    const w = editing.week;
+    if (!manualBrews[w]) manualBrews[w] = [];
+    manualBrews[w].push({ id: genId(), beer, brut, note: 'Ajout manuel' });
+    showToast('Brassin ajouté');
+  } else if (editing.mode === 'edit') {
+    const oldW = editing.week;
+    const oldBrew = editing.brew;
+    const newW = parseInt($('mWeek').value);
+
+    if (newW === oldW) {
+      // Modification sur place : remplacer par un manuel à la même semaine
+      if (oldBrew.source === 'manual') {
+        manualBrews[oldW] = (manualBrews[oldW] || []).filter(x => x.id !== oldBrew.id);
+        if (!manualBrews[oldW].length) delete manualBrews[oldW];
+      } else if (oldBrew.source === 'auto') {
+        if (!removedAutoIds.includes(oldBrew.id)) removedAutoIds.push(oldBrew.id);
+      }
+      if (!manualBrews[oldW]) manualBrews[oldW] = [];
+      manualBrews[oldW].push({ id: genId(), beer, brut, note: 'Modifié manuellement' });
+      showToast('Brassin modifié');
+    } else {
+      // Déplacement (avec éventuel changement bière/taille)
+      moveBrewToWeek(oldW, { ...oldBrew, beer, brut }, newW);
+      showToast(`Brassin déplacé en S${newW}`);
+    }
+  }
+  saveOverrides();
+  closeModal();
+  render();
+});
+$('modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+// ============ MODAL — CONDITIONING ============
+let editingCond = null;
+function openCondModal(brewWeek, beer) {
+  const items = brewsByWeek[brewWeek] || [];
+  const grp = items.filter(b => b.beer === beer);
+  const agg = grp.reduce((s, b) => s + b.fini, 0);
+  if (agg <= 0) return;
+  const mx = getEffectiveMix(beer);
+  // Pré-remplissage = répartition calculée par le planning selon les besoins du
+  // moment (flux 33/75/fût), et non le mix historique appliqué aveuglément.
+  // condSplitFor renvoie l'override utilisateur s'il existe, sinon la somme des
+  // répartitions par brassin (ciblées par le moteur).
+  const sp = condSplitFor(brewWeek, beer, grp);
+  const bottle33Hl = sp.bottle33Hl;
+  const bottle75Hl = sp.bottle75Hl;
+  const kegHl      = sp.kegHl;
+  const condWeek   = sp.week;
+
+  editingCond = { brewWeek, beer, fini: agg };
+  $('condModalTitle').textContent = `Conditionnement — ${beer}`;
+  $('condModalSub').textContent = `Brassage S${brewWeek}, défaut conditionnement S${brewWeek + 3}`;
+  $('condFiniTotal').textContent = `${fmtN(agg)} HL`;
+  // Référence : répartition des besoins de l'année pour cette bière (33/75/fût)
+  const totBeer = (DATA.monthlyNeed[beer] || []).reduce((s, v) => s + v, 0);
+  if (totBeer > 0.1) {
+    const pK = Math.round(mx.keg * 100), p3 = Math.round(mx.bottle33 * 100), p7 = Math.round(mx.bottle75 * 100);
+    $('condDefaultMix').textContent = `Fût ${pK}% / B33 ${p3}% / B75 ${p7}%`;
+  } else {
+    $('condDefaultMix').textContent = '—';
+  }
+  $('condKegRate').textContent = params.kegHlPerDay;
+  $('condBottleRate').textContent = params.bottleHlPerDay;
+  $('condKegHl').value = kegHl;
+  $('condBottle33Hl').value = bottle33Hl;
+  $('condBottle75Hl').value = bottle75Hl;
+
+  // Populate week dropdown — brewWeek+1 to brewWeek+8 (or so), plus default S+3
+  const wSel = $('condWeek');
+  let opts = '';
+  for (let w = brewWeek + 2; w <= brewWeek + 10 && w <= 53; w++) {
+    const tag = w === brewWeek + 3 ? ' (défaut S+3)' : ` (S+${w - brewWeek})`;
+    opts += `<option value="${w}"${w === condWeek ? ' selected' : ''}>S${w} · ${fmtWeekRange(w)}${tag}</option>`;
+  }
+  wSel.innerHTML = opts;
+
+  updateCondDaysPreview();
+  $('condModal').classList.add('show');
+}
+function updateCondDaysPreview() {
+  const keg = parseFloat($('condKegHl').value) || 0;
+  const b33 = parseFloat($('condBottle33Hl').value) || 0;
+  const b75 = parseFloat($('condBottle75Hl').value) || 0;
+  const totBottle = b33 + b75;
+  const dk = keg > 0.05 ? Math.ceil(keg / params.kegHlPerDay) : 0;
+  const db = totBottle > 0.05 ? Math.ceil(totBottle / params.bottleHlPerDay) : 0;
+  $('condDaysPreview').textContent = `${dk + db} j (Fût ${dk} + Btl ${db})`;
+}
+function closeCondModal() { $('condModal').classList.remove('show'); editingCond = null; }
+$('condKegHl').addEventListener('input', updateCondDaysPreview);
+$('condBottle33Hl').addEventListener('input', updateCondDaysPreview);
+$('condBottle75Hl').addEventListener('input', updateCondDaysPreview);
+$('condCancel').addEventListener('click', closeCondModal);
+$('condReset').addEventListener('click', () => {
+  if (!editingCond) return;
+  delete condOverrides[`${editingCond.brewWeek}|${editingCond.beer}`];
+  saveOverrides();
+  closeCondModal();
+  render();
+  showToast('Conditionnement recalculé selon les besoins');
+});
+$('condOk').addEventListener('click', () => {
+  if (!editingCond) return;
+  const keg = +parseFloat($('condKegHl').value).toFixed(1) || 0;
+  const b33 = +parseFloat($('condBottle33Hl').value).toFixed(1) || 0;
+  const b75 = +parseFloat($('condBottle75Hl').value).toFixed(1) || 0;
+  const week = parseInt($('condWeek').value);
+  condOverrides[`${editingCond.brewWeek}|${editingCond.beer}`] = {
+    kegHl: keg, bottle33Hl: b33, bottle75Hl: b75, week, _user: true
+  };
+  saveOverrides();
+  closeCondModal();
+  render();
+  showToast(week !== editingCond.brewWeek + 3
+    ? `Conditionnement décalé en S${week}`
+    : 'Conditionnement modifié');
+});
+$('condModal').addEventListener('click', e => { if (e.target.id === 'condModal') closeCondModal(); });
+
+// ============ MODAL — EXCEL IMPORT ============
+function openImportModal() {
+  $('importStatus').classList.remove('show');
+  $('importStatus').classList.remove('error');
+  $('importStatus').textContent = '';
+  $('importModal').classList.add('show');
+}
+function closeImportModal() { $('importModal').classList.remove('show'); }
+$('importClose').addEventListener('click', closeImportModal);
+$('importModal').addEventListener('click', e => { if (e.target.id === 'importModal') closeImportModal(); });
+
+function setImportStatus(msg, isError) {
+  const el = $('importStatus');
+  el.textContent = msg;
+  el.classList.toggle('error', !!isError);
+  el.classList.add('show');
+}
+
+async function parseExcelFile(file) {
+  if (typeof XLSX === 'undefined') {
+    setImportStatus("La bibliothèque de lecture Excel n'a pas pu être chargée. Vérifie ta connexion internet et recharge la page.", true);
+    return;
+  }
+  setImportStatus('Lecture du fichier…', false);
+  try {
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, { type: 'array' });
+
+    const result = { beers: [], monthlyNeed: {}, mix: {} };
+
+    // 1) LISTES sheet → beers + codes
+    const wsListes = wb.Sheets['LISTES'];
+    if (!wsListes) throw new Error('Onglet "LISTES" introuvable');
+    const listesRows = XLSX.utils.sheet_to_json(wsListes, { header: 1, defval: null });
+    for (let r = 1; r < listesRows.length; r++) {
+      const row = listesRows[r];
+      const name = row[0];
+      const code = row[1];
+      if (name && typeof name === 'string') {
+        result.beers.push({ name: name.trim(), code: code ? String(code).trim() : '' });
+      }
+    }
+    if (!result.beers.length) throw new Error('Aucune bière trouvée dans LISTES');
+
+    // 2) Recap_Production → monthly needs (row 4..N, cols B..M)
+    const wsRecap = wb.Sheets['Recap_Production'];
+    if (!wsRecap) throw new Error('Onglet "Recap_Production" introuvable');
+    const recapRows = XLSX.utils.sheet_to_json(wsRecap, { header: 1, defval: 0 });
+    // Header is at row 3 (0-indexed: 2). Data starts at row 4 (0-indexed: 3).
+    for (let r = 3; r < recapRows.length; r++) {
+      const row = recapRows[r];
+      const name = row[0];
+      if (!name || typeof name !== 'string' || name.includes('TOTAL')) continue;
+      const beerName = name.trim();
+      result.monthlyNeed[beerName] = [];
+      for (let m = 0; m < 12; m++) {
+        const v = row[1 + m];
+        result.monthlyNeed[beerName].push(typeof v === 'number' ? +v.toFixed(2) : 0);
+      }
+    }
+
+    // 3) Historique_2025 → container mix (3 categories: fût, 33cl/44cl/6P, 75cl)
+    const wsHist = wb.Sheets['Historique_2025'];
+    if (wsHist) {
+      const histRows = XLSX.utils.sheet_to_json(wsHist, { header: 1, defval: 0 });
+      const small33 = ['33cl (HL)', '44cl (HL)', '6-Pack (HL)'];
+      const large75 = ['75cl (HL)'];
+      const kegConts = ['20L (HL)', '30L (HL)'];
+      const sums = {};
+      for (let r = 2; r < histRows.length; r++) {
+        const row = histRows[r];
+        const beer = row[0];
+        const cont = row[1];
+        const total = row[14] || 0;
+        if (!beer || !cont || typeof beer !== 'string') continue;
+        const b = beer.trim();
+        sums[b] = sums[b] || { bottle33: 0, bottle75: 0, keg: 0 };
+        if (small33.includes(cont)) sums[b].bottle33 += +total;
+        else if (large75.includes(cont)) sums[b].bottle75 += +total;
+        else if (kegConts.includes(cont)) sums[b].keg += +total;
+      }
+      for (const b in sums) {
+        const tot = sums[b].bottle33 + sums[b].bottle75 + sums[b].keg;
+        result.mix[b] = tot > 0
+          ? {
+              bottle33: +(sums[b].bottle33 / tot).toFixed(3),
+              bottle75: +(sums[b].bottle75 / tot).toFixed(3),
+              keg:      +(sums[b].keg / tot).toFixed(3)
+            }
+          : { bottle33: 0.2, bottle75: 0.1, keg: 0.7 };
+      }
+    }
+    // Defaults for missing
+    result.beers.forEach(b => {
+      if (!result.mix[b.name]) result.mix[b.name] = { bottle33: 0.2, bottle75: 0.1, keg: 0.7 };
+    });
+
+    // Apply
+    DATA.beers = result.beers;
+    DATA.monthlyNeed = result.monthlyNeed;
+    DATA.mix = result.mix;
+
+    // Save the imported DATA so it persists
+    try { localStorage.setItem(STORAGE_KEY + '_data', JSON.stringify(DATA)); } catch (e) {}
+    populateBeerOptions();
+
+    const totNeed = Object.values(result.monthlyNeed).reduce((s, arr) => s + arr.reduce((x,y)=>x+y,0), 0);
+    setImportStatus(
+      `✓ Importé : ${result.beers.length} bières, besoin total ${totNeed.toFixed(1)} HL. ` +
+      `Clique "Recalculer" ou modifie un paramètre pour appliquer.`,
+      false
+    );
+    render();
+  } catch (err) {
+    setImportStatus('Erreur de lecture : ' + err.message, true);
+  }
+}
+
+// Drop zone
+const dropZone = $('dropZone');
+const excelFile = $('excelFile');
+dropZone.addEventListener('click', () => excelFile.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) parseExcelFile(f);
+});
+excelFile.addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (f) parseExcelFile(f);
+  e.target.value = '';
+});
+$('importExcelBtn').addEventListener('click', openImportModal);
+
+// ============ PERSISTENCE ============
+function saveOverrides() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      params, manualBrews, removedAutoIds, condOverrides, exceptionIds, cuveAssignments, containerExclusions, initialStock, initialStockSplit
+    }));
+  } catch (e) {}
+}
+function loadOverrides() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const d = JSON.parse(raw);
+      if (d.params) Object.assign(params, d.params);
+      if (d.manualBrews) manualBrews = d.manualBrews;
+      if (d.removedAutoIds) removedAutoIds = d.removedAutoIds;
+      if (d.condOverrides) condOverrides = d.condOverrides;
+      if (d.exceptionIds) exceptionIds = d.exceptionIds;
+      if (d.cuveAssignments) cuveAssignments = d.cuveAssignments;
+      if (d.containerExclusions) containerExclusions = d.containerExclusions;
+      if (d.initialStock) initialStock = d.initialStock;
+      if (d.initialStockSplit) initialStockSplit = d.initialStockSplit;
+      syncParamInputs();
+    }
+    // Restore imported DATA if any
+    const rawData = localStorage.getItem(STORAGE_KEY + '_data');
+    if (rawData) {
+      try {
+        const d = JSON.parse(rawData);
+        if (d && d.beers && d.monthlyNeed) {
+          DATA.beers = d.beers;
+          DATA.monthlyNeed = d.monthlyNeed;
+          if (d.mix) DATA.mix = d.mix;
+        }
+      } catch (e) {}
+    }
+  } catch (e) {}
+}
+
+// ============ EVENTS ============
+function readParams() {
+  { const gv = parseInt($('growth').value); params.growth = Number.isFinite(gv) ? gv : 0; }
+  params.maxWeek = parseInt($('maxWeek').value) || 180;
+  const m = $('losses').value.match(/^(\d+)\/(\d+)\/(\d+)$/);
+  if (m) params.losses = {20: +m[1], 40: +m[2], 60: +m[3]};
+  params.brewHlPerDay = parseInt($('brewHlPerDay').value) || 40;
+  params.brewDays = parseInt($('brewDays').value) || 5;
+  params.kegHlPerDay = parseInt($('kegHlPerDay').value) || 60;
+  params.bottleHlPerDay = parseInt($('bottleHlPerDay').value) || 20;
+  params.condDays = parseInt($('condDays').value) || 5;
+  params.leadWeeks = Math.max(0, parseInt($('leadWeeks').value) || 0);
+  params.minLotHl = Math.max(0, parseFloat($('minLotHl').value) || 0);
+}
+
+function syncParamInputs() {
+  $('growth').value = params.growth;
+  $('maxWeek').value = params.maxWeek;
+  $('losses').value = `${params.losses[20]}/${params.losses[40]}/${params.losses[60]}`;
+  $('brewHlPerDay').value = params.brewHlPerDay;
+  $('brewDays').value = params.brewDays;
+  $('kegHlPerDay').value = params.kegHlPerDay;
+  $('bottleHlPerDay').value = params.bottleHlPerDay;
+  $('condDays').value = params.condDays;
+  $('leadWeeks').value = params.leadWeeks ?? 3;
+  $('minLotHl').value = params.minLotHl ?? 0;
+}
+
+$('recalcBtn').addEventListener('click', () => {
+  readParams();
+  saveOverrides();
+  render();
+  showToast('Planning recalculé');
+});
+
+$('resetBtn').addEventListener('click', () => {
+  if (!confirm('Réinitialiser tous les ajouts/suppressions manuels, conditionnements personnalisés et exceptions ?')) return;
+  manualBrews = {};
+  removedAutoIds = [];
+  condOverrides = {};
+  exceptionIds = [];
+  cuveAssignments = {};
+  containerExclusions = {};
+  initialStock = {};
+  initialStockSplit = {};
+  saveOverrides();
+  render();
+  showToast('Réinitialisé');
+});
+
+['growth','maxWeek','losses','brewHlPerDay','brewDays','kegHlPerDay','bottleHlPerDay','condDays','leadWeeks','minLotHl'].forEach(id => {
+  $(id).addEventListener('change', () => { readParams(); saveOverrides(); render(); });
+});
+
+$('exportPdfBtn').addEventListener('click', () => {
+  buildPrintBlock();
+  setTimeout(() => window.print(), 80);
+});
+
+$('excelMatrixBtn').addEventListener('click', async () => {
+  if (typeof ExcelJS === 'undefined') {
+    showToast("Bibliothèque ExcelJS non chargée — vérifie ta connexion internet");
+    return;
+  }
+  try {
+    await exportExcelMatrix();
+  } catch (e) {
+    showToast("Erreur export Excel : " + e.message);
+  }
+});
+
+$('exportPlanningBtn').addEventListener('click', async () => {
+  if (typeof ExcelJS === 'undefined') {
+    showToast("Bibliothèque ExcelJS non chargée — vérifie ta connexion internet");
+    return;
+  }
+  try {
+    await exportPlanningExcel();
+  } catch (e) {
+    showToast("Erreur export Planning : " + e.message);
+  }
+});
+
+$('exportJsonBtn').addEventListener('click', () => {
+  const data = JSON.stringify({
+    version: 3,
+    params, manualBrews, removedAutoIds, condOverrides, exceptionIds, cuveAssignments, containerExclusions, initialStock, initialStockSplit,
+    importedData: DATA
+  }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `planning_brassage_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Sauvegarde téléchargée');
+});
+
+$('importJsonBtn').addEventListener('click', () => $('importFile').click());
+$('importFile').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (d.params) Object.assign(params, d.params);
+      if (d.manualBrews) manualBrews = d.manualBrews;
+      else if (Array.isArray(d.manualOverrides)) {
+        // legacy v1 format
+        manualBrews = {};
+        d.manualOverrides.filter(o => o.action === 'add').forEach(o => {
+          if (!manualBrews[o.week]) manualBrews[o.week] = [];
+          manualBrews[o.week].push({ id: o.id || genId(), beer: o.beer, brut: o.brut, note: 'Ajout manuel' });
+        });
+      }
+      if (d.removedAutoIds) removedAutoIds = d.removedAutoIds;
+      if (d.condOverrides) condOverrides = d.condOverrides;
+      if (d.exceptionIds) exceptionIds = d.exceptionIds;
+      if (d.cuveAssignments) cuveAssignments = d.cuveAssignments;
+      if (d.containerExclusions) containerExclusions = d.containerExclusions;
+      if (d.initialStock) initialStock = d.initialStock;
+      if (d.initialStockSplit) initialStockSplit = d.initialStockSplit;
+      if (d.importedData && d.importedData.beers && d.importedData.monthlyNeed) {
+        DATA.beers = d.importedData.beers;
+        DATA.monthlyNeed = d.importedData.monthlyNeed;
+        if (d.importedData.mix) DATA.mix = d.importedData.mix;
+        try { localStorage.setItem(STORAGE_KEY + '_data', JSON.stringify(DATA)); } catch (e) {}
+      }
+      saveOverrides();
+      syncParamInputs();
+      render();
+      showToast('Chargé');
+    } catch (err) {
+      showToast('Fichier invalide : ' + err.message);
+    }
+  };
+  r.readAsText(f);
+  e.target.value = '';
+});
+
+// ====== Import inventaire (depuis l'app Inventaire_Brasserie) ======
+// Libellé lisible d'un contenant (Fût / Bouteille + taille)
+function containerLabel(cont) {
+  const c = String(cont || '').replace(/\s*\(HL\)\s*/i, '').trim();
+  if (c === '20L' || c === '30L') return 'Fût ' + c;
+  if (/cl$/i.test(c)) return 'Bouteille ' + c;
+  return c || '—';
+}
+
+let expiredPending = null;  // { valid:{beer:{b33,b75,keg}}, expired:[{beer,label,qty,hl,ddm,lot,fmt}] }
+
+function importInventoryJSON(file) {
+  const r = new FileReader();
+  r.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (!Array.isArray(d.entries))
+        throw new Error('ce n\'est pas un export de l\'app Inventaire (clé "entries" absente)');
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const fmtOfCont = c => (c === '20L' || c === '30L') ? 'keg' : (c === '75cl' ? 'b75' : 'b33');
+      const valid = {};            // {beer: {b33, b75, keg}}
+      const expired = [];          // [{beer, label, qty, hl, ddm, lot, fmt}]
+      d.entries.forEach(e => {
+        const cont = String(e.container || '').replace(/\s*\(HL\)\s*/i, '').trim();
+        const hlUnit = CONTAINER_HL[cont];
+        const qty = Number(e.quantity) || 0;
+        if (!hlUnit || qty <= 0 || !e.beer) return;
+        const hl = +(hlUnit * qty).toFixed(2);
+        const fmt = fmtOfCont(cont);
+        const dt = e.ddm ? new Date(e.ddm) : null;
+        const isExpired = dt && !isNaN(dt.getTime()) && dt < today;
+        if (isExpired) {
+          expired.push({ beer: e.beer, label: containerLabel(cont), qty, hl, ddm: e.ddm || '', lot: e.lot || '', fmt });
+        } else {
+          const v = valid[e.beer] = valid[e.beer] || { b33: 0, b75: 0, keg: 0 };
+          v[fmt] += hl;
+        }
+      });
+
+      if (expired.length > 0) {
+        expiredPending = { valid, expired };
+        openExpiredModal();
+      } else {
+        applyInventoryStock(valid, []);
+      }
+    } catch (err) {
+      showToast('Inventaire invalide : ' + err.message);
+    }
+  };
+  r.readAsText(file);
+}
+
+// Construit initialStock (total) et initialStockSplit (33/75/fût) à partir
+// des lots valides + des lots périmés retenus.
+function applyInventoryStock(valid, includedExpired) {
+  const split = {};
+  const add = (beer, fmt, hl) => {
+    const s = split[beer] = split[beer] || { b33: 0, b75: 0, keg: 0 };
+    s[fmt] += hl;
+  };
+  for (const b in valid) {
+    add(b, 'b33', valid[b].b33 || 0); add(b, 'b75', valid[b].b75 || 0); add(b, 'keg', valid[b].keg || 0);
+  }
+  includedExpired.forEach(e => add(e.beer, e.fmt || 'b33', e.hl));
+
+  initialStockSplit = {};
+  initialStock = {};
+  for (const b in split) {
+    const b33 = +split[b].b33.toFixed(2), b75 = +split[b].b75.toFixed(2), keg = +split[b].keg.toFixed(2);
+    initialStockSplit[b] = { b33, b75, keg };
+    initialStock[b] = +(b33 + b75 + keg).toFixed(2);
+  }
+  saveOverrides();
+  render();
+  const totHl = Object.values(initialStock).reduce((s, v) => s + v, 0);
+  const nExp = includedExpired.length;
+  const expNote = nExp ? ` · ${nExp} lot(s) périmé(s) inclus` : '';
+  showToast(`Inventaire importé : ${Object.keys(initialStock).length} bières · ${fmtN(totHl)} HL${expNote}`);
+}
+
+function fmtDDM(s) {
+  if (!s) return '—';
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function updateExpiredSelTotal() {
+  const tot = (expiredPending?.expired || []).reduce((s, e, idx) => {
+    const cb = document.querySelector(`#expiredTbody input[data-idx="${idx}"]`);
+    return s + (cb && cb.checked ? e.hl : 0);
+  }, 0);
+  $('expiredSelTotal').textContent = `${fmtN(tot)} HL`;
+}
+
+function openExpiredModal() {
+  const tb = $('expiredTbody');
+  const list = expiredPending.expired;
+  tb.innerHTML = list.map((e, idx) => {
+    const code = (DATA.beers.find(x => x.name === e.beer) || {}).code || '';
+    const bg = idx % 2 ? 'style="background:#F8F4EB"' : '';
+    return `<tr ${bg}>
+      <td style="text-align:center;padding:5px 10px"><input type="checkbox" data-idx="${idx}"></td>
+      <td style="padding:5px 10px">${e.beer}<div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${code}</div></td>
+      <td style="padding:5px 10px">${e.label}</td>
+      <td style="padding:5px 10px;text-align:right">${fmtI(e.qty)}</td>
+      <td style="padding:5px 10px;text-align:right">${fmtN(e.hl)}</td>
+      <td style="padding:5px 10px;text-align:center">${fmtDDM(e.ddm)}</td>
+      <td style="padding:5px 10px;font-family:var(--font-mono);font-size:11px">${e.lot || '—'}</td>
+    </tr>`;
+  }).join('');
+  tb.querySelectorAll('input[type=checkbox]').forEach(cb =>
+    cb.addEventListener('change', updateExpiredSelTotal));
+  updateExpiredSelTotal();
+  $('expiredModal').classList.add('show');
+}
+
+function closeExpiredModal() { $('expiredModal').classList.remove('show'); expiredPending = null; }
+
+$('expiredAll').addEventListener('click', () => {
+  $('expiredTbody').querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = true);
+  updateExpiredSelTotal();
+});
+$('expiredNone').addEventListener('click', () => {
+  $('expiredTbody').querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  updateExpiredSelTotal();
+});
+$('expiredCancel').addEventListener('click', () => { closeExpiredModal(); showToast('Import annulé'); });
+$('expiredOk').addEventListener('click', () => {
+  if (!expiredPending) return;
+  const included = expiredPending.expired.filter((_, idx) =>
+    document.querySelector(`#expiredTbody input[data-idx="${idx}"]`)?.checked);
+  applyInventoryStock(expiredPending.valid, included);
+  closeExpiredModal();
+});
+$('expiredModal').addEventListener('click', e => {
+  if (e.target.id === 'expiredModal') { closeExpiredModal(); showToast('Import annulé'); }
+});
+$('importInvBtn').addEventListener('click', () => $('invFile').click());
+$('invFile').addEventListener('change', e => {
+  const f = e.target.files[0]; if (f) importInventoryJSON(f);
+  e.target.value = '';
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal(); closeCondModal(); closeImportModal(); $('exclusionsModal').classList.remove('show'); $('cuveModal').classList.remove('show'); $('expiredModal').classList.remove('show'); }
+});
+
+// ============ SEARCH ============
+// ============ EXCLUSIONS MODAL ============
+function openExclusionsModal() {
+  const tbody = $('exclusionsTbody');
+  const beerList = DATA.beers.filter(b => !EXCLUDED_BEERS.includes(b.name));
+  tbody.innerHTML = beerList.map((b, idx) => {
+    const ex = containerExclusions[b.name] || {};
+    const raw = DATA.mix[b.name] || {};
+    // Show raw % as hint
+    const kPct = Math.round((raw.keg || 0) * 100);
+    const b3Pct = Math.round((raw.bottle33 || 0) * 100);
+    const b7Pct = Math.round((raw.bottle75 || 0) * 100);
+    const bg = idx % 2 === 0 ? '' : 'style="background:#F8F4EB"';
+    const bid = CSS.escape ? CSS.escape(b.name) : b.name.replace(/'/g, "\\'");
+    return `<tr ${bg}>
+      <td style="padding:5px 10px;font-size:12px">${b.name}</td>
+      <td style="text-align:center;padding:5px 12px">
+        ${kPct > 0 ? `<input type="checkbox" ${!ex.keg?'checked':''} data-beer="${b.name}" data-cont="keg">
+        <br><span style="font-size:10px;color:var(--text-muted)">${kPct}%</span>` : '<span style="color:#CCC;font-size:11px">—</span>'}
+      </td>
+      <td style="text-align:center;padding:5px 12px">
+        ${b3Pct > 0 ? `<input type="checkbox" ${!ex.bottle33?'checked':''} data-beer="${b.name}" data-cont="bottle33">
+        <br><span style="font-size:10px;color:var(--text-muted)">${b3Pct}%</span>` : '<span style="color:#CCC;font-size:11px">—</span>'}
+      </td>
+      <td style="text-align:center;padding:5px 12px">
+        ${b7Pct > 0 ? `<input type="checkbox" ${!ex.bottle75?'checked':''} data-beer="${b.name}" data-cont="bottle75">
+        <br><span style="font-size:10px;color:var(--text-muted)">${b7Pct}%</span>` : '<span style="color:#CCC;font-size:11px">—</span>'}
+      </td>
+    </tr>`;
+  }).join('');
+
+  // Wire up checkboxes
+  tbody.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const beer = cb.dataset.beer;
+      const cont = cb.dataset.cont;
+      if (!containerExclusions[beer]) containerExclusions[beer] = {};
+      if (!cb.checked) {
+        containerExclusions[beer][cont] = true;
+      } else {
+        delete containerExclusions[beer][cont];
+        if (!Object.keys(containerExclusions[beer]).length) delete containerExclusions[beer];
+      }
+      saveOverrides();
+      render();
+    });
+  });
+
+  $('exclusionsModal').classList.add('show');
+}
+
+$('exclusionsBtn').addEventListener('click', openExclusionsModal);
+$('exclusionsClose').addEventListener('click', () => $('exclusionsModal').classList.remove('show'));
+$('exclusionsReset').addEventListener('click', () => {
+  containerExclusions = {};
+  saveOverrides();
+  $('exclusionsModal').classList.remove('show');
+  render();
+  showToast('Toutes les exclusions supprimées');
+});
+$('exclusionsModal').addEventListener('click', e => {
+  if (e.target.id === 'exclusionsModal') $('exclusionsModal').classList.remove('show');
+});
+
+$('viewCalBtn').addEventListener('click', () => setView('cal'));
+$('viewMatBtn').addEventListener('click', () => setView('mat'));
+
+$('searchBeer').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  applySearchFilter();
+});
+$('clearSearch').addEventListener('click', () => {
+  searchQuery = '';
+  $('searchBeer').value = '';
+  applySearchFilter();
+  $('searchBeer').focus();
+});
+
+// ============ INIT ============
+loadOverrides();
+populateBeerOptions();
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carbonatation CO₂ — Outil brasseur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{
+  --bg:#16130e; --bg2:#1c1812;
+  --panel:#211d16; --panel2:#2a251c; --panel3:#322c21;
+  --line:#3d3527; --line2:#4a4030;
+  --ink:#f3ecdc; --mut:#a89c84; --hint:#796f5c;
+  --amber:#e0a93f; --amber-d:#a9781f; --amber-bg:#312713; --amber-line:#5c4720;
+  --green:#8cb84a; --green-bg:#222b10; --green-ink:#b4d877; --green-line:#3f4f1c;
+  --warn:#e09445; --warn-bg:#2f2212; --warn-ink:#eaab66; --warn-line:#56401d;
+  --info:#62a8dd; --info-bg:#142430; --info-ink:#94c8ec; --info-line:#284258;
+  --radius:14px; --radius-s:9px; --radius-xs:6px;
+  --display:"Fraunces",Georgia,serif;
+  --sans:"Archivo",-apple-system,BlinkMacSystemFont,sans-serif;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -8px rgba(0,0,0,.5);
+  --shadow-card:0 1px 0 rgba(255,255,255,.03) inset,0 2px 8px -2px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse 80% 50% at 20% -5%,rgba(224,169,63,.10),transparent 60%),
+    radial-gradient(ellipse 70% 50% at 90% 105%,rgba(98,168,221,.06),transparent 55%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  color:var(--ink);font-family:var(--sans);line-height:1.6;
+  min-height:100vh;padding:40px 18px 70px;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:20px;animation:fade .5s ease}
+@keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Header */
+header{
+  display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap;
+  padding:4px 4px 20px;border-bottom:1px solid var(--line);position:relative;
+}
+header::after{content:"";position:absolute;bottom:-1px;left:0;width:120px;height:2px;background:linear-gradient(90deg,var(--amber),transparent)}
+.brand{display:flex;align-items:center;gap:15px}
+.brand .mark{
+  width:50px;height:50px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:25px;
+  background:linear-gradient(150deg,var(--amber),var(--amber-d));
+  box-shadow:0 4px 16px -2px rgba(224,169,63,.35),0 1px 0 rgba(255,255,255,.25) inset;
+}
+.brand h1{font-family:var(--display);font-size:30px;font-weight:600;letter-spacing:-.5px;line-height:1}
+.brand .sub{font-size:11.5px;color:var(--mut);letter-spacing:1.5px;text-transform:uppercase;margin-top:5px;font-weight:500}
+
+/* Segmented control */
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:var(--radius-s);overflow:hidden;background:var(--bg2);box-shadow:var(--shadow-card)}
+.seg button{border:none;background:transparent;color:var(--mut);padding:9px 17px;font-size:13px;cursor:pointer;font-family:var(--sans);font-weight:500;transition:.18s;letter-spacing:.2px}
+.seg button:hover{color:var(--ink);background:rgba(255,255,255,.03)}
+.seg button.on{background:linear-gradient(150deg,var(--amber),var(--amber-d));color:#1a1308;font-weight:600;box-shadow:0 1px 0 rgba(255,255,255,.2) inset}
+
+/* Panels */
+.panel{
+  background:linear-gradient(180deg,var(--panel),var(--bg2));
+  border:1px solid var(--line);border-radius:var(--radius);padding:24px;
+  box-shadow:var(--shadow);position:relative;
+}
+.panel-num{
+  font-family:var(--display);font-size:12px;font-weight:600;color:var(--amber);
+  letter-spacing:1px;text-transform:uppercase;display:flex;align-items:center;gap:9px;margin-bottom:18px;
+}
+.panel-num::before{content:attr(data-n);display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--amber-line);color:var(--amber);font-size:11px;background:var(--amber-bg)}
+.panel-num::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line2),transparent)}
+
+.row{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:18px}
+.fld{display:flex;flex-direction:column;gap:8px}
+.fld label{font-size:12px;color:var(--mut);letter-spacing:.3px;font-weight:500;text-transform:uppercase}
+input[type=text],input[type=number],select{
+  background:var(--bg2);border:1px solid var(--line2);border-radius:var(--radius-s);
+  color:var(--ink);font-size:15px;padding:11px 13px;font-family:var(--sans);width:100%;transition:.18s;font-weight:500;
+}
+input:hover,select:hover{border-color:var(--hint)}
+input:focus,select:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(224,169,63,.18)}
+select{cursor:pointer;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23a89c84' stroke-width='3'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 13px center;padding-right:34px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px}
+
+/* Result cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:14px}
+.card{border-radius:var(--radius-s);padding:18px 20px;position:relative;overflow:hidden;box-shadow:var(--shadow-card)}
+.card .lab{font-size:11.5px;margin-bottom:9px;letter-spacing:.4px;text-transform:uppercase;font-weight:600}
+.card .val{font-family:var(--display);font-size:32px;font-weight:600;font-variant-numeric:tabular-nums;line-height:1;letter-spacing:-.5px}
+.card .u{font-family:var(--sans);font-size:14px;font-weight:500;opacity:.7;letter-spacing:0}
+.card.main{background:linear-gradient(155deg,var(--info-bg),#0f1c26);border:1px solid var(--info-line)}
+.card.main::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--info)}
+.card.main .lab{color:var(--info-ink)} .card.main .val{color:#aed6f3}
+.card.sec{background:linear-gradient(155deg,var(--panel2),var(--panel));border:1px solid var(--line2)}
+.card.sec .lab{color:var(--mut)} .card.sec .val{color:var(--ink)}
+.card.ok{background:linear-gradient(155deg,var(--green-bg),#171f0a);border:1px solid var(--green-line)}
+.card.ok::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--green)}
+.card.ok .lab,.card.ok .val{color:var(--green-ink)}
+.card.warn{background:linear-gradient(155deg,var(--warn-bg),#1f1509);border:1px solid var(--warn-line)}
+.card.warn::before{content:"";position:absolute;top:0;left:0;width:3px;height:100%;background:var(--warn)}
+.card.warn .lab,.card.warn .val{color:var(--warn-ink)}
+
+/* Style row */
+.stylerow{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.stylerow .t{font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:-.2px}
+.style-status{margin-top:14px;font-size:14px}
+.pill{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums}
+.pill.ok{background:var(--green-bg);color:var(--green-ink);border:1px solid var(--green-line)}
+.pill.warn{background:var(--warn-bg);color:var(--warn-ink);border:1px solid var(--warn-line)}
+
+/* Buttons */
+.actions{display:flex;gap:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line2);color:var(--ink);
+  padding:11px 18px;border-radius:var(--radius-s);font-size:13.5px;cursor:pointer;font-family:var(--sans);font-weight:500;transition:.18s;letter-spacing:.2px;box-shadow:var(--shadow-card)}
+.btn:hover{border-color:var(--amber);background:var(--panel3);transform:translateY(-1px)}
+.btn:active{transform:translateY(0) scale(.99)}
+.btn.primary{background:linear-gradient(150deg,var(--amber),var(--amber-d));border-color:transparent;color:#1a1308;font-weight:600}
+.btn.primary:hover{box-shadow:0 6px 18px -4px rgba(224,169,63,.5);filter:brightness(1.05)}
+.btn.save{width:100%;justify-content:center;background:linear-gradient(180deg,var(--panel3),var(--panel2));border-color:var(--amber-line);padding:13px;font-size:14px}
+.btn.save:hover{background:var(--amber-bg);border-color:var(--amber)}
+.btn svg{width:16px;height:16px}
+
+/* Tables */
+.tbl-wrap{border:1px solid var(--line2);border-radius:var(--radius-s);overflow:hidden;box-shadow:var(--shadow-card)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+/* Historique */
+.ht{font-size:13px}
+.ht th{text-align:left;font-weight:600;color:var(--amber);font-size:11px;letter-spacing:.5px;text-transform:uppercase;
+  padding:11px 13px;background:var(--panel3);border-bottom:2px solid var(--amber-line);border-right:1px solid var(--line)}
+.ht th:last-child{border-right:none}
+.ht td{padding:10px 13px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);color:var(--ink)}
+.ht td:last-child{border-right:none}
+.ht tr:nth-child(even) td{background:rgba(255,255,255,.018)}
+.ht tr:last-child td{border-bottom:none}
+.ht tr:hover td{background:var(--amber-bg)}
+.ht .lotcol{font-weight:500}
+/* Table P/T */
+.ptt{font-size:13px}
+.ptt td{border:1px solid var(--line);text-align:center;padding:9px 6px;color:var(--ink)}
+.ptt .h{background:var(--panel3);font-weight:600;color:var(--amber)}
+.ptt .diag{color:var(--hint);font-size:11px}
+.ptt tr:hover td:not(.h){background:var(--amber-bg)}
+
+.warnmsg{font-size:13px;color:var(--warn-ink);margin-top:12px;display:none;padding:10px 13px;background:var(--warn-bg);border:1px solid var(--warn-line);border-radius:var(--radius-xs)}
+.foot{font-size:12px;color:var(--hint);line-height:1.7}
+.note{font-size:13px;color:var(--mut);line-height:1.65}
+.note b{color:var(--ink);font-weight:600}
+.head-line{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.head-line .t{font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:-.2px}
+.head-line .hint{font-size:12px;color:var(--mut);font-style:italic}
+.hidden{display:none}
+hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
+@media(max-width:560px){
+  body{padding:28px 14px 50px}
+  .brand h1{font-size:24px}.brand .mark{width:44px;height:44px;font-size:22px}
+  .card .val{font-size:27px}.panel{padding:18px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="mark">🍺</div>
+      <div>
+        <h1>Carbonatation CO₂</h1>
+        <div class="sub">Outil brasseur · g/L · volumes</div>
+      </div>
+    </div>
+    <div class="seg" id="mode">
+      <button data-m="direct" class="on">Direct</button>
+      <button data-m="inverse">Inverse</button>
+    </div>
+  </header>
+
+  <!-- Saisie -->
+  <div class="panel">
+    <div class="panel-num" data-n="1">Mesure</div>
+    <div class="row">
+      <div class="fld" style="flex:2;min-width:200px">
+        <label for="biere">Bière</label>
+        <select id="biere"></select>
+      </div>
+      <div class="fld" style="flex:1;min-width:130px">
+        <label for="lot">N° de lot</label>
+        <input type="text" id="lot" value="5410">
+      </div>
+      <div class="fld">
+        <label>Unité de pression</label>
+        <div class="seg" id="punit">
+          <button data-u="kpa">kPa</button>
+          <button data-u="bar" class="on">bar</button>
+          <button data-u="psi">PSI</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div class="fld">
+        <label for="vol">Contenant</label>
+        <select id="vol"></select>
+      </div>
+      <div class="fld">
+        <label for="temp">Température (°C)</label>
+        <input type="number" id="temp" value="-0.6" step="0.1">
+      </div>
+      <div class="fld" id="fld_pres">
+        <label for="pres">Pression tête (<span class="uname">kPa</span>, surpression)</label>
+        <input type="number" id="pres" value="0.5" step="0.05">
+      </div>
+      <div class="fld hidden" id="fld_target">
+        <label for="target">CO₂ cible (g/L)</label>
+        <input type="number" id="target" value="4.9" step="0.1">
+      </div>
+    </div>
+    <p class="warnmsg" id="warn"></p>
+  </div>
+
+  <!-- Résultats -->
+  <div class="cards">
+    <div class="card main" id="card_main">
+      <div class="lab" id="main_label">CO₂ dissous</div>
+      <div class="val"><span id="main_val">—</span> <span class="u" id="main_unit">g/L</span></div>
+    </div>
+    <div class="card sec">
+      <div class="lab" id="sec_label">CO₂</div>
+      <div class="val"><span id="sec_val">—</span> <span class="u" id="sec_unit">vol</span></div>
+    </div>
+    <div class="card sec">
+      <div class="lab">CO₂ total lot</div>
+      <div class="val"><span id="kg_val">—</span> <span class="u">kg</span></div>
+    </div>
+  </div>
+
+  <!-- Enregistrer la mesure -->
+  <button class="btn save" id="btn_save"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Enregistrer la mesure dans l'historique</button>
+
+  <!-- Contre-pression à régler -->
+  <div class="panel" id="keepbox">
+    <div class="panel-num" data-n="2">Contre-pression dans le fût</div>
+    <div class="cards" style="margin-bottom:18px">
+      <div class="card main" style="margin:0">
+        <div class="lab">À régler maintenant <span style="opacity:.7">(au remplissage)</span></div>
+        <div class="val"><span id="keepnow_val">—</span> <span class="u" id="keepnow_unit">bar</span></div>
+      </div>
+      <div class="card sec" style="margin:0">
+        <div class="lab">À l'équilibre une fois stocké</div>
+        <div class="val"><span id="keep_val">—</span> <span class="u" id="keep_unit">bar</span></div>
+      </div>
+    </div>
+    <div class="fld" style="max-width:260px;margin-bottom:14px">
+      <label for="tstore">Température de stockage finale (°C)</label>
+      <input type="number" id="tstore" value="20" step="0.5">
+    </div>
+    <p class="note" id="keep_note" style="margin:0"></p>
+  </div>
+
+  <!-- Repère style -->
+  <div class="panel">
+    <div class="panel-num" data-n="3">Cible &amp; repère style</div>
+    <div class="stylerow">
+      <div class="t">Style de bière</div>
+      <select id="style" style="min-width:220px"></select>
+    </div>
+    <div class="style-status" id="style_status"></div>
+    <hr class="soft">
+    <div class="fld" style="max-width:220px">
+      <label for="cible">Cible CO₂ (g/L)</label>
+      <input type="number" id="cible" value="4.90" step="0.01">
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <button class="btn" id="btn_table"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="3" x2="9" y2="21"/></svg>Table P/T</button>
+    <button class="btn primary" id="btn_pdf"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/></svg>Export PDF</button>
+  </div>
+
+  <!-- Historique -->
+  <div class="panel hidden" id="histbox">
+    <div class="head-line">
+      <span class="t">Historique des mesures</span>
+      <button class="btn" id="btn_clear" style="padding:7px 13px;font-size:12.5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Vider</button>
+    </div>
+    <div class="tbl-wrap"><div class="scroll"><table class="ht" id="histtable"></table></div></div>
+  </div>
+
+  <!-- Table P/T -->
+  <div class="panel hidden" id="ptbox">
+    <div class="head-line"><span class="t">Table CO₂ (g/L)</span><span class="hint">surpression × température</span></div>
+    <div class="tbl-wrap"><div class="scroll"><table class="ptt" id="pttable"></table></div></div>
+    <p class="foot" style="margin-top:14px">Colonnes : pression de tête (kPa, surpression). Lignes : température bière (°C). Plage centrée sur ta température saisie.</p>
+  </div>
+
+  <p class="foot">
+    Formule identique à ton fichier Excel : CO₂(g/L) = (P/100 + 1,013) · exp(−10,73797 + 2617,25/(T+273,15)) · 10. &nbsp;
+    Pression = surpression (manométrique). Purge l'air de tête avant de relever la pression. Validité approx. −2 à 25 °C.
+  </p>
+
+</div>
+
+<script>
+(function(){
+  const VPC=1.96306;
+  const toKpa={kpa:v=>v,bar:v=>v*100,psi:v=>v*6.89476};
+  const fromKpa={kpa:v=>v,bar:v=>v/100,psi:v=>v/6.89476};
+  const uName={kpa:'kPa',bar:'bar',psi:'PSI'};
+  let unit='bar',mode='direct';
+
+  const styles=[
+    {n:'— aucun —',lo:null,hi:null},
+    {n:'Lager / Pils',lo:2.4,hi:2.6},
+    {n:'Blonde / Pale Ale',lo:2.3,hi:2.6},
+    {n:'Blanche / Weizen',lo:2.8,hi:3.4},
+    {n:'IPA',lo:2.2,hi:2.7},
+    {n:'Ambrée',lo:2.2,hi:2.5},
+    {n:'Brune / Porter',lo:2.0,hi:2.4},
+    {n:'Stout',lo:1.7,hi:2.2},
+    {n:'Saison',lo:2.8,hi:3.5},
+    {n:'Triple / Belge forte',lo:2.5,hi:3.0}
+  ];
+
+  const $=id=>document.getElementById(id);
+  const co2PT=(Pk,T)=>(Pk/100+1.013)*Math.exp(-10.73797+2617.25/(T+273.15))*10;
+  const Pco2=(c,T)=>((c/10)/Math.exp(-10.73797+2617.25/(T+273.15))-1.013)*100;
+
+  // Bières
+  const bieres=["Valmy blonde BIO","Valmy blanche BIO","Valmy ambrée BIO","Valmy IPA BIO","Valmy Triple BIO","Valmy Framboise BIO","Valmy Noël BIO","Orgemont blonde BIO","Orgemont brune BIO","Orgemont triple BIO","Orgemont Saison BIO","Orgemont IPA BIO","Rèmes","Tutti Berry BIO","Trouble Jeu BIO","Bouquet Final BIO","Crème de la Crème BIO","Légionnaire Blonde","Légionnaire IPA","Bayard / Baraquine blonde","Bayard / Baraquine triple","Muizon"];
+  const bSel=$('biere');
+  bieres.forEach(b=>{const o=document.createElement('option');o.value=b;o.textContent=b;bSel.appendChild(o);});
+
+  // Contenants (label affiché -> litres pour le calcul)
+  const contenants=[
+    {n:'33 cl',l:0.33},{n:'44 cl',l:0.44},{n:'75 cl',l:0.75},
+    {n:'1,5 L',l:1.5},{n:'10 L',l:10},{n:'20 L',l:20},{n:'30 L',l:30}
+  ];
+  const vSel=$('vol');
+  contenants.forEach(c=>{const o=document.createElement('option');o.value=c.l;o.textContent=c.n;vSel.appendChild(o);});
+  vSel.value='30';
+  const volL=()=>parseFloat(vSel.value);
+  const contLabel=()=>vSel.options[vSel.selectedIndex].textContent;
+  const lotName=()=>{const b=bSel.value,l=$('lot').value.trim();return l?`${b} / ${l}`:b;};
+
+  const sel=$('style');
+  styles.forEach((s,i)=>{const o=document.createElement('option');o.value=i;o.textContent=s.n;sel.appendChild(o);});
+
+  // Quand on choisit un style, pré-remplir la cible g/L avec le milieu de fourchette
+  function styleToTarget(){
+    const s=styles[parseInt(sel.value)];
+    if(s.lo!==null){
+      const volMid=(s.lo+s.hi)/2;          // centre de la fourchette en volumes
+      const gl=volMid*VPC;                  // -> g/L
+      $('cible').value=gl.toFixed(2);
+    }
+    // sur "— aucun —" : on ne touche pas à la valeur saisie
+  }
+
+  function unitNames(){document.querySelectorAll('.uname').forEach(e=>e.textContent=uName[unit]);}
+
+  function applyMode(){
+    if(mode==='direct'){
+      $('fld_pres').classList.remove('hidden');$('fld_target').classList.add('hidden');
+      $('main_label').textContent='CO₂ dissous';$('main_unit').textContent='g/L';
+    }else{
+      $('fld_pres').classList.add('hidden');$('fld_target').classList.remove('hidden');
+      $('main_label').textContent='Pression à appliquer';$('main_unit').textContent=uName[unit];
+    }
+    calc();
+  }
+
+  function calc(){
+    const V=volL(),T=parseFloat($('temp').value),warn=$('warn');
+    let co2=NaN,Pk=NaN;
+    if(mode==='direct'){
+      const raw=parseFloat($('pres').value);Pk=toKpa[unit](raw);
+      if([V,T,raw].some(isNaN)){blank();return;}
+      co2=co2PT(Pk,T);
+      $('main_val').textContent=co2.toFixed(2);
+      $('sec_val').textContent=(co2/VPC).toFixed(2);
+    }else{
+      co2=parseFloat($('target').value);
+      if([V,T,co2].some(isNaN)){blank();return;}
+      Pk=Pco2(co2,T);
+      $('main_val').textContent=fromKpa[unit](Pk).toFixed(unit==='kpa'?0:2);
+      $('sec_val').textContent=(co2/VPC).toFixed(2);
+    }
+    $('kg_val').textContent=(V*co2/1000).toFixed(3);
+
+    warn.style.display='none';
+    if(T<-2||T>25){warn.textContent='⚠︎ Température hors plage de validité (−2 à 25 °C).';warn.style.display='block';}
+    else if(mode==='inverse'&&Pk<0){warn.textContent='⚠︎ Cible atteignable sans surpression à cette température (pression négative).';warn.style.display='block';}
+
+    // Contre-pression à régler maintenant (équilibre à la T de remplissage = T du haut) — toujours en bar
+    const Pnow=Pco2(co2,T);
+    $('keepnow_val').textContent=(Math.max(Pnow,0)/100).toFixed(2);
+    $('keepnow_unit').textContent='bar';
+
+    // Contre-pression d'équilibre une fois stocké — toujours en bar
+    const Ts=parseFloat($('tstore').value);
+    if(!isNaN(Ts)&&!isNaN(co2)){
+      const Pkeep=Pco2(co2,Ts);
+      $('keep_val').textContent=(Math.max(Pkeep,0)/100).toFixed(2);
+      $('keep_unit').textContent='bar';
+      const nb=(Pnow/100).toFixed(2),sb=(Pkeep/100).toFixed(2);
+      $('keep_note').innerHTML=`Règle <b>${nb} bar</b> dès le remplissage à ${T}°C. En montant à ${Ts}°C, la pression s'auto-régulera vers <b>${sb} bar</b> sans ajout de CO₂ — pour conserver ${co2.toFixed(2)} g/L (${(co2/VPC).toFixed(2)} vol).`;
+    } else { $('keep_val').textContent='—';$('keep_note').innerHTML=''; }
+
+    const s=styles[parseInt(sel.value)],vol=co2/VPC,st=$('style_status'),card=$('card_main');
+    card.className='card main';
+    if(s.lo===null){st.innerHTML='';return;}
+    if(vol<s.lo){st.innerHTML=`<span class="pill warn">${vol.toFixed(2)} vol</span> &nbsp;sous la cible ${s.lo}–${s.hi} vol — augmenter`;card.className='card warn';}
+    else if(vol>s.hi){st.innerHTML=`<span class="pill warn">${vol.toFixed(2)} vol</span> &nbsp;au-dessus de ${s.lo}–${s.hi} vol — réduire`;card.className='card warn';}
+    else{st.innerHTML=`<span class="pill ok">${vol.toFixed(2)} vol</span> &nbsp;dans la fourchette ${s.lo}–${s.hi} vol ✓`;card.className='card ok';}
+  }
+  function blank(){['main_val','sec_val','kg_val','keep_val','keepnow_val'].forEach(i=>$(i).textContent='—');$('style_status').innerHTML='';$('keep_note').innerHTML='';$('card_main').className='card main';}
+
+  document.querySelectorAll('#mode button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('#mode button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');mode=b.dataset.m;applyMode();
+  });
+  const presStep={kpa:'1',bar:'0.05',psi:'0.5'};
+  function applyStep(){$('pres').step=presStep[unit];}
+  document.querySelectorAll('#punit button').forEach(b=>b.onclick=()=>{
+    const old=unit,nu=b.dataset.u;
+    if(mode==='direct'){const raw=parseFloat($('pres').value);if(!isNaN(raw)){const k=toKpa[old](raw);$('pres').value=fromKpa[nu](k).toFixed(nu==='kpa'?0:2);}}
+    document.querySelectorAll('#punit button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');unit=nu;unitNames();applyStep();
+    if(mode==='inverse')$('main_unit').textContent=uName[unit];
+    calc();
+  });
+  ['temp','pres','target','lot','tstore'].forEach(id=>$(id).oninput=calc);
+  ['vol','biere'].forEach(id=>$(id).onchange=calc);
+  sel.onchange=()=>{styleToTarget();calc();};
+
+  // Historique
+  let hist=[];
+  function renderHist(){
+    const box=$('histbox'),t=$('histtable');
+    if(!hist.length){box.classList.add('hidden');return;}
+    box.classList.remove('hidden');
+    let h='<tr>'+['Heure','Bière / lot','Contenant','T (°C)','P (kPa)','g/L','vol','kg'].map(x=>`<th>${x}</th>`).join('')+'</tr>';
+    hist.forEach(r=>{h+='<tr>'+[r.time,r.lot,r.cont,r.t,r.p,r.gl,r.vol,r.kg].map(x=>`<td>${x}</td>`).join('')+'</tr>';});
+    t.innerHTML=h;
+  }
+  $('btn_save').onclick=()=>{
+    const V=volL(),T=parseFloat($('temp').value);
+    if(isNaN(V)||isNaN(T))return;
+    let co2,Pk;
+    if(mode==='direct'){Pk=toKpa[unit](parseFloat($('pres').value));co2=co2PT(Pk,T);}
+    else{co2=parseFloat($('target').value);Pk=Pco2(co2,T);}
+    if(isNaN(co2))return;
+    const d=new Date();
+    hist.unshift({time:d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
+      lot:lotName(),cont:contLabel(),t:T.toFixed(1),p:Pk.toFixed(0),
+      gl:co2.toFixed(2),vol:(co2/VPC).toFixed(2),kg:(V*co2/1000).toFixed(3)});
+    renderHist();
+  };
+  $('btn_clear').onclick=()=>{hist=[];renderHist();};
+
+  // Table P/T
+  let ptShown=false;
+  $('btn_table').onclick=()=>{ptShown=!ptShown;$('ptbox').classList.toggle('hidden',!ptShown);if(ptShown)buildPT();};
+  function ptRanges(){
+    const T0=parseFloat($('temp').value),Tc=isNaN(T0)?2:Math.round(T0);
+    const temps=[];for(let i=-2;i<=4;i++)temps.push(Tc+i*2);
+    return{temps,press:[20,30,40,50,60,70,80,90]};
+  }
+  function buildPT(){
+    const{temps,press}=ptRanges();
+    let h=`<tr><td class="h diag">°C \\ kPa</td>`+press.map(p=>`<td class="h">${p}</td>`).join('')+'</tr>';
+    temps.forEach(T=>{h+=`<tr><td class="h">${T}</td>`+press.map(p=>`<td>${co2PT(p,T).toFixed(2)}</td>`).join('')+'</tr>';});
+    $('pttable').innerHTML=h;
+  }
+
+  // PDF
+  $('btn_pdf').onclick=()=>{
+    const{jsPDF}=window.jspdf;const doc=new jsPDF();
+    const cible=parseFloat($('cible').value);
+    const PW=210, M=16, CW=PW-2*M;
+    // palette (RGB)
+    const C={ink:[38,33,24],mut:[120,110,92],amber:[176,120,31],amberBg:[247,240,224],
+             line:[214,205,185],lineSoft:[230,224,210],panel:[249,245,236],white:[255,255,255],
+             info:[40,90,130],infoBg:[233,242,248]};
+    const setF=(s,style)=>doc.setFont('helvetica',style||'normal').setFontSize(s);
+    const rgb=(f,a)=>f.apply(null,a);
+
+    // ===== Bandeau en-tête =====
+    doc.setFillColor.apply(doc,C.amber);doc.rect(0,0,PW,4,'F');
+    let y=24;
+    doc.setTextColor.apply(doc,C.ink);setF(22,'bold');
+    doc.text('Fiche de carbonatation',M,y);
+    setF(10,'normal');doc.setTextColor.apply(doc,C.mut);
+    doc.text('CO2 dissous · contre-pression · suivi',M,y+6);
+    // date à droite
+    doc.text(new Date().toLocaleString('fr-FR'),PW-M,y+6,{align:'right'});
+    // pastille CO2
+    doc.setFillColor.apply(doc,C.amber);doc.circle(PW-M-4,y-5,6,'F');
+    doc.setTextColor.apply(doc,C.white);setF(9,'bold');doc.text('CO2',PW-M-4,y-3.5,{align:'center'});
+    y+=14;
+    doc.setDrawColor.apply(doc,C.line);doc.setLineWidth(.4);doc.line(M,y,PW-M,y);y+=10;
+
+    // helper encadré titre
+    const sectionTitle=(t)=>{
+      doc.setTextColor.apply(doc,C.amber);setF(8,'bold');
+      doc.text(t.toUpperCase(),M,y);
+      doc.setDrawColor.apply(doc,C.lineSoft);doc.setLineWidth(.3);
+      const tw=doc.getTextWidth(t.toUpperCase());doc.line(M+tw+4,y-1.2,PW-M,y-1.2);
+      y+=7;
+    };
+    // helper boîte clé/valeur
+    const infoBox=(rows,bg)=>{
+      const rh=8.5, pad=5, h=rows.length*rh+pad*2;
+      doc.setFillColor.apply(doc,bg||C.panel);doc.setDrawColor.apply(doc,C.line);doc.setLineWidth(.4);
+      doc.roundedRect(M,y,CW,h,2.5,2.5,'FD');
+      let yy=y+pad+5.5;
+      rows.forEach(([k,v,em])=>{
+        doc.setTextColor.apply(doc,C.mut);setF(9.5,'normal');doc.text(k,M+pad,yy);
+        doc.setTextColor.apply(doc,C.ink);setF(em?11:10,em?'bold':'normal');
+        doc.text(String(v),M+CW-pad,yy,{align:'right'});
+        yy+=rh;
+      });
+      y+=h+9;
+    };
+
+    // ===== Infos bière =====
+    sectionTitle('Identification');
+    const info=[['Biere',bSel.value],['N° de lot',$('lot').value.trim()||'-'],['Contenant',contLabel()]];
+    if(!isNaN(cible))info.push(['Cible CO2',cible.toFixed(2)+' g/L   ('+(cible/VPC).toFixed(2)+' vol)',true]);
+    infoBox(info,C.panel);
+
+    // ===== Synthèse =====
+    if(hist.length){
+      const vals=hist.map(r=>parseFloat(r.gl));
+      const moy=vals.reduce((a,b)=>a+b,0)/vals.length;
+      const mn=Math.min(...vals),mx=Math.max(...vals);
+      sectionTitle('Synthese ('+hist.length+' mesures)');
+      const sy=[['Moyenne CO2',moy.toFixed(2)+' g/L   ('+(moy/VPC).toFixed(2)+' vol)',true],
+                ['Minimum / Maximum',mn.toFixed(2)+' / '+mx.toFixed(2)+' g/L']];
+      if(!isNaN(cible)){const ec=moy-cible;sy.push(['Ecart a la cible',(ec>=0?'+':'')+ec.toFixed(2)+' g/L']);}
+      infoBox(sy,C.infoBg);
+
+      // ===== Tableau historique =====
+      sectionTitle('Historique des mesures');
+      const cols=[['Heure',26],['T (C)',24],['P (kPa)',28],['g/L',28],['vol',28],['kg',CW-26-24-28-28-28]];
+      const rh=9, hh=10;
+      // en-tête
+      doc.setFillColor(238,230,212);doc.setDrawColor.apply(doc,C.line);doc.setLineWidth(.4);
+      let x=M;doc.rect(M,y,CW,hh,'FD');
+      doc.setTextColor.apply(doc,C.amber);setF(8,'bold');
+      cols.forEach(([t,w])=>{doc.text(t.toUpperCase(),x+w/2,y+6.5,{align:'center'});x+=w;});
+      // ligne sous en-tête plus marquée
+      doc.setDrawColor.apply(doc,C.amber);doc.setLineWidth(.6);doc.line(M,y+hh,M+CW,y+hh);
+      y+=hh;
+      // lignes
+      setF(9.5,'normal');
+      hist.forEach((r,i)=>{
+        if(y+rh>284){doc.addPage();y=20;}
+        if(i%2)doc.setFillColor(247,243,234),doc.rect(M,y,CW,rh,'F');
+        x=M;const cells=[r.time,r.t,r.p,r.gl,r.vol,r.kg];
+        doc.setTextColor.apply(doc,C.ink);
+        cells.forEach((c,j)=>{doc.text(String(c),x+cols[j][1]/2,y+6,{align:'center'});x+=cols[j][1];});
+        doc.setDrawColor.apply(doc,C.lineSoft);doc.setLineWidth(.3);doc.line(M,y+rh,M+CW,y+rh);
+        y+=rh;
+      });
+      // cadre + lignes verticales
+      const tblTop=y-hist.length*rh-hh;
+      doc.setDrawColor.apply(doc,C.line);doc.setLineWidth(.4);
+      doc.rect(M,tblTop,CW,hist.length*rh+hh,'S');
+      x=M;cols.slice(0,-1).forEach(([,w])=>{x+=w;doc.line(x,tblTop,x,y);});
+    } else {
+      doc.setFillColor.apply(doc,C.panel);doc.setDrawColor.apply(doc,C.line);doc.setLineWidth(.4);
+      doc.roundedRect(M,y,CW,16,2.5,2.5,'FD');
+      doc.setTextColor.apply(doc,C.mut);setF(9.5,'italic');
+      doc.text('Aucune mesure enregistree. Utilisez "Enregistrer la mesure" pour alimenter l\'historique.',M+6,y+10);
+      y+=22;
+    }
+
+    // ===== Pied de page =====
+    const ph=doc.internal.pageSize.getHeight();
+    doc.setDrawColor.apply(doc,C.lineSoft);doc.setLineWidth(.3);doc.line(M,ph-14,PW-M,ph-14);
+    doc.setTextColor.apply(doc,C.mut);setF(7.5,'normal');
+    doc.text('Genere avec l\'outil de carbonatation · formule loi de Henry',M,ph-9);
+    doc.text(bSel.value+' / '+($('lot').value.trim()||'-'),PW-M,ph-9,{align:'right'});
+
+    doc.save('carbonatation_'+(lotName().replace(/[^\w]+/g,'_'))+'.pdf');
+  };
+
+  unitNames();applyStep();applyMode();
+})();
+</script>
+</body>
+</html>

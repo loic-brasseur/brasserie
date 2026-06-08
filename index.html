@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Brasserie">
+<meta name="theme-color" content="#FBF5EC">
+<title>Outils de la brasserie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FBF5EC;--bg2:#F4ECDC;--card:#FFFDF7;--ink:#1A1612;--ink-soft:#7A6F5C;
+    --amber:#B8842F;--copper:#A8541B;--gold:#CF982B;--green:#4F6B2F;
+    --line:rgba(26,22,18,.12);--line-strong:rgba(26,22,18,.24);
+    --shadow:0 1px 2px rgba(26,22,18,.05),0 8px 24px rgba(26,22,18,.09);
+    --serif:'Fraunces',Georgia,serif;--sans:'Manrope',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);line-height:1.45;min-height:100vh;
+    background:radial-gradient(ellipse at top,#FBF5EC 0%,#F4ECDC 100%);background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+    padding:max(2rem,env(safe-area-inset-top)) max(1rem,env(safe-area-inset-right)) max(3rem,env(safe-area-inset-bottom)) max(1rem,env(safe-area-inset-left));}
+  .wrap{max-width:920px;margin:0 auto}
+  header{text-align:center;margin-bottom:2.4rem}
+  .mark{width:60px;height:60px;border-radius:16px;background:var(--ink);color:#FBF5EC;
+    display:grid;place-items:center;font-family:var(--serif);font-size:2rem;font-weight:600;margin:0 auto 1rem}
+  h1{font-family:var(--serif);font-weight:500;font-size:clamp(2rem,6vw,2.9rem);letter-spacing:-.02em;line-height:1;margin:0}
+  .sub{font-family:var(--serif);font-style:italic;font-size:1.05rem;color:var(--ink-soft);margin-top:.6rem}
+  .grid{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+  a.tile{display:flex;flex-direction:column;gap:.55rem;text-decoration:none;color:inherit;
+    background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    padding:1.3rem 1.4rem;transition:transform .14s ease,box-shadow .2s ease,border-color .2s}
+  a.tile:hover{transform:translateY(-3px);box-shadow:0 10px 30px rgba(26,22,18,.14);border-color:var(--line-strong)}
+  .tile .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-family:var(--serif);
+    font-size:1.4rem;font-weight:600;color:#fff}
+  .tile h2{font-family:var(--serif);font-weight:600;font-size:1.25rem;margin:0;line-height:1.1}
+  .tile p{margin:0;font-size:.88rem;color:var(--ink-soft);line-height:1.4}
+  .tile .go{margin-top:auto;font-size:.82rem;font-weight:700;color:var(--copper);letter-spacing:.02em}
+  footer{text-align:center;margin-top:2.6rem;color:var(--ink-soft);font-size:.8rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mark">B</div>
+    <h1>Outils de la brasserie</h1>
+    <div class="sub">Production · stock · qualité · recettes</div>
+  </header>
+
+  <div class="grid">
+    <a class="tile" href="cuves.html">
+      <div class="ic" style="background:var(--copper)">F</div>
+      <h2>Suivi des cuves</h2>
+      <p>Fermentation par cuve : densité, températures, dates et alertes.</p>
+      <span class="go">Ouvrir →</span>
+    </a>
+    <a class="tile" href="stock.html">
+      <div class="ic" style="background:var(--green)">S</div>
+      <h2>Stock</h2>
+      <p>Malts, houblons, levures, consommables — quantités et seuils bas.</p>
+      <span class="go">Ouvrir →</span>
+    </a>
+    <a class="tile" href="planning.html">
+      <div class="ic" style="background:var(--amber)">P</div>
+      <h2>Planning des cuves</h2>
+      <p>Occupation des cuves dans le temps et détection des conflits.</p>
+      <span class="go">Ouvrir →</span>
+    </a>
+    <a class="tile" href="planning-brassage.html">
+      <div class="ic" style="background:var(--copper)">B</div>
+      <h2>Planning de brassage</h2>
+      <p>Calendrier des brassins 2026, recalcul automatique.</p>
+      <span class="go">Ouvrir →</span>
+    </a>
+    <a class="tile" href="employes.html">
+      <div class="ic" style="background:var(--green)">E</div>
+      <h2>Planning des employés</h2>
+      <p>Organisation des équipes et des horaires de la brasserie.</p>
+      <span class="go">Ouvrir →</span>
+    </a>
+    <a class="tile" href="carbonatation.html">
+      <div class="ic" style="background:var(--ink)">C</div>
+      <h2>Carbonatation CO₂</h2>
+      <p>Outil brasseur : g/L, volumes, contre-pression.</p>
+      <span class="go">Ouvrir →</span>
+    </a>
+    <a class="tile" href="qualite.html">
+      <div class="ic" style="background:var(--ink)">Q</div>
+      <h2>Contrôle qualité</h2>
+      <p>Fiches de dégustation par lot : densité finale, pH, défauts, notes.</p>
+      <span class="go">Ouvrir →</span>
+    </a>
+    <a class="tile" href="recettes.html">
+      <div class="ic" style="background:var(--gold)">R</div>
+      <h2>Carnet de brassage</h2>
+      <p>Création de recettes et export PDF des fiches.</p>
+      <span class="go">Ouvrir →</span>
+    </a>
+  </div>
+
+  <footer>Brasserie — outils internes · données enregistrées sur chaque appareil</footer>
+</div>
+</body>
+</html>
