@@ -1,0 +1,1710 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-180.png">
+<link rel="apple-touch-icon" sizes="167x167" href="apple-touch-icon-167.png">
+<link rel="apple-touch-icon" sizes="152x152" href="apple-touch-icon-152.png">
+<link rel="apple-touch-icon" sizes="120x120" href="apple-touch-icon-120.png">
+<link rel="apple-touch-icon" href="apple-touch-icon-180.png">
+<link rel="icon" type="image/png" href="favicon.png">
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventaire Brasserie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F2E8D4;
+  --bg-pattern: #EADEC5;
+  --bg-card: #FBF6EB;
+  --bg-card-alt: #F6ECD6;
+  --border: #DCC9A6;
+  --border-strong: #B59A6F;
+  --text: #2A1810;
+  --text-muted: #6B5D4F;
+  --text-faint: #9B8C7A;
+  --accent: #A0531B;
+  --accent-hover: #7E3F0F;
+  --accent-soft: #C9874A;
+  --green: #496B38;
+  --green-bg: #DAE3BF;
+  --green-strong: #2F4E20;
+  --orange: #B86E1F;
+  --orange-bg: #F4DBB2;
+  --orange-strong: #8A4F11;
+  --red: #913526;
+  --red-bg: #EFCEC4;
+  --red-strong: #6B1E13;
+  --shadow-sm: 0 1px 2px rgba(68, 32, 8, 0.06);
+  --shadow: 0 4px 12px -2px rgba(68, 32, 8, 0.1), 0 2px 4px rgba(68, 32, 8, 0.05);
+  --shadow-lg: 0 12px 32px -8px rgba(68, 32, 8, 0.18);
+  --font-display: 'Fraunces', 'Georgia', serif;
+  --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--bg);
+  background-image:
+    radial-gradient(circle at 15% 10%, rgba(160, 83, 27, 0.04) 0%, transparent 50%),
+    radial-gradient(circle at 85% 80%, rgba(73, 107, 56, 0.04) 0%, transparent 50%);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+.container { max-width: 1400px; margin: 0 auto; padding: 32px 28px 80px; }
+
+/* ============ HEADER ============ */
+header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 28px;
+  margin-bottom: 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.header-top {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  flex-wrap: wrap; gap: 16px;
+}
+.title-block h1 {
+  font-family: var(--font-display);
+  font-size: clamp(40px, 5vw, 64px);
+  font-weight: 500;
+  font-variation-settings: "opsz" 144, "SOFT" 50;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--text);
+}
+.title-block .sub {
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-top: 10px;
+  font-weight: 500;
+}
+.title-block .sub::before {
+  content: ""; display: inline-block; width: 28px; height: 1px;
+  background: var(--accent); vertical-align: middle; margin-right: 12px;
+}
+.date-stamp {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-style: italic;
+  color: var(--text-muted);
+  font-variation-settings: "opsz" 9;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.kpi {
+  background: var(--bg-card);
+  padding: 18px 22px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.kpi-label {
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 500;
+}
+.kpi-value {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 500;
+  font-variation-settings: "opsz" 144;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--text);
+}
+.kpi-value .unit { font-size: 16px; color: var(--text-muted); font-weight: 400; margin-left: 4px; }
+.kpi.alert .kpi-value { color: var(--red); }
+.kpi.warn .kpi-value { color: var(--orange); }
+
+/* ============ SECTIONS ============ */
+section { margin-bottom: 40px; }
+.section-head {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 16px; gap: 16px;
+}
+.section-head h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+  font-variation-settings: "opsz" 144;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.section-head .hint {
+  font-size: 12px; color: var(--text-faint); letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ============ FORM ============ */
+.add-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr 0.9fr 1.2fr 1.2fr auto;
+  gap: 14px;
+  align-items: end;
+}
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field label {
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 500;
+}
+.field input, .field select {
+  font-family: var(--font-body);
+  font-size: 14px;
+  background: var(--bg-card-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 12px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+  width: 100%;
+}
+.field input:focus, .field select:focus {
+  border-color: var(--accent);
+  background: #fff;
+}
+.field input.num, .field input[type="date"] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.qty-preview {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+  margin-left: 6px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.ddm-pair {
+  display: flex;
+  gap: 6px;
+}
+.ddm-pair select { min-width: 0; }
+.ddm-pair select:first-child { flex: 1.4; }
+.ddm-pair select:last-child { flex: 1; }
+.field select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%236B5D4F' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 30px;
+}
+button.primary {
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: var(--accent);
+  color: #FBF6EB;
+  border: none;
+  border-radius: 4px;
+  padding: 11px 22px;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.05s;
+  white-space: nowrap;
+}
+button.primary:hover { background: var(--accent-hover); }
+button.primary:active { transform: translateY(1px); }
+button.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+button.ghost {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+button.ghost:hover { color: var(--text); border-color: var(--border-strong); background: var(--bg-card); }
+button.ghost.danger:hover { color: var(--red); border-color: var(--red); }
+
+/* ============ FILTERS ============ */
+.filters-row {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.filter-group { display: flex; align-items: center; gap: 6px; }
+.filter-group label {
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-muted); font-weight: 500;
+}
+.filter-group select, .filter-group input {
+  font-family: var(--font-body);
+  font-size: 13px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: var(--text);
+}
+.filter-group select { appearance: none; padding-right: 24px;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%236B5D4F' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat; background-position: right 8px center;
+}
+.spacer { flex: 1; }
+
+/* ============ TABLE ============ */
+.table-wrap {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  background: var(--bg-card-alt);
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+thead th:hover { color: var(--text); background: #EFE2C7; }
+thead th.sortable::after {
+  content: " ⇅"; color: var(--text-faint); font-size: 10px;
+}
+thead th.sort-asc::after { content: " ↑"; color: var(--accent); }
+thead th.sort-desc::after { content: " ↓"; color: var(--accent); }
+thead th.num, tbody td.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr {
+  border-bottom: 1px solid #EADCBF;
+  border-left: 4px solid transparent;
+  transition: background 0.1s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--bg-card-alt); }
+tbody tr.expired { background: var(--red-bg); border-left-color: var(--red); }
+tbody tr.expired:hover { background: #ECC0B3; }
+tbody tr.warning { background: var(--orange-bg); border-left-color: var(--orange); }
+tbody tr.warning:hover { background: #EFD0A0; }
+tbody tr.ok { border-left-color: var(--green); }
+tbody td {
+  padding: 12px 16px;
+  font-size: 14px;
+  vertical-align: middle;
+}
+tbody td.beer { font-weight: 500; color: var(--text); }
+tbody td.code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+tbody td.mono { font-family: var(--font-mono); font-size: 13px; color: var(--text); }
+tbody td.ddm { font-family: var(--font-mono); font-size: 13px; }
+tbody tr.expired td.ddm { color: var(--red-strong); font-weight: 600; }
+tbody tr.warning td.ddm { color: var(--orange-strong); font-weight: 600; }
+.tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 100px;
+  background: var(--bg-card-alt);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.tag.expired { background: var(--red); color: #FBF6EB; border-color: var(--red); }
+.tag.warning { background: var(--orange); color: #FBF6EB; border-color: var(--orange); }
+.tag.ok { background: var(--green-bg); color: var(--green-strong); border-color: #C5D2A2; }
+
+.row-actions {
+  display: flex; gap: 6px; justify-content: flex-end;
+  opacity: 0; transition: opacity 0.15s;
+}
+tbody tr:hover .row-actions { opacity: 1; }
+.icon-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  width: 28px; height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.icon-btn:hover { background: var(--bg); color: var(--text); border-color: var(--border); }
+.icon-btn.danger:hover { color: var(--red); border-color: var(--red); }
+.icon-btn svg { width: 14px; height: 14px; }
+
+.empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-faint);
+  font-style: italic;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-variation-settings: "opsz" 9;
+}
+
+/* ============ SUMMARY ============ */
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 24px;
+}
+.summary-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 22px;
+  box-shadow: var(--shadow-sm);
+}
+.summary-card h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 500;
+  font-variation-settings: "opsz" 144;
+  color: var(--text);
+  margin-bottom: 16px;
+  letter-spacing: -0.005em;
+}
+.summary-table { width: 100%; border-collapse: collapse; }
+.summary-table th {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  font-weight: 600;
+  text-align: left;
+  padding: 6px 12px 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.summary-table th.num { text-align: right; }
+.summary-table td {
+  padding: 9px 12px 9px 0;
+  font-size: 13px;
+  border-bottom: 1px solid #EADCBF;
+}
+.summary-table tr:last-child td { border-bottom: none; }
+.summary-table td.num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+.summary-table .bar-wrap {
+  position: relative;
+  background: var(--bg-card-alt);
+  height: 4px;
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+.summary-table .bar {
+  background: var(--accent);
+  height: 100%;
+  border-radius: 2px;
+}
+.summary-card .total-row td {
+  border-top: 2px solid var(--border-strong);
+  border-bottom: none;
+  font-weight: 700;
+  padding-top: 12px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.summary-card .total-row td:first-child {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ============ FOOTER ============ */
+footer {
+  margin-top: 60px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+.footer-tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.legend { display: flex; gap: 16px; flex-wrap: wrap; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 2px; }
+.legend-dot.ok { background: var(--green); }
+.legend-dot.warn { background: var(--orange); }
+.legend-dot.exp { background: var(--red); }
+
+/* ============ TOAST ============ */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--text);
+  color: var(--bg);
+  padding: 12px 22px;
+  border-radius: 6px;
+  font-size: 13px;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 1000;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+/* ============ MODAL ============ */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(42, 24, 16, 0.4);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+.modal-backdrop.show { display: flex; }
+.modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 28px;
+  max-width: 500px;
+  width: 92%;
+  box-shadow: var(--shadow-lg);
+}
+.modal h3 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  letter-spacing: -0.01em;
+}
+.modal p { color: var(--text-muted); margin-bottom: 20px; font-size: 14px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--orange-bg);
+  border-left: 3px solid var(--orange);
+  border-radius: 4px;
+  margin-bottom: 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.checkbox-row:hover { background: #EFD0A0; }
+.checkbox-row input[type="checkbox"] {
+  margin-top: 3px;
+  width: 16px; height: 16px;
+  cursor: pointer;
+  accent-color: var(--orange);
+  flex-shrink: 0;
+}
+.checkbox-row span { font-size: 13px; line-height: 1.4; color: var(--text); }
+.checkbox-row strong { display: block; font-weight: 600; color: var(--orange-strong); }
+.checkbox-hint { display: block; font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* ============ RESPONSIVE ============ */
+@media (max-width: 900px) {
+  .container { padding: 20px 16px 60px; }
+  .form-grid { grid-template-columns: 1fr 1fr; }
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .summary-grid { grid-template-columns: 1fr; }
+  .table-wrap { overflow-x: auto; }
+  table { min-width: 720px; }
+}
+@media (max-width: 520px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .kpis { grid-template-columns: 1fr 1fr; }
+}
+
+/* ============ PRINT / PDF EXPORT ============ */
+.print-only { display: none; }
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 14mm 12mm 16mm 12mm;
+  }
+  @page :first { margin-top: 18mm; }
+
+  html, body {
+    background: white !important;
+    background-image: none !important;
+    color: #2A1810 !important;
+    font-size: 10pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .container { max-width: none; padding: 0; }
+
+  /* HIDE interactive UI */
+  section.add-section,
+  section.screen-detail,
+  .filters-row,
+  .row-actions,
+  footer .footer-tools,
+  footer .legend,
+  footer,
+  .modal-backdrop,
+  .toast,
+  header .date-stamp,
+  thead th.actions-col,
+  tbody td.actions-col { display: none !important; }
+
+  /* SHOW print-only sections */
+  .print-only { display: block !important; }
+
+  /* HEADER block */
+  header {
+    border-bottom: 2px solid #2A1810;
+    padding-bottom: 10pt;
+    margin-bottom: 14pt;
+    page-break-after: avoid;
+  }
+  .header-top { gap: 8pt; }
+  .title-block h1 { font-size: 28pt; color: #2A1810 !important; }
+  .title-block .sub { font-size: 9pt; letter-spacing: 0.15em; }
+  .print-date {
+    display: block !important;
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 11pt;
+    color: #555;
+    margin-top: 4pt;
+  }
+  .kpis {
+    border: 1pt solid #B59A6F !important;
+    background: #B59A6F !important;
+    border-radius: 0;
+    gap: 1pt;
+  }
+  .kpi { background: white !important; padding: 8pt 10pt; }
+  .kpi-label { font-size: 7pt; letter-spacing: 0.1em; }
+  .kpi-value { font-size: 18pt; }
+  .kpi-value .unit { font-size: 9pt; }
+  .kpi.alert .kpi-value { color: #913526 !important; }
+  .kpi.warn .kpi-value { color: #B86E1F !important; }
+
+  /* Section heads */
+  section { margin-bottom: 12pt; page-break-inside: auto; }
+  .section-head { margin-bottom: 6pt; }
+  .section-head h2 {
+    font-size: 13pt;
+    border-bottom: 0.5pt solid #B59A6F;
+    padding-bottom: 3pt;
+    width: 100%;
+  }
+  .section-head .hint { font-size: 8pt; }
+
+  /* ALERTS section (print-only) */
+  .print-alerts { page-break-inside: avoid; }
+  .alert-block {
+    border-left: 4pt solid #913526;
+    background: #F4D5CD !important;
+    padding: 8pt 12pt;
+    margin-bottom: 8pt;
+    border-radius: 0;
+  }
+  .alert-block.warning {
+    border-left-color: #B86E1F;
+    background: #F8E3C4 !important;
+  }
+  .alert-block-title {
+    font-family: var(--font-display);
+    font-size: 11pt;
+    font-weight: 600;
+    margin-bottom: 4pt;
+    color: #2A1810;
+  }
+  .alert-block table { width: 100%; font-size: 9pt; }
+  .alert-block th {
+    text-align: left;
+    padding: 2pt 6pt 4pt 0;
+    font-size: 7pt;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #555;
+    font-weight: 600;
+    border-bottom: 0.5pt solid #B59A6F;
+  }
+  .alert-block td {
+    padding: 3pt 6pt 3pt 0;
+    border-bottom: 0.25pt solid rgba(0,0,0,0.08);
+    vertical-align: top;
+  }
+  .alert-block tr:last-child td { border-bottom: none; }
+  .alert-block .num { text-align: right; font-family: var(--font-mono); }
+  .no-alerts {
+    padding: 8pt 12pt;
+    border: 0.5pt dashed #B59A6F;
+    color: #555;
+    font-style: italic;
+    font-family: var(--font-display);
+    font-size: 10pt;
+  }
+
+  /* MAIN inventory table */
+  .table-wrap {
+    border: 0.5pt solid #B59A6F !important;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+  }
+  table { font-size: 9pt; }
+  thead { display: table-header-group; }
+  thead th {
+    background: #F0E2C6 !important;
+    color: #2A1810 !important;
+    font-size: 7.5pt;
+    padding: 5pt 8pt;
+    letter-spacing: 0.08em;
+    border-bottom: 0.5pt solid #B59A6F !important;
+  }
+  thead th::after { content: "" !important; }
+  tbody tr {
+    page-break-inside: avoid;
+    border-bottom: 0.25pt solid #DCC9A6;
+  }
+  tbody td {
+    padding: 4pt 8pt;
+    font-size: 9pt;
+    background: transparent !important;
+  }
+  tbody td.beer { font-weight: 600; }
+  tbody td.code { font-size: 7pt; color: #555 !important; }
+  tbody tr.expired td {
+    background: #F4D5CD !important;
+    border-left: 3pt solid #913526 !important;
+  }
+  tbody tr.expired td.ddm { color: #6B1E13 !important; font-weight: 700; }
+  tbody tr.warning td {
+    background: #F8E3C4 !important;
+  }
+  tbody tr.warning td.ddm { color: #8A4F11 !important; font-weight: 700; }
+  tbody tr.expired td:first-child { border-left: 3pt solid #913526 !important; }
+  tbody tr.warning td:first-child { border-left: 3pt solid #B86E1F !important; }
+  tbody tr.ok td:first-child { border-left: 3pt solid #496B38 !important; }
+
+  .tag {
+    border: 0.5pt solid currentColor !important;
+    background: transparent !important;
+    padding: 1pt 5pt;
+    font-size: 7pt;
+  }
+  .tag.expired { color: #6B1E13 !important; background: #F4D5CD !important; }
+  .tag.warning { color: #8A4F11 !important; background: #F8E3C4 !important; }
+  .tag.ok { color: #2F4E20 !important; background: #DAE3BF !important; }
+
+  /* PRINT-ONLY detailed stock — brewery order */
+  .print-detail-section { page-break-before: always; }
+  .print-detail tbody tr.beer-first td {
+    border-top: 1pt solid #B59A6F !important;
+  }
+
+  /* SUMMARIES — force page break before for cleaner pagination */
+  .summary-section { page-break-before: always; }
+  .summary-grid { grid-template-columns: 1fr 1fr; gap: 12pt; }
+  .summary-card {
+    border: 0.5pt solid #B59A6F !important;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 10pt;
+    background: white !important;
+    page-break-inside: avoid;
+  }
+  .summary-card h3 { font-size: 11pt; margin-bottom: 8pt; }
+  .summary-table { font-size: 9pt; }
+  .summary-table th {
+    font-size: 7pt;
+    border-bottom: 0.5pt solid #B59A6F;
+    padding: 3pt 8pt 4pt 0;
+  }
+  .summary-table td { padding: 4pt 8pt 4pt 0; font-size: 9pt; }
+  .summary-table .bar-wrap { background: #EFE2C7 !important; height: 2pt; }
+  .summary-table .bar { background: #A0531B !important; }
+  .summary-card .total-row td {
+    border-top: 1pt solid #2A1810;
+    padding-top: 5pt;
+    font-size: 9pt;
+  }
+  .summary-card .total-row td:first-child { font-size: 10pt; }
+
+  /* Print footer with page numbers */
+  @page {
+    @bottom-left {
+      content: "Inventaire brasserie";
+      font-family: 'DM Sans', sans-serif;
+      font-size: 8pt;
+      color: #888;
+    }
+    @bottom-right {
+      content: "Page " counter(page) " / " counter(pages);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 8pt;
+      color: #888;
+    }
+  }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <div class="header-top">
+    <div class="title-block">
+      <h1>Inventaire</h1>
+      <div class="sub">Stock brasserie</div>
+    </div>
+    <div class="date-stamp" id="dateStamp"></div>
+  </div>
+  <div class="print-date print-only" id="printDate"></div>
+  <div class="kpis">
+    <div class="kpi">
+      <div class="kpi-label">Volume total</div>
+      <div class="kpi-value"><span id="kpiVolume">0,00</span><span class="unit">HL</span></div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Entrées</div>
+      <div class="kpi-value" id="kpiCount">0</div>
+    </div>
+    <div class="kpi warn">
+      <div class="kpi-label">À surveiller (≤ 3 mois)</div>
+      <div class="kpi-value" id="kpiWarning">0</div>
+    </div>
+    <div class="kpi alert">
+      <div class="kpi-label">DDM dépassée</div>
+      <div class="kpi-value" id="kpiExpired">0</div>
+    </div>
+  </div>
+</header>
+
+<section class="add-section">
+  <div class="section-head">
+    <h2 id="formTitle">Nouvelle entrée</h2>
+    <span class="hint" id="editingHint" style="display:none">Modification en cours</span>
+  </div>
+  <div class="add-card">
+    <form id="entryForm" class="form-grid">
+      <div class="field">
+        <label for="f-beer">Bière</label>
+        <select id="f-beer" required></select>
+      </div>
+      <div class="field">
+        <label for="f-container">Contenant</label>
+        <select id="f-container" required>
+          <option value="">—</option>
+          <option value="33cl">33 cl</option>
+          <option value="44cl">44 cl</option>
+          <option value="75cl">75 cl</option>
+          <option value="20L">20 L</option>
+          <option value="30L">30 L</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-qty">Quantité <span class="qty-preview" id="qtyPreview"></span></label>
+        <input type="text" id="f-qty" class="num" required placeholder="ex: 24*33+12" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>DDM (mois / année)</label>
+        <div class="ddm-pair">
+          <select id="f-ddm-month" required>
+            <option value="">Mois</option>
+            <option value="1">Janvier</option>
+            <option value="2">Février</option>
+            <option value="3">Mars</option>
+            <option value="4">Avril</option>
+            <option value="5">Mai</option>
+            <option value="6">Juin</option>
+            <option value="7">Juillet</option>
+            <option value="8">Août</option>
+            <option value="9">Septembre</option>
+            <option value="10">Octobre</option>
+            <option value="11">Novembre</option>
+            <option value="12">Décembre</option>
+          </select>
+          <select id="f-ddm-year" required></select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-lot">N° de lot</label>
+        <input type="text" id="f-lot" inputmode="numeric" placeholder="ex: 2604" autocomplete="off">
+      </div>
+      <div class="field" style="flex-direction:row; gap:8px;">
+        <button type="submit" class="primary" id="submitBtn">Ajouter</button>
+        <button type="button" class="ghost" id="cancelEditBtn" style="display:none">Annuler</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="print-only print-alerts">
+  <div class="section-head">
+    <h2>Alertes DDM</h2>
+    <span class="hint">État au jour de l'édition</span>
+  </div>
+  <div id="printAlerts"></div>
+</section>
+
+<section class="screen-detail">
+  <div class="section-head">
+    <h2>Stock détaillé</h2>
+    <span class="hint" id="rowsCount">0 entrées</span>
+  </div>
+  <div class="filters-row">
+    <div class="filter-group">
+      <label>Bière</label>
+      <select id="filter-beer"><option value="">Toutes</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Contenant</label>
+      <select id="filter-container">
+        <option value="">Tous</option>
+        <option value="33cl">33 cl</option>
+        <option value="44cl">44 cl</option>
+        <option value="75cl">75 cl</option>
+        <option value="20L">20 L</option>
+        <option value="30L">30 L</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>État DDM</label>
+      <select id="filter-status">
+        <option value="">Tous</option>
+        <option value="expired">Périmé</option>
+        <option value="warning">À surveiller</option>
+        <option value="ok">OK</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Lot</label>
+      <input type="text" id="filter-lot" placeholder="Rechercher…">
+    </div>
+    <div class="spacer"></div>
+    <button class="ghost" id="resetFilters">Réinitialiser</button>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="beer">Bière</th>
+          <th class="sortable" data-sort="container">Contenant</th>
+          <th class="sortable num" data-sort="quantity">Qté</th>
+          <th class="num">Volume (HL)</th>
+          <th class="sortable" data-sort="ddm">DDM</th>
+          <th>N° lot</th>
+          <th>État</th>
+          <th class="actions-col"></th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="print-only print-detail-section">
+  <div class="section-head">
+    <h2>Stock détaillé</h2>
+    <span class="hint">Ordre Inventaire 2026</span>
+  </div>
+  <div class="table-wrap print-detail">
+    <table id="printDetailTable">
+      <thead>
+        <tr>
+          <th>Bière</th>
+          <th>Contenant</th>
+          <th class="num">Qté</th>
+          <th class="num">Volume (HL)</th>
+          <th>DDM</th>
+          <th>N° lot</th>
+          <th>État</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<section class="summary-section">
+  <div class="section-head">
+    <h2>Synthèses</h2>
+    <span class="hint">Volumes en HL</span>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <h3>Par bière</h3>
+      <table class="summary-table" id="summaryBeer">
+        <thead>
+          <tr><th>Bière</th><th class="num">Volume (HL)</th><th class="num">Part</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <div class="summary-card">
+      <h3>Par contenant</h3>
+      <table class="summary-table" id="summaryContainer">
+        <thead>
+          <tr><th>Contenant</th><th class="num">Unités</th><th class="num">Volume (HL)</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="legend">
+    <span class="legend-item"><span class="legend-dot ok"></span> OK (DDM &gt; 3 mois)</span>
+    <span class="legend-item"><span class="legend-dot warn"></span> À surveiller (≤ 3 mois)</span>
+    <span class="legend-item"><span class="legend-dot exp"></span> Périmé</span>
+  </div>
+  <div class="footer-tools">
+    <button class="ghost" id="exportBtn">Exporter (JSON)</button>
+    <button class="ghost" id="importBtn">Importer</button>
+    <button class="ghost" id="excelBtn">Vers Excel</button>
+    <button class="primary" id="pdfBtn" style="padding:8px 16px; font-size:13px;">Exporter PDF</button>
+    <button class="ghost danger" id="resetAllBtn">Tout effacer</button>
+    <input type="file" id="importFile" accept=".json" style="display:none">
+  </div>
+</footer>
+
+</div>
+
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <h3 id="modalTitle">Confirmer</h3>
+    <p id="modalBody">Êtes-vous sûr ?</p>
+    <div class="modal-actions">
+      <button class="ghost" id="modalCancel">Annuler</button>
+      <button class="primary" id="modalOk" style="background:var(--red)">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="excelModal">
+  <div class="modal" style="max-width: 540px;">
+    <h3>Vers Inventaire 2026</h3>
+    <p>Copie une grille de 22 bières × 5 contenants (en HL, dans l'ordre exact de ton fichier <code style="font-family:var(--font-mono); font-size:12px; background:var(--bg-card-alt); padding:1px 5px; border-radius:3px;">Inventaire_2026.xlsx</code>) prête à coller.</p>
+    <div class="field" style="margin: 18px 0 12px;">
+      <label for="excelMonth">Mois cible</label>
+      <select id="excelMonth"></select>
+    </div>
+    <label class="checkbox-row" id="expiredCheckRow" style="display:none;">
+      <input type="checkbox" id="includeExpired">
+      <span>
+        <strong id="expiredCountLabel">Inclure les lots à DDM dépassée</strong>
+        <span class="checkbox-hint" id="expiredHint"></span>
+      </span>
+    </label>
+    <div style="background: var(--bg-card-alt); border-left: 3px solid var(--accent); padding: 12px 14px; border-radius: 4px; margin-bottom: 20px; font-size: 13px; color: var(--text-muted); line-height: 1.55;">
+      <strong style="color: var(--text);">Mode d'emploi :</strong><br>
+      1. Choisis le mois ci-dessus, clique <em>Copier les valeurs</em>.<br>
+      2. Ouvre <code style="font-family:var(--font-mono); font-size:12px;">Inventaire_2026.xlsx</code>, va sur l'onglet du mois choisi.<br>
+      3. Clique sur la cellule <strong>B3</strong>, puis <strong>Cmd+V</strong> (Mac) ou <strong>Ctrl+V</strong>.<br>
+      4. Sauvegarde. Les totaux par bière (colonne G) se recalculent automatiquement.
+    </div>
+    <div class="modal-actions">
+      <button class="ghost" id="excelCancel">Annuler</button>
+      <button class="primary" id="excelCopy">Copier les valeurs</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ============ CONFIG ============
+const BEERS = [
+  ['Bière Valmy blonde BIO','VAL-BLD'],
+  ['Bière Valmy blanche BIO','VAL-BLC'],
+  ['Bière Valmy ambrée BIO','VAL-AMB'],
+  ['Bière Valmy IPA BIO','VAL-IPA'],
+  ['Bière Valmy Triple BIO','VAL-TRI'],
+  ['Bière Valmy Framboise BIO','VAL-FRA'],
+  ['Bière Valmy Noël BIO','VAL-NOE'],
+  ['Bière Orgemont blonde BIO','ORG-BLD'],
+  ['Bière Orgemont brune BIO','ORG-BRN'],
+  ['Bière Orgemont triple BIO','ORG-TRI'],
+  ['Bière Orgemont Saison BIO','ORG-SAI'],
+  ['Bière Orgemont IPA BIO','ORG-IPA'],
+  ['Bière Rèmes','REMES'],
+  ['Bière Tutti Berry BIO','TUTTI'],
+  ['Bière Trouble Jeu BIO','TROUB'],
+  ['Bière Bouquet Final BIO','BOUQU'],
+  ['Bière Crème de la Crème BIO','CREME'],
+  ['Bière Légionnaire Blonde','LEG-BLD'],
+  ['Bière Légionnaire IPA','LEG-IPA'],
+  ['Bière Bayard / Baraquine blonde','BAY-BLD'],
+  ['Bière Bayard / Baraquine triple','BAY-TRI'],
+  ['Biére Muizon','MUIZ']
+];
+const CONTAINER_HL = { '33cl': 0.0033, '44cl': 0.0044, '75cl': 0.0075, '20L': 0.20, '30L': 0.30 };
+const CONTAINER_ORDER = ['33cl','44cl','75cl','20L','30L'];
+const STORAGE_KEY = 'brasserie_inventaire_v1';
+const WARNING_DAYS = 90;
+
+// ============ STATE ============
+let entries = [];
+let editingId = null;
+let sortField = 'ddm';
+let sortDir = 'asc';
+let filters = { beer:'', container:'', status:'', lot:'' };
+
+// ============ HELPERS ============
+const $ = (id) => document.getElementById(id);
+const fmtHL = (n) => new Intl.NumberFormat('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }).format(n);
+const fmtInt = (n) => new Intl.NumberFormat('fr-FR').format(n);
+const fmtDate = (iso) => {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' });
+};
+const fmtMonthYear = (iso) => {
+  if (!iso) return '—';
+  const d = new Date(iso + 'T00:00:00');
+  const s = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+};
+const fmtDateLong = (d) => d.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' });
+const beerCodeFor = (name) => (BEERS.find(b => b[0]===name)||[null,''])[1];
+
+function lastDayOfMonth(year, month1to12) {
+  return new Date(year, month1to12, 0).getDate();
+}
+function ddmFromMonthYear(month1to12, year) {
+  const day = lastDayOfMonth(year, month1to12);
+  return `${year}-${String(month1to12).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+function evalQuantity(s) {
+  s = String(s == null ? '' : s).trim();
+  if (!s) return NaN;
+  // Allow digits, + - * / ( ) . , and whitespace only — keeps eval safe
+  if (!/^[0-9+\-*/().,\s]+$/.test(s)) return NaN;
+  // Accept French decimal comma
+  const expr = s.replace(/,/g, '.');
+  try {
+    const v = Function('"use strict"; return (' + expr + ')')();
+    if (typeof v !== 'number' || !isFinite(v) || v < 0) return NaN;
+    return Math.round(v);
+  } catch {
+    return NaN;
+  }
+}
+
+function ddmStatus(iso) {
+  if (!iso) return 'ok';
+  const today = new Date(); today.setHours(0,0,0,0);
+  const ddm = new Date(iso + 'T00:00:00');
+  const diff = (ddm - today) / 86400000;
+  if (diff < 0) return 'expired';
+  if (diff <= WARNING_DAYS) return 'warning';
+  return 'ok';
+}
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ============ STORAGE ============
+function loadEntries() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) entries = JSON.parse(raw);
+  } catch(e) { console.warn('Lecture stockage échouée:', e); entries = []; }
+}
+function saveEntries() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
+  catch(e) { toast('Erreur de sauvegarde : ' + e.message); }
+}
+
+// ============ INIT FORM ============
+function initBeerOptions() {
+  const sel = $('f-beer');
+  sel.innerHTML = '<option value="">—</option>' +
+    BEERS.map(([name, code]) => `<option value="${name}">${name} · ${code}</option>`).join('');
+  const fb = $('filter-beer');
+  fb.innerHTML = '<option value="">Toutes</option>' +
+    BEERS.map(([name, code]) => `<option value="${name}">${name}</option>`).join('');
+}
+
+// ============ ENTRY OPS ============
+function addOrUpdate(e) {
+  e.preventDefault();
+  const beer = $('f-beer').value;
+  const container = $('f-container').value;
+  const quantity = evalQuantity($('f-qty').value);
+  const month = parseInt($('f-ddm-month').value, 10);
+  const year = parseInt($('f-ddm-year').value, 10);
+  const lot = $('f-lot').value.trim();
+
+  if (!beer || !container) { toast('Choisis bière et contenant'); return; }
+  if (!Number.isFinite(quantity) || quantity <= 0) {
+    toast('Quantité invalide. Tu peux écrire un calcul : 24*33+12');
+    $('f-qty').focus();
+    return;
+  }
+  if (!month || !year) { toast('Choisis le mois et l\'année de DDM'); return; }
+
+  const ddm = ddmFromMonthYear(month, year);
+
+  if (editingId) {
+    const target = entries.find(x => x.id === editingId);
+    if (target) Object.assign(target, { beer, container, quantity, ddm, lot });
+    toast('Entrée modifiée');
+    cancelEdit();
+  } else {
+    entries.push({
+      id: 'e_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,6),
+      beer, container, quantity, ddm, lot,
+      createdAt: new Date().toISOString()
+    });
+    toast('Entrée ajoutée');
+    $('entryForm').reset();
+    updateQtyPreview();
+    $('f-beer').focus();
+  }
+  saveEntries();
+  render();
+}
+
+function editEntry(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  editingId = id;
+  $('f-beer').value = e.beer;
+  $('f-container').value = e.container;
+  $('f-qty').value = e.quantity;
+  updateQtyPreview();
+  // Parse DDM into month/year selects
+  if (e.ddm) {
+    const [y, m] = e.ddm.split('-');
+    $('f-ddm-month').value = String(parseInt(m, 10));
+    // Ensure the year exists in the select; add it if past
+    const yearSel = $('f-ddm-year');
+    if (!Array.from(yearSel.options).some(o => o.value === y)) {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      yearSel.appendChild(opt);
+    }
+    yearSel.value = y;
+  } else {
+    $('f-ddm-month').value = '';
+    $('f-ddm-year').value = '';
+  }
+  $('f-lot').value = e.lot || '';
+  $('submitBtn').textContent = 'Enregistrer';
+  $('cancelEditBtn').style.display = '';
+  $('formTitle').textContent = 'Modifier l\'entrée';
+  $('editingHint').style.display = '';
+  document.querySelector('.add-card').scrollIntoView({ behavior:'smooth', block:'center' });
+  $('f-qty').focus();
+}
+
+function cancelEdit() {
+  editingId = null;
+  $('entryForm').reset();
+  updateQtyPreview();
+  $('submitBtn').textContent = 'Ajouter';
+  $('cancelEditBtn').style.display = 'none';
+  $('formTitle').textContent = 'Nouvelle entrée';
+  $('editingHint').style.display = 'none';
+}
+
+function updateQtyPreview() {
+  const raw = $('f-qty').value || '';
+  const preview = $('qtyPreview');
+  if (!raw.trim() || /^\d+$/.test(raw.trim())) {
+    preview.textContent = '';
+    return;
+  }
+  const v = evalQuantity(raw);
+  if (Number.isFinite(v) && v > 0) preview.textContent = '= ' + fmtInt(v);
+  else preview.textContent = '';
+}
+
+function populateDDMYears() {
+  const sel = $('f-ddm-year');
+  const now = new Date().getFullYear();
+  const opts = ['<option value="">Année</option>'];
+  for (let y = now; y <= now + 5; y++) {
+    opts.push(`<option value="${y}">${y}</option>`);
+  }
+  sel.innerHTML = opts.join('');
+}
+
+function deleteEntry(id) {
+  const e = entries.find(x => x.id === id);
+  if (!e) return;
+  openModal({
+    title: 'Supprimer cette entrée ?',
+    body: `${e.beer} — ${e.container} × ${e.quantity}, lot « ${e.lot || '—'} ». Cette action est irréversible.`,
+    okText: 'Supprimer',
+    onOk: () => {
+      entries = entries.filter(x => x.id !== id);
+      saveEntries();
+      render();
+      toast('Entrée supprimée');
+    }
+  });
+}
+
+// ============ RENDER ============
+function applyFilters(list) {
+  return list.filter(e => {
+    if (filters.beer && e.beer !== filters.beer) return false;
+    if (filters.container && e.container !== filters.container) return false;
+    if (filters.status && ddmStatus(e.ddm) !== filters.status) return false;
+    if (filters.lot && !(e.lot||'').toLowerCase().includes(filters.lot.toLowerCase())) return false;
+    return true;
+  });
+}
+
+function sortList(list) {
+  const dir = sortDir === 'asc' ? 1 : -1;
+  return [...list].sort((a, b) => {
+    let va = a[sortField], vb = b[sortField];
+    if (sortField === 'container') {
+      va = CONTAINER_ORDER.indexOf(va);
+      vb = CONTAINER_ORDER.indexOf(vb);
+    }
+    if (va < vb) return -1 * dir;
+    if (va > vb) return  1 * dir;
+    return 0;
+  });
+}
+
+function render() {
+  // KPIs
+  const today = new Date(); today.setHours(0,0,0,0);
+  let totalHL = 0, nExpired = 0, nWarning = 0;
+  entries.forEach(e => {
+    totalHL += (CONTAINER_HL[e.container] || 0) * e.quantity;
+    const s = ddmStatus(e.ddm);
+    if (s === 'expired') nExpired++;
+    else if (s === 'warning') nWarning++;
+  });
+  $('kpiVolume').textContent = fmtHL(totalHL);
+  $('kpiCount').textContent  = fmtInt(entries.length);
+  $('kpiWarning').textContent = fmtInt(nWarning);
+  $('kpiExpired').textContent = fmtInt(nExpired);
+
+  // Table
+  const filtered = applyFilters(entries);
+  const sorted = sortList(filtered);
+  $('rowsCount').textContent = `${fmtInt(filtered.length)} entrée${filtered.length>1?'s':''}` + (filtered.length !== entries.length ? ` / ${fmtInt(entries.length)}` : '');
+
+  const tb = $('tbody');
+  if (!sorted.length) {
+    tb.innerHTML = `<tr><td colspan="8" class="empty">${entries.length === 0 ? 'Aucune entrée. Ajoute ta première bière ci-dessus.' : 'Aucun résultat pour les filtres en cours.'}</td></tr>`;
+  } else {
+    tb.innerHTML = sorted.map(e => {
+      const status = ddmStatus(e.ddm);
+      const hl = (CONTAINER_HL[e.container] || 0) * e.quantity;
+      const code = beerCodeFor(e.beer);
+      const tagClass = status;
+      const tagLabel = status === 'expired' ? 'Périmé' : status === 'warning' ? 'À surveiller' : 'OK';
+      return `<tr class="${status}" data-id="${e.id}">
+        <td class="beer">${escapeHtml(e.beer)}<div class="code">${code}</div></td>
+        <td>${e.container}</td>
+        <td class="num mono">${fmtInt(e.quantity)}</td>
+        <td class="num mono">${fmtHL(hl)}</td>
+        <td class="ddm">${fmtMonthYear(e.ddm)}</td>
+        <td class="mono">${escapeHtml(e.lot || '—')}</td>
+        <td><span class="tag ${tagClass}">${tagLabel}</span></td>
+        <td class="actions-col">
+          <div class="row-actions">
+            <button class="icon-btn" title="Modifier" onclick="editEntry('${e.id}')">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M11.5 1.5l3 3-9 9H2.5v-3l9-9z"/></svg>
+            </button>
+            <button class="icon-btn danger" title="Supprimer" onclick="deleteEntry('${e.id}')">
+              <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 4h11M5 4V2.5h6V4M4 4l.8 9.5a1 1 0 001 1h4.4a1 1 0 001-1L12 4M6.5 6.5v6M9.5 6.5v6"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  // Update sort indicators
+  document.querySelectorAll('thead th[data-sort]').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.sort === sortField) th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+  });
+
+  // Summary by beer
+  const byBeer = {};
+  entries.forEach(e => {
+    const hl = (CONTAINER_HL[e.container] || 0) * e.quantity;
+    byBeer[e.beer] = (byBeer[e.beer] || 0) + hl;
+  });
+  const beerRows = Object.entries(byBeer)
+    .filter(([_, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
+  const maxBeer = beerRows[0] ? beerRows[0][1] : 1;
+  const beerTbody = document.querySelector('#summaryBeer tbody');
+  if (!beerRows.length) {
+    beerTbody.innerHTML = '<tr><td colspan="3" style="color:var(--text-faint); font-style:italic; padding:16px 0;">Aucune donnée</td></tr>';
+  } else {
+    beerTbody.innerHTML = beerRows.map(([name, hl]) => {
+      const pct = totalHL > 0 ? (hl / totalHL * 100) : 0;
+      const bar = totalHL > 0 ? (hl / maxBeer * 100) : 0;
+      return `<tr>
+        <td>${escapeHtml(name)}<div class="bar-wrap"><div class="bar" style="width:${bar.toFixed(1)}%"></div></div></td>
+        <td class="num">${fmtHL(hl)}</td>
+        <td class="num">${pct.toFixed(1)} %</td>
+      </tr>`;
+    }).join('') + `<tr class="total-row"><td>Total</td><td class="num">${fmtHL(totalHL)}</td><td class="num">100 %</td></tr>`;
+  }
+
+  // Summary by container
+  const byCont = {};
+  CONTAINER_ORDER.forEach(c => byCont[c] = { units: 0, hl: 0 });
+  entries.forEach(e => {
+    if (byCont[e.container]) {
+      byCont[e.container].units += e.quantity;
+      byCont[e.container].hl += (CONTAINER_HL[e.container] || 0) * e.quantity;
+    }
+  });
+  const contTbody = document.querySelector('#summaryContainer tbody');
+  const contRows = CONTAINER_ORDER.map(c => {
+    return `<tr>
+      <td>${c.replace('L',' L').replace('cl',' cl')}</td>
+      <td class="num">${fmtInt(byCont[c].units)}</td>
+      <td class="num">${fmtHL(byCont[c].hl)}</td>
+    </tr>`;
+  }).join('');
+  contTbody.innerHTML = contRows +
+    `<tr class="total-row"><td>Total</td><td class="num">${fmtInt(entries.reduce((s,e)=>s+e.quantity,0))}</td><td class="num">${fmtHL(totalHL)}</td></tr>`;
+
+  // Print-only sections
+  renderPrintAlerts();
+  renderPrintDetail();
+}
+
+function renderPrintDetail() {
+  // Group entries in brewery order: BEERS order, then CONTAINER_ORDER, then DDM ascending
+  const beerIdx = {};
+  BEERS.forEach(([name], i) => { beerIdx[name] = i; });
+  const contIdx = {};
+  CONTAINER_ORDER.forEach((c, i) => { contIdx[c] = i; });
+
+  const sorted = [...entries].sort((a, b) => {
+    const ba = beerIdx[a.beer] ?? 999;
+    const bb = beerIdx[b.beer] ?? 999;
+    if (ba !== bb) return ba - bb;
+    const ca = contIdx[a.container] ?? 999;
+    const cb = contIdx[b.container] ?? 999;
+    if (ca !== cb) return ca - cb;
+    return (a.ddm || '').localeCompare(b.ddm || '');
+  });
+
+  const tbody = document.querySelector('#printDetailTable tbody');
+  if (!sorted.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Aucune entrée</td></tr>';
+    return;
+  }
+
+  let lastBeer = null;
+  tbody.innerHTML = sorted.map(e => {
+    const status = ddmStatus(e.ddm);
+    const hl = (CONTAINER_HL[e.container] || 0) * e.quantity;
+    const code = beerCodeFor(e.beer);
+    const tagLabel = status === 'expired' ? 'Périmé' : status === 'warning' ? 'À surveiller' : 'OK';
+    const isFirst = e.beer !== lastBeer;
+    lastBeer = e.beer;
+    return `<tr class="${status}${isFirst ? ' beer-first' : ''}">
+      <td class="beer">${escapeHtml(e.beer)}<div class="code">${code}</div></td>
+      <td>${e.container}</td>
+      <td class="num mono">${fmtInt(e.quantity)}</td>
+      <td class="num mono">${fmtHL(hl)}</td>
+      <td class="ddm">${fmtMonthYear(e.ddm)}</td>
+      <td class="mono">${escapeHtml(e.lot || '—')}</td>
+      <td><span class="tag ${status}">${tagLabel}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderPrintAlerts() {
+  const expired = entries
+    .filter(e => ddmStatus(e.ddm) === 'expired')
+    .sort((a, b) => a.ddm.localeCompare(b.ddm));
+  const warning = entries
+    .filter(e => ddmStatus(e.ddm) === 'warning')
+    .sort((a, b) => a.ddm.localeCompare(b.ddm));
+  const wrap = $('printAlerts');
+
+  if (!expired.length && !warning.length) {
+    wrap.innerHTML = '<div class="no-alerts">Aucune alerte. Tous les lots ont une DDM supérieure à 3 mois.</div>';
+    return;
+  }
+
+  const buildTable = (rows) => `
+    <table>
+      <thead>
+        <tr>
+          <th>Bière</th>
+          <th>Contenant</th>
+          <th class="num">Qté</th>
+          <th class="num">Volume (HL)</th>
+          <th>DDM</th>
+          <th>N° lot</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rows.map(e => {
+          const hl = (CONTAINER_HL[e.container] || 0) * e.quantity;
+          return `<tr>
+            <td>${escapeHtml(e.beer)}</td>
+            <td>${e.container}</td>
+            <td class="num">${fmtInt(e.quantity)}</td>
+            <td class="num">${fmtHL(hl)}</td>
+            <td>${fmtMonthYear(e.ddm)}</td>
+            <td>${escapeHtml(e.lot || '—')}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+
+  let html = '';
+  if (expired.length) {
+    const totalHl = expired.reduce((s, e) => s + (CONTAINER_HL[e.container] || 0) * e.quantity, 0);
+    html += `<div class="alert-block">
+      <div class="alert-block-title">DDM dépassée — ${expired.length} lot${expired.length>1?'s':''} · ${fmtHL(totalHl)} HL</div>
+      ${buildTable(expired)}
+    </div>`;
+  }
+  if (warning.length) {
+    const totalHl = warning.reduce((s, e) => s + (CONTAINER_HL[e.container] || 0) * e.quantity, 0);
+    html += `<div class="alert-block warning">
+      <div class="alert-block-title">À surveiller (≤ 3 mois) — ${warning.length} lot${warning.length>1?'s':''} · ${fmtHL(totalHl)} HL</div>
+      ${buildTable(warning)}
+    </div>`;
+  }
+  wrap.innerHTML = html;
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// ============ MODAL ============
+let modalOnOk = null;
+function openModal({ title, body, okText='Confirmer', onOk }) {
+  $('modalTitle').textContent = title;
+  $('modalBody').textContent = body;
+  $('modalOk').textContent = okText;
+  modalOnOk = onOk;
+  $('modal').classList.add('show');
+}
+function closeModal() { $('modal').classList.remove('show'); modalOnOk = null; }
+
+// ============ EXPORT / IMPORT ============
+function exportJSON() {
+  const data = JSON.stringify({ version: 1, exportedAt: new Date().toISOString(), entries }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0, 10);
+  a.href = url; a.download = `inventaire_brasserie_${date}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast('Export téléchargé');
+}
+function handleImport(file) {
+  const r = new FileReader();
+  r.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data.entries)) throw new Error('Format invalide');
+      openModal({
+        title: 'Importer cet inventaire ?',
+        body: `Le fichier contient ${data.entries.length} entrée(s). Ceci remplacera tout l'inventaire actuel (${entries.length} entrée(s)).`,
+        okText: 'Remplacer',
+        onOk: () => { entries = data.entries; saveEntries(); render(); toast('Import effectué'); }
+      });
+    } catch (err) {
+      toast('Fichier invalide : ' + err.message);
+    }
+  };
+  r.readAsText(file);
+}
+
+// ============ EXCEL EXPORT (clipboard matrix) ============
+const MONTHS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+function buildInventoryMatrix(includeExpired) {
+  // Aggregate HL by (beer, container)
+  const totals = {};
+  entries.forEach(e => {
+    if (!includeExpired && ddmStatus(e.ddm) === 'expired') return;
+    const k = e.beer + '|' + e.container;
+    totals[k] = (totals[k] || 0) + (CONTAINER_HL[e.container] || 0) * e.quantity;
+  });
+  return BEERS.map(([beer]) =>
+    CONTAINER_ORDER.map(c => {
+      const v = totals[beer + '|' + c] || 0;
+      return v === 0 ? '' : v.toFixed(2).replace('.', ',');
+    }).join('\t')
+  ).join('\n');
+}
+
+function openExcelModal() {
+  const sel = $('excelMonth');
+  if (!sel.options.length) {
+    const currentMonth = new Date().getMonth();
+    sel.innerHTML = MONTHS_FR.map((m, i) =>
+      `<option value="${m}"${i === currentMonth ? ' selected' : ''}>${m}</option>`
+    ).join('');
+  }
+  // Count expired entries → show checkbox only if there are some
+  const expired = entries.filter(e => ddmStatus(e.ddm) === 'expired');
+  const row = $('expiredCheckRow');
+  const cb = $('includeExpired');
+  if (expired.length > 0) {
+    const totalHl = expired.reduce((s, e) => s + (CONTAINER_HL[e.container] || 0) * e.quantity, 0);
+    $('expiredCountLabel').textContent =
+      `Inclure les ${expired.length} lot${expired.length>1?'s':''} à DDM dépassée`;
+    $('expiredHint').textContent =
+      `Soit ${fmtHL(totalHl)} HL périmés. Décoché par défaut.`;
+    cb.checked = false;
+    row.style.display = '';
+  } else {
+    row.style.display = 'none';
+  }
+  $('excelModal').classList.add('show');
+}
+function closeExcelModal() { $('excelModal').classList.remove('show'); }
+
+async function copyExcelMatrix() {
+  const includeExpired = $('includeExpired').checked;
+  const matrix = buildInventoryMatrix(includeExpired);
+  const month = $('excelMonth').value;
+  const suffix = includeExpired ? ' (DDM dépassées incluses)' : '';
+  try {
+    await navigator.clipboard.writeText(matrix);
+    toast(`Valeurs copiées${suffix}. Colle dans B3 de l'onglet "${month}".`);
+    closeExcelModal();
+  } catch (err) {
+    const ta = document.createElement('textarea');
+    ta.value = matrix;
+    ta.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;padding:20px;font-family:monospace;font-size:11px;';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); toast('Valeurs copiées (méthode alternative).'); }
+    catch { toast('Copie auto échouée — sélectionne et copie manuellement.'); }
+    setTimeout(() => document.body.removeChild(ta), 100);
+  }
+}
+
+
+window.editEntry = editEntry;
+window.deleteEntry = deleteEntry;
+
+$('entryForm').addEventListener('submit', addOrUpdate);
+$('cancelEditBtn').addEventListener('click', cancelEdit);
+$('f-qty').addEventListener('input', updateQtyPreview);
+
+document.querySelectorAll('thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const f = th.dataset.sort;
+    if (sortField === f) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else { sortField = f; sortDir = 'asc'; }
+    render();
+  });
+});
+
+['beer','container','status','lot'].forEach(k => {
+  $('filter-' + k).addEventListener('input', (e) => { filters[k] = e.target.value; render(); });
+});
+$('resetFilters').addEventListener('click', () => {
+  filters = { beer:'', container:'', status:'', lot:'' };
+  $('filter-beer').value = ''; $('filter-container').value = '';
+  $('filter-status').value = ''; $('filter-lot').value = '';
+  render();
+});
+
+$('exportBtn').addEventListener('click', exportJSON);
+$('importBtn').addEventListener('click', () => $('importFile').click());
+$('importFile').addEventListener('change', (e) => { if (e.target.files[0]) handleImport(e.target.files[0]); e.target.value = ''; });
+$('pdfBtn').addEventListener('click', () => {
+  // Pause briefly so the button click doesn't appear in the print preview
+  setTimeout(() => window.print(), 50);
+});
+
+$('excelBtn').addEventListener('click', openExcelModal);
+$('excelCancel').addEventListener('click', closeExcelModal);
+$('excelCopy').addEventListener('click', copyExcelMatrix);
+$('excelModal').addEventListener('click', (e) => { if (e.target.id === 'excelModal') closeExcelModal(); });
+$('resetAllBtn').addEventListener('click', () => {
+  if (!entries.length) { toast('Inventaire déjà vide'); return; }
+  openModal({
+    title: 'Effacer tout l\'inventaire ?',
+    body: `${entries.length} entrée(s) seront définitivement supprimées. Pense à exporter d'abord si tu veux garder une sauvegarde.`,
+    okText: 'Tout effacer',
+    onOk: () => { entries = []; saveEntries(); render(); toast('Inventaire effacé'); }
+  });
+});
+
+$('modalCancel').addEventListener('click', closeModal);
+$('modal').addEventListener('click', (e) => { if (e.target.id === 'modal') closeModal(); });
+$('modalOk').addEventListener('click', () => { if (modalOnOk) modalOnOk(); closeModal(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { closeModal(); closeExcelModal(); }
+});
+
+// ============ INIT ============
+initBeerOptions();
+populateDDMYears();
+loadEntries();
+$('dateStamp').textContent = fmtDateLong(new Date());
+$('printDate').textContent = 'Édité le ' + fmtDateLong(new Date());
+render();
+</script>
+</body>
+</html>
