@@ -1087,6 +1087,15 @@ const CONTAINER_ORDER = ['33cl','44cl','75cl','20L','30L'];
 const STORAGE_KEY = 'brasserie_inventaire_v1';
 const WARNING_DAYS = 90;
 
+/* ---- Registre partagé des bières (commun à toutes les apps, clé localStorage) ---- */
+const BIERES_KEY='brasserie_bieres_v1';
+function bNorm(n){return String(n||'').trim().toLowerCase().replace(/^bi[eèé]re\s+/,'');}
+function bieresLoad(){try{const a=JSON.parse(localStorage.getItem(BIERES_KEY));return Array.isArray(a)?a:[];}catch(e){return[];}}
+function bieresCode(name){const w=String(name).replace(/^bi[eèé]re\s+/i,'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,'').split(/\s+/).filter(Boolean);return w.length>1?w[0].slice(0,3)+'-'+w[1].slice(0,3):(w[0]||'NEW').slice(0,5);}
+function bieresAdd(name){name=String(name||'').trim();if(!name)return false;const a=bieresLoad();if(a.some(b=>bNorm(b.name)===bNorm(name)))return false;a.push({name:name,code:bieresCode(name)});try{localStorage.setItem(BIERES_KEY,JSON.stringify(a));}catch(e){}return true;}
+function bieresExtra(defaults){const set=new Set(defaults.map(bNorm));return bieresLoad().filter(b=>!set.has(bNorm(b.name)));}
+bieresExtra(BEERS.map(b=>b[0])).forEach(b=>BEERS.push([b.name,b.code])); // bières ajoutées depuis les autres apps
+
 // ============ STATE ============
 let entries = [];
 let editingId = null;
@@ -1169,11 +1178,26 @@ function saveEntries() {
 function initBeerOptions() {
   const sel = $('f-beer');
   sel.innerHTML = '<option value="">—</option>' +
-    BEERS.map(([name, code]) => `<option value="${name}">${name} · ${code}</option>`).join('');
+    BEERS.map(([name, code]) => `<option value="${name}">${name} · ${code}</option>`).join('') +
+    '<option value="__new__">+ Nouvelle bière…</option>';
   const fb = $('filter-beer');
   fb.innerHTML = '<option value="">Toutes</option>' +
     BEERS.map(([name, code]) => `<option value="${name}">${name}</option>`).join('');
 }
+// "+ Nouvelle bière…" : saisie et ajout au registre commun
+document.addEventListener('change', (e) => {
+  if (e.target !== $('f-beer') || e.target.value !== '__new__') return;
+  const n = (prompt('Nom de la nouvelle bière :') || '').trim();
+  const existing = n ? BEERS.find(b => bNorm(b[0]) === bNorm(n)) : null;
+  if (n && !existing) {
+    bieresAdd(n);
+    BEERS.push([n, bieresCode(n)]);
+    initBeerOptions();
+    $('f-beer').value = n;
+  } else {
+    $('f-beer').value = existing ? existing[0] : '';
+  }
+});
 
 // ============ ENTRY OPS ============
 function addOrUpdate(e) {

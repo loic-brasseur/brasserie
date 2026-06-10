@@ -1225,6 +1225,22 @@ function monthOfWeek(week) {
   return Math.max(0, Math.min(11, monday.getMonth()));
 }
 
+/* ---- Registre partagé des bières (commun à toutes les apps, clé localStorage) ---- */
+const BIERES_KEY='brasserie_bieres_v1';
+function bNorm(n){return String(n||'').trim().toLowerCase().replace(/^bi[eèé]re\s+/,'');}
+function bieresLoad(){try{const a=JSON.parse(localStorage.getItem(BIERES_KEY));return Array.isArray(a)?a:[];}catch(e){return[];}}
+function bieresCodeShared(name){const w=String(name).replace(/^bi[eèé]re\s+/i,'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,'').split(/\s+/).filter(Boolean);return w.length>1?w[0].slice(0,3)+'-'+w[1].slice(0,3):(w[0]||'NEW').slice(0,5);}
+function bieresAdd(name){name=String(name||'').trim();if(!name)return false;const a=bieresLoad();if(a.some(b=>bNorm(b.name)===bNorm(name)))return false;a.push({name:name,code:bieresCodeShared(name)});try{localStorage.setItem(BIERES_KEY,JSON.stringify(a));}catch(e){}return true;}
+function bieresExtra(defaults){const set=new Set(defaults.map(bNorm));return bieresLoad().filter(b=>!set.has(bNorm(b.name)));}
+// Fusionne les bières du registre commun dans DATA (besoin nul → jamais auto-planifiées, mais dispo en ajout manuel)
+function mergeSharedBeers(){
+  bieresExtra(DATA.beers.map(b=>b.name)).forEach(c=>{
+    DATA.beers.push({name:c.name,code:c.code||bieresCodeShared(c.name)});
+    if(!DATA.monthlyNeed[c.name])DATA.monthlyNeed[c.name]=[0,0,0,0,0,0,0,0,0,0,0,0];
+    if(!DATA.mix[c.name])DATA.mix[c.name]={bottle33:1,bottle75:0,keg:0};
+  });
+}
+
 const beerCode = b => (DATA.beers.find(x => x.name === b) || {}).code || '';
 
 // Associe chaque brassin (et le stock initial) aux mois de besoin qu'il couvre.
@@ -2218,6 +2234,7 @@ function applySearchFilter() {
 }
 
 function populateBeerOptions() {
+  mergeSharedBeers(); // bières ajoutées depuis les autres apps
   const dl = $('beerOptions');
   if (!dl) return;
   dl.innerHTML = DATA.beers.map(b => `<option value="${b.name}">${b.code || ''}</option>`).join('');

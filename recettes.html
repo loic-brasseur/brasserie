@@ -1175,6 +1175,14 @@ function drawGlass(ebc){
 
 /* ============================ SAVE / LOAD ============================ */
 const LSKEY='brasserie_recettes_v1', AUTOKEY='brasserie_recette_auto';
+
+/* ---- Registre partagé des bières (commun à toutes les apps, clé localStorage) ---- */
+const BIERES_KEY='brasserie_bieres_v1';
+function bNorm(n){return String(n||'').trim().toLowerCase().replace(/^bi[eèé]re\s+/,'');}
+function bieresLoad(){try{const a=JSON.parse(localStorage.getItem(BIERES_KEY));return Array.isArray(a)?a:[];}catch(e){return[];}}
+function bieresCode(name){const w=String(name).replace(/^bi[eèé]re\s+/i,'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,'').split(/\s+/).filter(Boolean);return w.length>1?w[0].slice(0,3)+'-'+w[1].slice(0,3):(w[0]||'NEW').slice(0,5);}
+function bieresAdd(name){name=String(name||'').trim();if(!name)return false;const a=bieresLoad();if(a.some(b=>bNorm(b.name)===bNorm(name)))return false;a.push({name:name,code:bieresCode(name)});try{localStorage.setItem(BIERES_KEY,JSON.stringify(a));}catch(e){}return true;}
+function bieresExtra(defaults){const set=new Set(defaults.map(bNorm));return bieresLoad().filter(b=>!set.has(bNorm(b.name)));}
 function snapshot(){
   return {
     name:val('rName'),style:val('rStyle'),notes:val('rNotes'),
@@ -1201,7 +1209,11 @@ function saveRecipe(){
   let all=getAll();const snap=snapshot();
   const idx=all.findIndex(r=>r.name===name);
   if(idx>=0)all[idx]=snap;else all.push(snap);
-  try{localStorage.setItem(LSKEY,JSON.stringify(all));alert("Recette « "+name+" » enregistrée.");}
+  try{
+    localStorage.setItem(LSKEY,JSON.stringify(all));
+    const added=bieresAdd(name); // la nouvelle bière devient dispo dans toutes les apps
+    alert("Recette « "+name+" » enregistrée."+(added?"\nBière ajoutée à la liste commune (carbo, cuves, qualité, inventaire, planning).":""));
+  }
   catch(e){alert("Stockage impossible.");}
 }
 function getAll(){try{return JSON.parse(localStorage.getItem(LSKEY))||[];}catch(e){return[];}}

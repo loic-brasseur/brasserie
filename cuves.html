@@ -239,7 +239,17 @@ const DEFAULT_TANKS=[
   {id:'c6',name:'Cuve 6',cap:16},{id:'c7',name:'Cuve 7',cap:16}
 ];
 const BEERS=["Bière Valmy blonde BIO","Bière Valmy blanche BIO","Bière Valmy ambrée BIO","Bière Valmy IPA BIO","Bière Valmy Triple BIO","Bière Valmy Framboise BIO","Bière Valmy Noël BIO","Bière Orgemont blonde BIO","Bière Orgemont brune BIO","Bière Orgemont triple BIO","Bière Orgemont Saison BIO","Bière Orgemont IPA BIO","Bière Rèmes","Bière Tutti Berry BIO","Bière Trouble Jeu BIO","Bière Bouquet Final BIO","Bière Crème de la Crème BIO","Bière Légionnaire Blonde","Bière Légionnaire IPA","Bière Bayard / Baraquine blonde","Bière Bayard / Baraquine triple","Biére Muizon"];
-document.getElementById('beerList').innerHTML=BEERS.map(b=>`<option value="${b.replace(/"/g,'&quot;')}">`).join('');
+/* ---- Registre partagé des bières (commun à toutes les apps, clé localStorage) ---- */
+const BIERES_KEY='brasserie_bieres_v1';
+function bNorm(n){return String(n||'').trim().toLowerCase().replace(/^bi[eèé]re\s+/,'');}
+function bieresLoad(){try{const a=JSON.parse(localStorage.getItem(BIERES_KEY));return Array.isArray(a)?a:[];}catch(e){return[];}}
+function bieresCode(name){const w=String(name).replace(/^bi[eèé]re\s+/i,'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,'').split(/\s+/).filter(Boolean);return w.length>1?w[0].slice(0,3)+'-'+w[1].slice(0,3):(w[0]||'NEW').slice(0,5);}
+function bieresAdd(name){name=String(name||'').trim();if(!name)return false;const a=bieresLoad();if(a.some(b=>bNorm(b.name)===bNorm(name)))return false;a.push({name:name,code:bieresCode(name)});try{localStorage.setItem(BIERES_KEY,JSON.stringify(a));}catch(e){}return true;}
+function bieresExtra(defaults){const set=new Set(defaults.map(bNorm));return bieresLoad().filter(b=>!set.has(bNorm(b.name)));}
+
+bieresExtra(BEERS).forEach(b=>BEERS.push(b.name)); // bières ajoutées depuis les autres apps
+function fillBeerList(){document.getElementById('beerList').innerHTML=BEERS.map(b=>`<option value="${b.replace(/"/g,'&quot;')}">`).join('');}
+fillBeerList();
 let state=load();
 let editId=null, readId=null;
 
@@ -394,6 +404,8 @@ document.getElementById('batchSave').onclick=()=>{
   if(data.og!=null && (!data.readings.length)){
     data.readings=[{date:data.start||todayStr(),plato:data.og,temp:null}];
   }
+  // nouvelle bière tapée à la main → ajout au registre commun
+  if(data.recipe&&!BEERS.some(x=>bNorm(x)===bNorm(data.recipe))){bieresAdd(data.recipe);BEERS.push(data.recipe);fillBeerList();}
   t.batch=data;save();render();closeBatch();
 };
 

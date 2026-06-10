@@ -337,13 +337,23 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
   ];
 
   const $=id=>document.getElementById(id);
+
+  /* ---- Registre partagé des bières (commun à toutes les apps, clé localStorage) ---- */
+  const BIERES_KEY='brasserie_bieres_v1';
+  function bNorm(n){return String(n||'').trim().toLowerCase().replace(/^bi[eèé]re\s+/,'');}
+  function bieresLoad(){try{const a=JSON.parse(localStorage.getItem(BIERES_KEY));return Array.isArray(a)?a:[];}catch(e){return[];}}
+  function bieresCode(name){const w=String(name).replace(/^bi[eèé]re\s+/i,'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,'').split(/\s+/).filter(Boolean);return w.length>1?w[0].slice(0,3)+'-'+w[1].slice(0,3):(w[0]||'NEW').slice(0,5);}
+  function bieresAdd(name){name=String(name||'').trim();if(!name)return false;const a=bieresLoad();if(a.some(b=>bNorm(b.name)===bNorm(name)))return false;a.push({name:name,code:bieresCode(name)});try{localStorage.setItem(BIERES_KEY,JSON.stringify(a));}catch(e){}return true;}
+  function bieresExtra(defaults){const set=new Set(defaults.map(bNorm));return bieresLoad().filter(b=>!set.has(bNorm(b.name)));}
   const co2PT=(Pk,T)=>(Pk/100+1.013)*Math.exp(-10.73797+2617.25/(T+273.15))*10;
   const Pco2=(c,T)=>((c/10)/Math.exp(-10.73797+2617.25/(T+273.15))-1.013)*100;
 
   // Bières
   const bieres=["Valmy blonde BIO","Valmy blanche BIO","Valmy ambrée BIO","Valmy IPA BIO","Valmy Triple BIO","Valmy Framboise BIO","Valmy Noël BIO","Orgemont blonde BIO","Orgemont brune BIO","Orgemont triple BIO","Orgemont Saison BIO","Orgemont IPA BIO","Rèmes","Tutti Berry BIO","Trouble Jeu BIO","Bouquet Final BIO","Crème de la Crème BIO","Légionnaire Blonde","Légionnaire IPA","Bayard / Baraquine blonde","Bayard / Baraquine triple","Muizon"];
+  bieresExtra(bieres).forEach(b=>bieres.push(b.name)); // bières ajoutées depuis les autres apps
   const bSel=$('biere');
   bieres.forEach(b=>{const o=document.createElement('option');o.value=b;o.textContent=b;bSel.appendChild(o);});
+  const oNew=document.createElement('option');oNew.value='__new__';oNew.textContent='+ Nouvelle bière…';bSel.appendChild(oNew);
 
   // Contenants (label affiché -> litres pour le calcul)
   const contenants=[
@@ -446,7 +456,18 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
     calc();
   });
   ['temp','pres','target','lot','tstore'].forEach(id=>$(id).oninput=calc);
-  ['vol','biere'].forEach(id=>$(id).onchange=calc);
+  $('vol').onchange=calc;
+  bSel.onchange=()=>{
+    if(bSel.value==='__new__'){
+      const n=(prompt('Nom de la nouvelle bière :')||'').trim();
+      if(n){
+        bieresAdd(n);
+        if(![...bSel.options].some(o=>o.value===n)){const o=document.createElement('option');o.value=n;o.textContent=n;bSel.insertBefore(o,bSel.lastElementChild);}
+        bSel.value=n;
+      } else bSel.selectedIndex=0;
+    }
+    calc();
+  };
   sel.onchange=()=>{styleToTarget();calc();};
 
   // Historique
