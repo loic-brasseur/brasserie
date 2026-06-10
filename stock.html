@@ -117,6 +117,7 @@
   .recv-cat .dot{width:8px;height:8px;border-radius:50%}
   .recv-row{display:flex;align-items:center;gap:.55rem;padding:.45rem .6rem;background:var(--bg);border:1px solid var(--line);border-radius:10px}
   .recv-row.filled{border-color:rgba(79,107,47,.5);background:linear-gradient(180deg,rgba(79,107,47,.07),var(--bg))}
+  .recv-row.out{border-color:rgba(168,57,43,.5);background:linear-gradient(180deg,rgba(168,57,43,.06),var(--bg))}
   .recv-row .rn{flex:1;min-width:0}
   .recv-row .rn b{font-weight:600;font-size:.9rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .recv-row .rn small{font-size:.7rem;color:var(--ink-soft);font-family:var(--mono)}
@@ -125,6 +126,23 @@
   .recv-row .u{font-size:.7rem;color:var(--ink-soft);width:28px}
   .recv-summary{font-size:.82rem;color:var(--ink-soft);padding:.2rem 1.2rem .5rem}
   .recv-summary b{color:var(--green)}
+  .recv-row .lowtag{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    padding:.15rem .4rem;border-radius:5px;background:rgba(168,57,43,.14);color:var(--red);margin-left:.35rem}
+
+  /* Bon de commande — impression */
+  #orderPrint{display:none}
+  @media print{
+    body>*:not(#orderPrint){display:none!important}
+    #orderPrint{display:block!important;font-family:var(--sans);color:#000}
+    body{background:#fff;padding:0}
+    #orderPrint h1{font-family:var(--serif);font-weight:600;font-size:1.5rem;margin:0 0 .2rem}
+    #orderPrint .meta{font-size:.85rem;margin-bottom:1rem;color:#333}
+    #orderPrint table{width:100%;border-collapse:collapse;font-size:.85rem}
+    #orderPrint th,#orderPrint td{border:1px solid #999;padding:.4rem .55rem;text-align:left}
+    #orderPrint th{background:#eee;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
+    #orderPrint td.qn{text-align:right;font-family:var(--mono)}
+    #orderPrint .foot{margin-top:1.2rem;font-size:.75rem;color:#555}
+  }
 </style>
 </head>
 <body>
@@ -142,6 +160,8 @@
     </div>
     <div class="toolbar">
       <button class="btn-primary" id="btnReceive">↓ Réception</button>
+      <button class="btn-primary" id="btnUse">− Utilisation</button>
+      <button class="btn-primary" id="btnOrder">↑ Commande</button>
       <button class="btn-copper" id="btnAdd">+ Article</button>
       <button class="btn-ghost" id="btnExport">Exporter</button>
       <button class="btn-ghost" id="btnImport">Importer</button>
@@ -216,6 +236,48 @@
     </div>
   </div>
 </div>
+
+<!-- Modal utilisation / sortie de stock -->
+<div class="overlay" id="uov">
+  <div class="modal wide">
+    <h2>Sortie de stock</h2>
+    <div class="form" style="padding-bottom:.4rem">
+      <div class="two">
+        <label>Date<input class="input" id="use_date" type="date"></label>
+        <label>Motif (optionnel)<input class="input" id="use_reason" placeholder="ex. Brassin Valmy blanche"></label>
+      </div>
+      <label>Filtrer<input class="input" id="use_search" placeholder="Rechercher un article…"></label>
+    </div>
+    <div class="recv-summary" id="use_summary"></div>
+    <div class="recv-list" id="use_list"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="use_cancel">Annuler</button>
+      <button class="btn-copper" id="use_save">Valider la sortie</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal bon de commande -->
+<div class="overlay" id="cov">
+  <div class="modal wide">
+    <h2>Bon de commande</h2>
+    <div class="form" style="padding-bottom:.4rem">
+      <div class="two">
+        <label>Date<input class="input" id="ord_date" type="date"></label>
+        <label>Fournisseur (optionnel)<input class="input" id="ord_supplier" placeholder="ex. Brewpark"></label>
+      </div>
+      <label>Filtrer<input class="input" id="ord_search" placeholder="Rechercher un article…"></label>
+    </div>
+    <div class="recv-summary" id="ord_summary"></div>
+    <div class="recv-list" id="ord_list"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="ord_cancel">Annuler</button>
+      <button class="btn-copper" id="ord_print">Imprimer / PDF</button>
+    </div>
+  </div>
+</div>
+
+<div id="orderPrint"></div>
 
 <script>
 const STORE='brasserie_stock_v2';
@@ -423,6 +485,139 @@ document.getElementById('rcv_save').onclick=()=>{
   closeReceive();
 };
 document.getElementById('btnReceive').onclick=openReceive;
+
+/* ---- Utilisation / sortie de stock ---- */
+const uov=document.getElementById('uov');
+let usage={};
+function openUse(){
+  usage={};
+  document.getElementById('use_date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('use_reason').value='';
+  document.getElementById('use_search').value='';
+  renderUse('');
+  uov.classList.add('show');
+}
+function closeUse(){uov.classList.remove('show');}
+function renderUse(q){
+  q=(q||'').trim().toLowerCase();
+  let html='';
+  CATS.forEach(c=>{
+    const its=state.items.filter(i=>i.cat===c.id&&Number(i.qty)>0&&(!q||i.name.toLowerCase().includes(q)))
+      .sort((a,b)=>a.name.localeCompare(b.name));
+    if(!its.length)return;
+    html+=`<div class="recv-cat"><span class="dot" style="background:${c.color}"></span>${c.label}</div>`;
+    its.forEach(it=>{
+      const v=usage[it.id]!=null?usage[it.id]:'';
+      const filled=v!==''&&parseFloat(v)>0;
+      html+=`<div class="recv-row ${filled?'out':''}">
+        <div class="rn"><b>${it.name}</b><small>en stock : ${num(it.qty)} ${it.unit||''}</small></div>
+        <input type="number" step="any" inputmode="decimal" data-id="${it.id}" value="${v}" placeholder="− utilisé">
+        <span class="u">${it.unit||''}</span></div>`;
+    });
+  });
+  document.getElementById('use_list').innerHTML=html||'<div class="empty-cat" style="padding:1rem 1.2rem">Aucun article en stock.</div>';
+  updateUseSummary();
+}
+function updateUseSummary(){
+  const n=Object.values(usage).filter(v=>v!==''&&parseFloat(v)>0).length;
+  document.getElementById('use_summary').innerHTML=n?`<b style="color:var(--red)">${n}</b> article(s) à déduire du stock`:'Saisis les quantités utilisées ci-dessous.';
+}
+document.getElementById('use_list').addEventListener('input',e=>{
+  const inp=e.target.closest('input[data-id]');if(!inp)return;
+  usage[inp.dataset.id]=inp.value;
+  const row=inp.closest('.recv-row');
+  if(row)row.classList.toggle('out',inp.value!==''&&parseFloat(inp.value)>0);
+  updateUseSummary();
+});
+document.getElementById('use_search').addEventListener('input',e=>renderUse(e.target.value));
+document.getElementById('use_cancel').onclick=closeUse;
+uov.addEventListener('click',e=>{if(e.target===uov)closeUse();});
+document.getElementById('use_save').onclick=()=>{
+  let count=0;
+  Object.keys(usage).forEach(id=>{
+    const v=parseFloat(usage[id]);
+    if(!isNaN(v)&&v>0){const it=state.items.find(x=>x.id===id);if(it){it.qty=Math.max(0,Number(it.qty)-v);count++;}}
+  });
+  if(count>0){save();render();}
+  closeUse();
+};
+document.getElementById('btnUse').onclick=openUse;
+
+/* ---- Bon de commande ---- */
+const cov=document.getElementById('cov');
+let order={};
+function openOrder(){
+  order={};
+  // pré-remplissage : articles sous le seuil → quantité suggérée pour revenir à 2× le seuil
+  state.items.forEach(it=>{
+    if(isLow(it)){
+      const min=Number(it.min)||0,q=Number(it.qty)||0;
+      const sugg=Math.ceil(Math.max(min*2-q,1));
+      order[it.id]=String(sugg);
+    }
+  });
+  document.getElementById('ord_date').value=new Date().toISOString().slice(0,10);
+  document.getElementById('ord_supplier').value='';
+  document.getElementById('ord_search').value='';
+  renderOrder('');
+  cov.classList.add('show');
+}
+function closeOrder(){cov.classList.remove('show');}
+function renderOrder(q){
+  q=(q||'').trim().toLowerCase();
+  let html='';
+  CATS.forEach(c=>{
+    const its=state.items.filter(i=>i.cat===c.id&&(!q||i.name.toLowerCase().includes(q)))
+      .sort((a,b)=>{if(isLow(a)!==isLow(b))return isLow(a)?-1:1;return a.name.localeCompare(b.name);});
+    if(!its.length)return;
+    html+=`<div class="recv-cat"><span class="dot" style="background:${c.color}"></span>${c.label}</div>`;
+    its.forEach(it=>{
+      const v=order[it.id]!=null?order[it.id]:'';
+      const filled=v!==''&&parseFloat(v)>0;
+      html+=`<div class="recv-row ${filled?'filled':''}">
+        <div class="rn"><b>${it.name}${isLow(it)?'<span class="lowtag">Stock bas</span>':''}</b><small>en stock : ${num(it.qty)} ${it.unit||''}${it.min!==''&&it.min!=null?' · seuil '+num(it.min):''}</small></div>
+        <input type="number" step="any" inputmode="decimal" data-id="${it.id}" value="${v}" placeholder="à cmd.">
+        <span class="u">${it.unit||''}</span></div>`;
+    });
+  });
+  document.getElementById('ord_list').innerHTML=html||'<div class="empty-cat" style="padding:1rem 1.2rem">Aucun article.</div>';
+  updateOrderSummary();
+}
+function updateOrderSummary(){
+  const n=Object.values(order).filter(v=>v!==''&&parseFloat(v)>0).length;
+  document.getElementById('ord_summary').innerHTML=n?`<b>${n}</b> article(s) sur le bon de commande`:'Saisis les quantités à commander (stock bas pré-rempli).';
+}
+document.getElementById('ord_list').addEventListener('input',e=>{
+  const inp=e.target.closest('input[data-id]');if(!inp)return;
+  order[inp.dataset.id]=inp.value;
+  const row=inp.closest('.recv-row');
+  if(row)row.classList.toggle('filled',inp.value!==''&&parseFloat(inp.value)>0);
+  updateOrderSummary();
+});
+document.getElementById('ord_search').addEventListener('input',e=>renderOrder(e.target.value));
+document.getElementById('ord_cancel').onclick=closeOrder;
+cov.addEventListener('click',e=>{if(e.target===cov)closeOrder();});
+document.getElementById('ord_print').onclick=()=>{
+  const lines=[];
+  CATS.forEach(c=>{
+    state.items.filter(i=>i.cat===c.id).sort((a,b)=>a.name.localeCompare(b.name)).forEach(it=>{
+      const v=parseFloat(order[it.id]);
+      if(!isNaN(v)&&v>0)lines.push({cat:c.label,name:it.name,unit:it.unit||'',qty:v,stock:it.qty,note:it.note||''});
+    });
+  });
+  if(!lines.length){alert('Aucune quantité saisie.');return;}
+  const d=document.getElementById('ord_date').value;
+  const dateFr=d?new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'';
+  const sup=document.getElementById('ord_supplier').value.trim();
+  document.getElementById('orderPrint').innerHTML=`
+    <h1>Bon de commande</h1>
+    <div class="meta">${dateFr}${sup?' — Fournisseur : <b>'+sup+'</b>':''}</div>
+    <table><thead><tr><th>Catégorie</th><th>Article</th><th>En stock</th><th>Quantité commandée</th><th>Note</th></tr></thead>
+    <tbody>${lines.map(l=>`<tr><td>${l.cat}</td><td>${l.name}</td><td class="qn">${num(l.stock)} ${l.unit}</td><td class="qn"><b>${num(l.qty)} ${l.unit}</b></td><td>${l.note}</td></tr>`).join('')}</tbody></table>
+    <div class="foot">${lines.length} article(s) — généré le ${new Date().toLocaleDateString('fr-FR')}</div>`;
+  window.print();
+};
+document.getElementById('btnOrder').onclick=openOrder;
 
 render();
 </script>
