@@ -1183,6 +1183,7 @@ function bieresLoad(){try{const a=JSON.parse(localStorage.getItem(BIERES_KEY));r
 function bieresCode(name){const w=String(name).replace(/^bi[eèé]re\s+/i,'').normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/[^A-Z0-9 ]/g,'').split(/\s+/).filter(Boolean);return w.length>1?w[0].slice(0,3)+'-'+w[1].slice(0,3):(w[0]||'NEW').slice(0,5);}
 function bieresAdd(name){name=String(name||'').trim();if(!name)return false;const a=bieresLoad();if(a.some(b=>bNorm(b.name)===bNorm(name)))return false;a.push({name:name,code:bieresCode(name)});try{localStorage.setItem(BIERES_KEY,JSON.stringify(a));}catch(e){}return true;}
 function bieresExtra(defaults){const set=new Set(defaults.map(bNorm));return bieresLoad().filter(b=>!set.has(bNorm(b.name)));}
+function bieresRemove(name){const a=bieresLoad();const r=a.filter(b=>bNorm(b.name)!==bNorm(name));if(r.length===a.length)return false;try{localStorage.setItem(BIERES_KEY,JSON.stringify(r));}catch(e){}return true;}
 function snapshot(){
   return {
     name:val('rName'),style:val('rStyle'),notes:val('rNotes'),
@@ -1236,7 +1237,12 @@ function loadExample(i){loadInto(JSON.parse(JSON.stringify(EXAMPLES[i])));closeS
 function closeSaved(){document.getElementById('savedModal').classList.remove('show');}
 function loadSaved(i){const all=getAll().sort((a,b)=>b.ts-a.ts);loadInto(all[i]);closeSaved();}
 function delSaved(i){const all=getAll().sort((a,b)=>b.ts-a.ts);if(confirm("Supprimer « "+all[i].name+" » ?")){
-  const full=getAll();const t=all[i].ts;localStorage.setItem(LSKEY,JSON.stringify(full.filter(r=>r.ts!==t)));openSaved();}}
+  const full=getAll();const t=all[i].ts;const name=all[i].name;
+  localStorage.setItem(LSKEY,JSON.stringify(full.filter(r=>r.ts!==t)));
+  // retire la bière du registre commun (uniquement depuis le carnet de brassage)
+  if(name&&bieresRemove(name))
+    alert("« "+name+" » retirée de la liste commune des bières (carbo, cuves, qualité, inventaire, planning).");
+  openSaved();}}
 function newRecipe(){if(confirm("Nouvelle recette ? La composition actuelle non enregistrée sera perdue.")){
   const m=state.mode;
   state={mode:m,malts:[],hops:[],yeast:null,soft:[]};
