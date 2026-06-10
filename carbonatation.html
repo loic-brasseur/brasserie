@@ -401,6 +401,7 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
       $('sec_val').textContent=(co2/VPC).toFixed(2);
     }
     $('kg_val').textContent=(V*co2/1000).toFixed(3);
+    persist();
 
     warn.style.display='none';
     if(T<-2||T>25){warn.textContent='⚠︎ Température hors plage de validité (−2 à 25 °C).';warn.style.display='block';}
@@ -428,7 +429,7 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
     else if(vol>s.hi){st.innerHTML=`<span class="pill warn">${vol.toFixed(2)} vol</span> &nbsp;au-dessus de ${s.lo}–${s.hi} vol — réduire`;card.className='card warn';}
     else{st.innerHTML=`<span class="pill ok">${vol.toFixed(2)} vol</span> &nbsp;dans la fourchette ${s.lo}–${s.hi} vol ✓`;card.className='card ok';}
   }
-  function blank(){['main_val','sec_val','kg_val','keep_val','keepnow_val'].forEach(i=>$(i).textContent='—');$('style_status').innerHTML='';$('keep_note').innerHTML='';$('card_main').className='card main';}
+  function blank(){['main_val','sec_val','kg_val','keep_val','keepnow_val'].forEach(i=>$(i).textContent='—');$('style_status').innerHTML='';$('keep_note').innerHTML='';$('card_main').className='card main';persist();}
 
   document.querySelectorAll('#mode button').forEach(b=>b.onclick=()=>{
     document.querySelectorAll('#mode button').forEach(x=>x.classList.remove('on'));
@@ -469,9 +470,9 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
     hist.unshift({time:d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
       lot:lotName(),cont:contLabel(),t:T.toFixed(1),p:Pk.toFixed(0),
       gl:co2.toFixed(2),vol:(co2/VPC).toFixed(2),kg:(V*co2/1000).toFixed(3)});
-    renderHist();
+    renderHist();persist();
   };
-  $('btn_clear').onclick=()=>{hist=[];renderHist();};
+  $('btn_clear').onclick=()=>{hist=[];renderHist();persist();};
 
   // Table P/T
   let ptShown=false;
@@ -601,6 +602,33 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
     doc.save('carbonatation_'+(lotName().replace(/[^\w]+/g,'_'))+'.pdf');
   };
 
+  // ---- Persistance (localStorage) : saisies + historique survivent à l'actualisation ----
+  const PSTORE='brasserie_carbo_v1';
+  function persist(){
+    try{
+      localStorage.setItem(PSTORE,JSON.stringify({unit,mode,hist,f:{
+        biere:bSel.value,lot:$('lot').value,vol:vSel.value,temp:$('temp').value,
+        pres:$('pres').value,target:$('target').value,tstore:$('tstore').value,
+        style:sel.value,cible:$('cible').value
+      }}));
+    }catch(e){}
+  }
+  (function restore(){
+    try{
+      const s=JSON.parse(localStorage.getItem(PSTORE));if(!s)return;
+      if(s.unit)unit=s.unit;
+      if(s.mode)mode=s.mode;
+      if(Array.isArray(s.hist))hist=s.hist;
+      const f=s.f||{};
+      if(f.biere!=null)bSel.value=f.biere;
+      if(f.vol!=null)vSel.value=f.vol;
+      if(f.style!=null)sel.value=f.style;
+      ['lot','temp','pres','target','tstore','cible'].forEach(k=>{if(f[k]!=null)$(k).value=f[k];});
+      document.querySelectorAll('#mode button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
+      document.querySelectorAll('#punit button').forEach(b=>b.classList.toggle('on',b.dataset.u===unit));
+    }catch(e){}
+  })();
+  renderHist();
   unitNames();applyStep();applyMode();
 })();
 </script>
