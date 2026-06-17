@@ -152,6 +152,21 @@
   #ov{z-index:60}
   .pick-results .r-create{border-top:1px dashed var(--line-strong)}
   .pick-results .r-create b{color:var(--copper)}
+  .hist-filters{display:flex;gap:.4rem;flex-wrap:wrap;padding:.2rem 1.2rem .5rem}
+  .hist-row{display:flex;align-items:center;gap:.6rem;padding:.5rem .65rem;background:var(--bg);
+    border:1px solid var(--line);border-radius:10px;margin-bottom:.45rem}
+  .hist-main{flex:1;min-width:0;font-size:.86rem}
+  .hist-main b{font-weight:600}
+  .hist-main small{display:block;color:var(--ink-soft);font-family:var(--mono);font-size:.7rem;margin-top:.1rem}
+  .hist-badge{display:inline-block;font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+    padding:.16rem .4rem;border-radius:6px;margin-right:.45rem;vertical-align:middle}
+  .badge-order{background:rgba(207,152,43,.20);color:#8a6418}
+  .badge-reception{background:rgba(79,107,47,.20);color:var(--green)}
+  .badge-usage{background:rgba(168,57,43,.16);color:var(--red)}
+  .hist-acts{display:flex;gap:.1rem;flex:0 0 auto}
+  .hist-acts button{background:transparent;border:none;color:var(--ink-soft);font-size:1.05rem;
+    padding:.3rem .35rem;cursor:pointer;line-height:1}
+  .hist-acts button:hover{color:var(--ink)}
 
   /* Bon de commande — impression */
   #orderPrint{display:none}
@@ -186,6 +201,7 @@
       <button class="btn-primary" id="btnReceive">↓ Réception</button>
       <button class="btn-primary" id="btnUse">− Utilisation</button>
       <button class="btn-primary" id="btnOrder">↑ Commande</button>
+      <button class="btn-ghost" id="btnHistory">↺ Historique</button>
       <button class="btn-copper" id="btnAdd">+ Article</button>
       <button class="btn-ghost" id="btnExport">Exporter</button>
       <button class="btn-ghost" id="btnImport">Importer</button>
@@ -244,7 +260,7 @@
 <!-- Modal réception / livraison -->
 <div class="overlay" id="rov">
   <div class="modal wide">
-    <h2>Réception de livraison</h2>
+    <h2 id="rcv_h2">Réception de livraison</h2>
     <div class="form" style="padding-bottom:.4rem">
       <div class="two">
         <label>Date<input class="input" id="rcv_date" type="date"></label>
@@ -272,7 +288,7 @@
 <!-- Modal utilisation / sortie de stock -->
 <div class="overlay" id="uov">
   <div class="modal wide">
-    <h2>Sortie de stock</h2>
+    <h2 id="use_h2">Sortie de stock</h2>
     <div class="form" style="padding-bottom:.4rem">
       <div class="two">
         <label>Date<input class="input" id="use_date" type="date"></label>
@@ -297,7 +313,7 @@
 <!-- Modal bon de commande -->
 <div class="overlay" id="cov">
   <div class="modal wide">
-    <h2>Bon de commande</h2>
+    <h2 id="ord_h2">Bon de commande</h2>
     <div class="form" style="padding-bottom:.4rem">
       <div class="two">
         <label>Date<input class="input" id="ord_date" type="date"></label>
@@ -316,6 +332,23 @@
       <button class="btn-ghost" id="ord_cancel">Annuler</button>
       <button class="btn-ghost" id="ord_print">Imprimer</button>
       <button class="btn-copper" id="ord_done">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal historique -->
+<div class="overlay" id="hov">
+  <div class="modal wide">
+    <h2>Historique des mouvements</h2>
+    <div class="hist-filters" id="hist_filters">
+      <button class="chip active" data-hf="all">Tout</button>
+      <button class="chip" data-hf="order">Commandes</button>
+      <button class="chip" data-hf="reception">Réceptions</button>
+      <button class="chip" data-hf="usage">Sorties</button>
+    </div>
+    <div class="recv-list" id="hist_list"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="hist_close">Fermer</button>
     </div>
   </div>
 </div>
@@ -364,6 +397,7 @@ function load(){
   try{const p=JSON.parse(localStorage.getItem(STORE));if(p&&p.items)s=p;}catch(e){}
   if(!s)s={items:SEED};
   if(!Array.isArray(s.orders))s.orders=[];
+  if(!Array.isArray(s.moves))s.moves=[];
   if(migrate(s)){try{localStorage.setItem(STORE,JSON.stringify(s));}catch(e){}}
   return s;
 }
@@ -560,8 +594,8 @@ function wireEntry(key){
 }
 wireEntry('rcv');wireEntry('use');wireEntry('ord');
 
-/* ---- Réception (+ réception d'une commande enregistrée) ---- */
-let rcvOrderId=null;
+/* ---- Réception (+ réception d'une commande, + édition depuis l'historique) ---- */
+let rcvOrderId=null, rcvEditId=null;
 const pendingOrders=()=>(state.orders||[]).filter(o=>o.status==='pending');
 function fmtOrder(o){const d=o.date?new Date(o.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';return `Commande ${d}${o.supplier?' · '+o.supplier:''} (${o.lines.length} art.)`;}
 function refreshOrderSelect(){
@@ -578,61 +612,180 @@ $('rcv_order').addEventListener('change',e=>{
   if(o.supplier)$('rcv_supplier').value=o.supplier;
   renderBasket('rcv');
 });
-function openReceive(){ENTRY.rcv.lines=[];pickSel.rcv=null;rcvOrderId=null;$('rcv_date').value=today();$('rcv_supplier').value='';$('rcv_pick').value='';$('rcv_qty').value='';$('rcv_results').classList.remove('show');refreshOrderSelect();$('rcv_order').value='';renderBasket('rcv');rov.classList.add('show');setTimeout(()=>$('rcv_pick').focus(),60);}
+function openReceive(edit){
+  ENTRY.rcv.lines=edit?edit.lines.filter(l=>itById(l.id)).map(l=>({id:l.id,qty:String(l.qty)})):[];
+  pickSel.rcv=null;rcvEditId=edit?edit.id:null;rcvOrderId=edit?(edit.orderId||null):null;
+  $('rcv_h2').textContent=edit?'Modifier la réception':'Réception de livraison';
+  $('rcv_save').textContent=edit?'Enregistrer les modifications':'Valider la réception';
+  $('rcv_date').value=(edit&&edit.date)||today();
+  $('rcv_supplier').value=(edit&&edit.party)||'';
+  $('rcv_pick').value='';$('rcv_qty').value='';$('rcv_results').classList.remove('show');
+  refreshOrderSelect();$('rcv_order').value=rcvOrderId||'';
+  if(rcvEditId)$('rcv_orderwrap').classList.add('hidden');
+  renderBasket('rcv');rov.classList.add('show');setTimeout(()=>$('rcv_pick').focus(),60);
+}
 function closeReceive(){rov.classList.remove('show');}
 $('rcv_cancel').onclick=closeReceive;
 rov.addEventListener('click',e=>{if(e.target===rov)closeReceive();});
 $('rcv_save').onclick=()=>{
-  let n=0;ENTRY.rcv.lines.forEach(l=>{const v=parseFloat(l.qty);if(!isNaN(v)&&v>0){const it=itById(l.id);if(it){it.qty=Number(it.qty)+v;n++;}}});
-  if(rcvOrderId){const o=(state.orders||[]).find(x=>x.id===rcvOrderId);if(o){o.status='received';o.received=today();}}
-  if(n>0||rcvOrderId){save();render();}
-  closeReceive();
+  const newLines=ENTRY.rcv.lines.map(l=>({id:l.id,qty:parseFloat(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
+  if(rcvEditId){
+    const idx=(state.moves||[]).findIndex(x=>x.id===rcvEditId);
+    if(idx>=0){const m=state.moves[idx];reapply('reception',m.lines,newLines);
+      if(newLines.length){m.lines=newLines;m.date=$('rcv_date').value||today();m.party=$('rcv_supplier').value.trim();}
+      else state.moves.splice(idx,1);}
+  }else{
+    reapply('reception',[],newLines);
+    if(newLines.length){state.moves=state.moves||[];state.moves.push({id:genId('m'),type:'reception',date:$('rcv_date').value||today(),party:$('rcv_supplier').value.trim(),lines:newLines,orderId:rcvOrderId||null,createdAt:Date.now()});}
+    if(rcvOrderId){const o=(state.orders||[]).find(x=>x.id===rcvOrderId);if(o){o.status='received';o.received=today();}}
+  }
+  save();render();closeReceive();
 };
-$('btnReceive').onclick=openReceive;
+$('btnReceive').onclick=()=>openReceive();
 
-/* ---- Utilisation / sortie de stock ---- */
-function openUse(){ENTRY.use.lines=[];pickSel.use=null;$('use_date').value=today();$('use_reason').value='';$('use_pick').value='';$('use_qty').value='';$('use_results').classList.remove('show');renderBasket('use');uov.classList.add('show');setTimeout(()=>$('use_pick').focus(),60);}
+/* ---- Utilisation / sortie de stock (+ édition depuis l'historique) ---- */
+let useEditId=null;
+function openUse(edit){
+  ENTRY.use.lines=edit?edit.lines.filter(l=>itById(l.id)).map(l=>({id:l.id,qty:String(l.qty)})):[];
+  pickSel.use=null;useEditId=edit?edit.id:null;
+  $('use_h2').textContent=edit?'Modifier la sortie':'Sortie de stock';
+  $('use_save').textContent=edit?'Enregistrer les modifications':'Valider la sortie';
+  $('use_date').value=(edit&&edit.date)||today();
+  $('use_reason').value=(edit&&edit.party)||'';
+  $('use_pick').value='';$('use_qty').value='';$('use_results').classList.remove('show');
+  renderBasket('use');uov.classList.add('show');setTimeout(()=>$('use_pick').focus(),60);
+}
 function closeUse(){uov.classList.remove('show');}
 $('use_cancel').onclick=closeUse;
 uov.addEventListener('click',e=>{if(e.target===uov)closeUse();});
-$('use_save').onclick=()=>{let n=0;ENTRY.use.lines.forEach(l=>{const v=parseFloat(l.qty);if(!isNaN(v)&&v>0){const it=itById(l.id);if(it){it.qty=Math.max(0,Number(it.qty)-v);n++;}}});if(n>0){save();render();}closeUse();};
-$('btnUse').onclick=openUse;
+$('use_save').onclick=()=>{
+  const newLines=ENTRY.use.lines.map(l=>({id:l.id,qty:parseFloat(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
+  if(useEditId){
+    const idx=(state.moves||[]).findIndex(x=>x.id===useEditId);
+    if(idx>=0){const m=state.moves[idx];reapply('usage',m.lines,newLines);
+      if(newLines.length){m.lines=newLines;m.date=$('use_date').value||today();m.party=$('use_reason').value.trim();}
+      else state.moves.splice(idx,1);}
+  }else{
+    reapply('usage',[],newLines);
+    if(newLines.length){state.moves=state.moves||[];state.moves.push({id:genId('m'),type:'usage',date:$('use_date').value||today(),party:$('use_reason').value.trim(),lines:newLines,createdAt:Date.now()});}
+  }
+  save();render();closeUse();
+};
+$('btnUse').onclick=()=>openUse();
 
-/* ---- Bon de commande ---- */
-function openOrder(){
-  ENTRY.ord.lines=[];pickSel.ord=null;
-  // pré-remplissage : articles sous le seuil → quantité suggérée pour revenir à 2× le seuil
-  state.items.forEach(it=>{if(isLow(it)){const min=Number(it.min)||0,q=Number(it.qty)||0;ENTRY.ord.lines.push({id:it.id,qty:String(Math.ceil(Math.max(min*2-q,1)))});}});
-  $('ord_date').value=today();$('ord_supplier').value='';$('ord_pick').value='';$('ord_qty').value='';$('ord_results').classList.remove('show');
+/* ---- Bon de commande (+ édition depuis l'historique) ---- */
+let ordEditId=null;
+function openOrder(edit){
+  ENTRY.ord.lines=[];pickSel.ord=null;ordEditId=edit?edit.id:null;
+  if(edit){ENTRY.ord.lines=edit.lines.filter(l=>itById(l.id)).map(l=>({id:l.id,qty:String(l.qty)}));}
+  else{state.items.forEach(it=>{if(isLow(it)){const min=Number(it.min)||0,q=Number(it.qty)||0;ENTRY.ord.lines.push({id:it.id,qty:String(Math.ceil(Math.max(min*2-q,1)))});}});}
+  $('ord_h2').textContent=edit?'Modifier la commande':'Bon de commande';
+  $('ord_done').textContent=edit?'Enregistrer les modifications':'Enregistrer';
+  $('ord_date').value=(edit&&edit.date)||today();
+  $('ord_supplier').value=(edit&&edit.supplier)||'';
+  $('ord_pick').value='';$('ord_qty').value='';$('ord_results').classList.remove('show');
   renderBasket('ord');cov.classList.add('show');setTimeout(()=>$('ord_pick').focus(),60);
 }
 function closeOrder(){cov.classList.remove('show');}
 $('ord_cancel').onclick=closeOrder;
 cov.addEventListener('click',e=>{if(e.target===cov)closeOrder();});
-$('ord_print').onclick=()=>{
-  const lines=[];
-  CATS.forEach(c=>{ENTRY.ord.lines.forEach(l=>{const it=itById(l.id);if(it&&it.cat===c.id){const v=parseFloat(l.qty);if(!isNaN(v)&&v>0)lines.push({cat:c.label,name:it.name,unit:it.unit||'',qty:v,stock:it.qty,note:it.note||''});}});});
-  if(!lines.length){alert('Aucune ligne saisie.');return;}
-  const d=$('ord_date').value;
-  const dateFr=d?new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'';
-  const sup=$('ord_supplier').value.trim();
-  $('orderPrint').innerHTML=`
-    <h1>Bon de commande</h1>
-    <div class="meta">${dateFr}${sup?' — Fournisseur : <b>'+sup+'</b>':''}</div>
-    <table><thead><tr><th>Catégorie</th><th>Article</th><th>En stock</th><th>Quantité commandée</th><th>Note</th></tr></thead>
-    <tbody>${lines.map(l=>`<tr><td>${l.cat}</td><td>${l.name}</td><td class="qn">${num(l.stock)} ${l.unit}</td><td class="qn"><b>${num(l.qty)} ${l.unit}</b></td><td>${l.note}</td></tr>`).join('')}</tbody></table>
-    <div class="foot">${lines.length} article(s) — généré le ${new Date().toLocaleDateString('fr-FR')}</div>`;
-  window.print();
-};
+$('ord_print').onclick=()=>printOrder({date:$('ord_date').value,supplier:$('ord_supplier').value.trim(),lines:ENTRY.ord.lines});
 $('ord_done').onclick=()=>{
   const lines=ENTRY.ord.lines.map(l=>({id:l.id,qty:parseFloat(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
   if(!lines.length){alert('Aucune ligne à enregistrer.');return;}
-  state.orders=state.orders||[];
-  state.orders.push({id:'o'+Math.random().toString(36).slice(2,9),date:$('ord_date').value||today(),supplier:$('ord_supplier').value.trim(),lines,status:'pending',created:today()});
-  save();closeOrder();
-  alert('Commande enregistrée — tu pourras la réceptionner depuis « Réception ».');
+  if(ordEditId){const o=(state.orders||[]).find(x=>x.id===ordEditId);if(o){o.lines=lines;o.date=$('ord_date').value||today();o.supplier=$('ord_supplier').value.trim();}}
+  else{state.orders=state.orders||[];state.orders.push({id:genId('o'),date:$('ord_date').value||today(),supplier:$('ord_supplier').value.trim(),lines,status:'pending',createdAt:Date.now()});}
+  const wasEdit=!!ordEditId;
+  save();render();closeOrder();
+  alert(wasEdit?'Commande modifiée.':'Commande enregistrée — tu pourras la réceptionner depuis « Réception ».');
 };
-$('btnOrder').onclick=openOrder;
+$('btnOrder').onclick=()=>openOrder();
+
+/* ============== Helpers mouvements + impression ============== */
+const genId=p=>p+Math.random().toString(36).slice(2,9);
+function reapply(type,oldLines,newLines){
+  // applique le delta NET (nouveau - ancien) sur le stock, écrêtage final seulement
+  const dir=type==='usage'?-1:1,delta={};
+  (oldLines||[]).forEach(l=>{delta[l.id]=(delta[l.id]||0)-dir*(parseFloat(l.qty)||0);});
+  (newLines||[]).forEach(l=>{delta[l.id]=(delta[l.id]||0)+dir*(parseFloat(l.qty)||0);});
+  Object.keys(delta).forEach(id=>{const it=itById(id);if(it)it.qty=Math.max(0,Number(it.qty)+delta[id]);});
+}
+function rowsByCat(lines){
+  const rows=[];CATS.forEach(c=>{(lines||[]).forEach(l=>{const it=itById(l.id);if(it&&it.cat===c.id){const q=parseFloat(l.qty);if(!isNaN(q)&&q>0)rows.push({name:it.name,unit:it.unit||'',qty:q,note:it.note||''});}});});return rows;
+}
+function printOrder(o){
+  const rows=rowsByCat(o.lines);
+  if(!rows.length){alert('Aucune ligne à imprimer.');return;}
+  const dateFr=o.date?new Date(o.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'';
+  $('orderPrint').innerHTML=`
+    <h1>Bon de commande</h1>
+    <div class="meta">${dateFr?'Date : '+dateFr:''}${o.supplier?(dateFr?' &nbsp;·&nbsp; ':'')+'Fournisseur : <b>'+esc(o.supplier)+'</b>':''}</div>
+    <table><thead><tr><th>Article</th><th>Quantité</th><th>Note</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${esc(r.name)}</td><td class="qn"><b>${num(r.qty)} ${r.unit}</b></td><td>${esc(r.note)}</td></tr>`).join('')}</tbody></table>
+    <div class="foot">${rows.length} article(s) — édité le ${new Date().toLocaleDateString('fr-FR')}</div>`;
+  window.print();
+}
+function printMove(m){
+  const isU=m.type==='usage',rows=rowsByCat(m.lines);
+  if(!rows.length){alert('Aucune ligne à imprimer.');return;}
+  const dateFr=m.date?new Date(m.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'';
+  const lbl=isU?'Motif':'Fournisseur';
+  $('orderPrint').innerHTML=`
+    <h1>${isU?'Bon de sortie de stock':'Bon de réception'}</h1>
+    <div class="meta">${dateFr?'Date : '+dateFr:''}${m.party?(dateFr?' &nbsp;·&nbsp; ':'')+lbl+' : <b>'+esc(m.party)+'</b>':''}</div>
+    <table><thead><tr><th>Article</th><th>Quantité ${isU?'sortie':'reçue'}</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr><td>${esc(r.name)}</td><td class="qn"><b>${num(r.qty)} ${r.unit}</b></td></tr>`).join('')}</tbody></table>
+    <div class="foot">${rows.length} article(s) — édité le ${new Date().toLocaleDateString('fr-FR')}</div>`;
+  window.print();
+}
+
+/* ============== Historique ============== */
+const hov=document.getElementById('hov');
+let histFilter='all';
+function allHistory(){
+  const a=[];
+  (state.orders||[]).forEach(o=>a.push({kind:'order',type:'order',id:o.id,date:o.date,party:o.supplier,lines:o.lines,status:o.status,sort:o.createdAt||Date.parse((o.date||'')+'T12:00:00')||0}));
+  (state.moves||[]).forEach(m=>a.push({kind:'move',type:m.type,id:m.id,date:m.date,party:m.party,lines:m.lines,sort:m.createdAt||Date.parse((m.date||'')+'T12:00:00')||0}));
+  return a.sort((x,y)=>y.sort-x.sort);
+}
+function renderHistory(){
+  let a=allHistory();if(histFilter!=='all')a=a.filter(x=>x.type===histFilter);
+  const lab={order:'Commande',reception:'Réception',usage:'Sortie'};
+  $('hist_list').innerHTML=a.length?a.map(x=>{
+    const dateFr=x.date?new Date(x.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}):'—';
+    const n=(x.lines||[]).filter(l=>parseFloat(l.qty)>0).length;
+    const st=x.kind==='order'?` · ${x.status==='received'?'reçue':'en attente'}`:'';
+    return `<div class="hist-row">
+      <div class="hist-main"><span class="hist-badge badge-${x.type}">${lab[x.type]}</span><b>${dateFr}</b>${x.party?' · '+esc(x.party):''}
+        <small>${n} article(s)${st}</small></div>
+      <div class="hist-acts">
+        <button data-hact="print" data-kind="${x.kind}" data-id="${x.id}" title="Réimprimer" aria-label="Réimprimer">⎙</button>
+        <button data-hact="edit" data-kind="${x.kind}" data-id="${x.id}" title="Modifier" aria-label="Modifier">✎</button>
+        <button data-hact="del" data-kind="${x.kind}" data-id="${x.id}" title="Supprimer" aria-label="Supprimer">🗑</button>
+      </div></div>`;
+  }).join(''):'<div class="empty-cat" style="padding:1rem 1.2rem">Aucun mouvement enregistré.</div>';
+}
+function openHistory(){histFilter='all';document.querySelectorAll('#hist_filters .chip').forEach(c=>c.classList.toggle('active',c.dataset.hf==='all'));renderHistory();hov.classList.add('show');}
+function closeHistory(){hov.classList.remove('show');}
+$('hist_close').onclick=closeHistory;
+hov.addEventListener('click',e=>{if(e.target===hov)closeHistory();});
+$('btnHistory').onclick=openHistory;
+$('hist_filters').addEventListener('click',e=>{const b=e.target.closest('button[data-hf]');if(!b)return;histFilter=b.dataset.hf;document.querySelectorAll('#hist_filters .chip').forEach(c=>c.classList.toggle('active',c===b));renderHistory();});
+$('hist_list').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-hact]');if(!b)return;
+  const act=b.dataset.hact,kind=b.dataset.kind,id=b.dataset.id;
+  if(kind==='order'){
+    const o=(state.orders||[]).find(x=>x.id===id);if(!o)return;
+    if(act==='print')printOrder(o);
+    else if(act==='edit'){closeHistory();openOrder(o);}
+    else if(act==='del'){if(confirm('Supprimer cette commande de l’historique ?')){state.orders=state.orders.filter(x=>x.id!==id);save();render();renderHistory();}}
+  }else{
+    const m=(state.moves||[]).find(x=>x.id===id);if(!m)return;
+    if(act==='print')printMove(m);
+    else if(act==='edit'){closeHistory();m.type==='usage'?openUse(m):openReceive(m);}
+    else if(act==='del'){if(confirm('Supprimer ce mouvement ? Le stock sera ré-ajusté en conséquence.')){reapply(m.type,m.lines,[]);state.moves=state.moves.filter(x=>x.id!==id);save();render();renderHistory();}}
+  }
+});
 
 render();
 </script>
