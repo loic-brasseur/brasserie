@@ -322,7 +322,7 @@
       <div class="panel-b">
         <div class="row3">
           <div class="field"><label>Volume</label><input id="pVol" type="number" value="2000" min="1" oninput="recalc()"><div class="hint" id="hlHint">20 HL</div></div>
-          <div class="field" id="fEff"><label>Rendement %</label><input id="pEff" type="number" value="77.85" step="0.1" oninput="recalc()"></div>
+          <div class="field" id="fEff"><label>Rendement %</label><input id="pEff" type="number" value="70.4" step="0.1" oninput="recalc()"></div>
           <div class="field" id="fMash"><label>Empâtage °C</label><input id="pMash" type="number" value="67" step="0.5" oninput="recalc()"><div class="hint">influe sur la DF</div></div>
         </div>
       </div>
@@ -1076,7 +1076,7 @@ function recalc(){
     mcu+=(m.kg*LB)*(m.ebc/1.97);                // couleur pleine, même en cold steep
     maltKg+=m.kg;
   });
-  const GU=(extractKg/volL)*385.6;              // 1 kg extrait / L ≈ 385.6 points de densité
+  const GU=(extractKg/volL)*308.8;              // 1 kg extrait Pilsen (37 PPG) / L ≈ 308.8 points — cohérent avec REF_PPG
   const OG=1+GU/1000;
   // couleur (Morey)
   const mcuV=volGal>0?mcu/volGal:0;
@@ -1086,7 +1086,7 @@ function recalc(){
   let attU=state.yeast?state.yeast.attU:75;
   let attAdj=attU-(mash-65)*1.3;                // empâtage haut => atténuation plus basse
   attAdj=Math.max(45,Math.min(95,attAdj));
-  const GU_ferm=(extractFermKg/volL)*385.6;
+  const GU_ferm=(extractFermKg/volL)*308.8;
   const FG=1+(GU - GU_ferm*(attAdj/100))/1000;
   const ABV=(OG-FG)*131.25;
   // IBU (Tinseth)
