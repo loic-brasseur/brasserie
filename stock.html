@@ -129,6 +129,27 @@
   .recv-row .lowtag{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
     padding:.15rem .4rem;border-radius:5px;background:rgba(168,57,43,.14);color:var(--red);margin-left:.35rem}
 
+  /* Saisie ligne par ligne : recherche + panier */
+  .picker{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;padding:.3rem 1.2rem .4rem}
+  .pick-wrap{flex:1 1 100%;min-width:0}
+  .pick-wrap .input{width:100%}
+  .pick-results{flex:1 1 100%;display:none;max-height:210px;overflow:auto;background:var(--bg);
+    border:1px solid var(--line-strong);border-radius:10px}
+  .pick-results.show{display:block}
+  .pick-results .r{display:flex;justify-content:space-between;align-items:center;gap:.6rem;
+    padding:.5rem .7rem;cursor:pointer;border-bottom:1px solid var(--line)}
+  .pick-results .r:last-child{border-bottom:none}
+  .pick-results .r:hover,.pick-results .r.active{background:var(--bg2)}
+  .pick-results .r b{font-weight:600;font-size:.9rem;font-family:var(--sans)}
+  .pick-results .r small{font-size:.72rem;color:var(--ink-soft);font-family:var(--mono);white-space:nowrap}
+  .pick-results .none{padding:.6rem .7rem;color:var(--ink-soft);font-style:italic;font-family:var(--serif);font-size:.85rem}
+  .picker .qtyin{flex:0 0 auto;width:108px;text-align:right;font-family:var(--mono)}
+  .picker .addbtn{flex:1 1 auto;min-width:96px}
+  .rdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:.4rem;vertical-align:middle}
+  .recv-row .lineDel{flex:0 0 auto;background:transparent;border:none;color:var(--ink-soft);font-size:1rem;
+    padding:.2rem .35rem;line-height:1;cursor:pointer}
+  .recv-row .lineDel:hover{color:var(--red)}
+
   /* Bon de commande — impression */
   #orderPrint{display:none}
   @media print{
@@ -226,7 +247,12 @@
         <label>Date<input class="input" id="rcv_date" type="date"></label>
         <label>Fournisseur (optionnel)<input class="input" id="rcv_supplier" placeholder="ex. Castle Malting"></label>
       </div>
-      <label>Filtrer<input class="input" id="rcv_search" placeholder="Rechercher un article…"></label>
+    </div>
+    <div class="picker">
+      <div class="pick-wrap"><input class="input" id="rcv_pick" placeholder="Rechercher un article (1res lettres)…" autocomplete="off"></div>
+      <div class="pick-results" id="rcv_results"></div>
+      <input class="input qtyin" id="rcv_qty" type="number" step="any" inputmode="decimal" placeholder="Qté reçue">
+      <button class="btn-copper addbtn" id="rcv_add">+ Ajouter</button>
     </div>
     <div class="recv-summary" id="rcv_summary"></div>
     <div class="recv-list" id="rcv_list"></div>
@@ -246,7 +272,12 @@
         <label>Date<input class="input" id="use_date" type="date"></label>
         <label>Motif (optionnel)<input class="input" id="use_reason" placeholder="ex. Brassin Valmy blanche"></label>
       </div>
-      <label>Filtrer<input class="input" id="use_search" placeholder="Rechercher un article…"></label>
+    </div>
+    <div class="picker">
+      <div class="pick-wrap"><input class="input" id="use_pick" placeholder="Rechercher un article en stock…" autocomplete="off"></div>
+      <div class="pick-results" id="use_results"></div>
+      <input class="input qtyin" id="use_qty" type="number" step="any" inputmode="decimal" placeholder="Qté utilisée">
+      <button class="btn-copper addbtn" id="use_add">+ Ajouter</button>
     </div>
     <div class="recv-summary" id="use_summary"></div>
     <div class="recv-list" id="use_list"></div>
@@ -266,7 +297,12 @@
         <label>Date<input class="input" id="ord_date" type="date"></label>
         <label>Fournisseur (optionnel)<input class="input" id="ord_supplier" placeholder="ex. Brewpark"></label>
       </div>
-      <label>Filtrer<input class="input" id="ord_search" placeholder="Rechercher un article…"></label>
+    </div>
+    <div class="picker">
+      <div class="pick-wrap"><input class="input" id="ord_pick" placeholder="Ajouter un article à commander…" autocomplete="off"></div>
+      <div class="pick-results" id="ord_results"></div>
+      <input class="input qtyin" id="ord_qty" type="number" step="any" inputmode="decimal" placeholder="Qté">
+      <button class="btn-copper addbtn" id="ord_add">+ Ajouter</button>
     </div>
     <div class="recv-summary" id="ord_summary"></div>
     <div class="recv-list" id="ord_list"></div>
@@ -293,7 +329,7 @@ const SEED_YEASTS=['Levure CBC-1','Levure WIT','levure NOVALAGER','Levure LALLEM
 const SEED_CONSO=[['Sucre bio','kg'],['ECORCE DE CITRON BIO','kg'],['FEVE DE TONKA BIO','kg'],['CANELLE BIO','kg'],['coriandre','kg'],['écorces orange','kg'],['gingembre','kg'],['cardamone','kg'],['genièvre','kg'],['curcuma','kg'],['Jus concentré framboise bio','L'],['Jus pomme','L'],['arôme marc champagne','L'],['arôme naturel framboise','L'],['arôme pomme','L'],['arôme citron','L'],['stévia','kg'],['marc de champagne','L'],['SORBATE DE POTASSIUM','kg'],['ANTIOX SB','kg']];
 const SEED=[
   ...SEED_MALTS.map(n=>({id:uid(),cat:'malt',name:n,unit:'kg',qty:0,min:'',note:''})),
-  ...SEED_HOPS.map(n=>({id:uid(),cat:'houblon',name:n,unit:'kg',qty:0,min:'',note:''})),
+  ...SEED_HOPS.map(n=>({id:uid(),cat:'houblon',name:n,unit:'g',qty:0,min:'',note:''})),
   ...SEED_YEASTS.map(n=>({id:uid(),cat:'levure',name:n,unit:'kg',qty:0,min:'',note:''})),
   ...SEED_CONSO.map(x=>({id:uid(),cat:'conso',name:x[0],unit:x[1],qty:0,min:'',note:''}))
 ];
@@ -301,9 +337,27 @@ function uid(){return 'a'+Math.random().toString(36).slice(2,9);}
 let state=load();
 let filter='all', search='', editId=null;
 
+function migrate(s){
+  // Houblons en grammes (conversion unique kg -> g, ×1000), avec drapeau anti-rejeu
+  let changed=false;
+  if(!s.hopsG){
+    s.items.forEach(it=>{
+      if(it.cat==='houblon'&&it.unit!=='g'){
+        const q=parseFloat(it.qty);it.qty=isNaN(q)?0:q*1000;
+        if(it.min!==''&&it.min!=null){const m=parseFloat(it.min);it.min=isNaN(m)?'':m*1000;}
+        it.unit='g';
+      }
+    });
+    s.hopsG=true;changed=true;
+  }
+  return changed;
+}
 function load(){
-  try{const s=JSON.parse(localStorage.getItem(STORE));if(s&&s.items)return s;}catch(e){}
-  return {items:SEED};
+  let s=null;
+  try{const p=JSON.parse(localStorage.getItem(STORE));if(p&&p.items)s=p;}catch(e){}
+  if(!s)s={items:SEED};
+  if(migrate(s)){try{localStorage.setItem(STORE,JSON.stringify(s));}catch(e){}}
+  return s;
 }
 function save(){localStorage.setItem(STORE,JSON.stringify(state));}
 function cat(id){return CATS.find(c=>c.id===id);}
@@ -426,190 +480,101 @@ document.getElementById('btnExport').onclick=()=>{
 document.getElementById('btnImport').onclick=()=>document.getElementById('fileInput').click();
 document.getElementById('fileInput').onchange=e=>{
   const f=e.target.files[0];if(!f)return;const rd=new FileReader();
-  rd.onload=()=>{try{const s=JSON.parse(rd.result);if(s.items){state=s;save();render();}}catch(err){alert('Fichier invalide');}};
+  rd.onload=()=>{try{const s=JSON.parse(rd.result);if(s.items){state=s;migrate(state);save();render();}}catch(err){alert('Fichier invalide');}};
   rd.readAsText(f);
 };
 
-/* ---- Réception / bon de livraison ---- */
-const rov=document.getElementById('rov');
-let recv={};
-function openReceive(){
-  recv={};
-  document.getElementById('rcv_date').value=new Date().toISOString().slice(0,10);
-  document.getElementById('rcv_supplier').value='';
-  document.getElementById('rcv_search').value='';
-  renderReceive('');
-  rov.classList.add('show');
-}
-function closeReceive(){rov.classList.remove('show');}
-function renderReceive(q){
-  q=(q||'').trim().toLowerCase();
-  let html='';
-  CATS.forEach(c=>{
-    const its=state.items.filter(i=>i.cat===c.id&&(!q||i.name.toLowerCase().includes(q))).sort((a,b)=>a.name.localeCompare(b.name));
-    if(!its.length)return;
-    html+=`<div class="recv-cat"><span class="dot" style="background:${c.color}"></span>${c.label}</div>`;
-    its.forEach(it=>{
-      const v=recv[it.id]!=null?recv[it.id]:'';
-      const filled=v!==''&&parseFloat(v)>0;
-      html+=`<div class="recv-row ${filled?'filled':''}">
-        <div class="rn"><b>${it.name}</b><small>en stock : ${num(it.qty)} ${it.unit||''}</small></div>
-        <input type="number" step="any" inputmode="decimal" data-id="${it.id}" value="${v}" placeholder="+ reçu">
-        <span class="u">${it.unit||''}</span></div>`;
-    });
-  });
-  document.getElementById('rcv_list').innerHTML=html||'<div class="empty-cat" style="padding:1rem 1.2rem">Aucun article.</div>';
-  updateRecvSummary();
-}
-function updateRecvSummary(){
-  const n=Object.values(recv).filter(v=>v!==''&&parseFloat(v)>0).length;
-  document.getElementById('rcv_summary').innerHTML=n?`<b>${n}</b> article(s) à ajouter au stock`:'Saisis les quantités reçues ci-dessous.';
-}
-document.getElementById('rcv_list').addEventListener('input',e=>{
-  const inp=e.target.closest('input[data-id]');if(!inp)return;
-  recv[inp.dataset.id]=inp.value;
-  const row=inp.closest('.recv-row');
-  if(row)row.classList.toggle('filled',inp.value!==''&&parseFloat(inp.value)>0);
-  updateRecvSummary();
-});
-document.getElementById('rcv_search').addEventListener('input',e=>renderReceive(e.target.value));
-document.getElementById('rcv_cancel').onclick=closeReceive;
-rov.addEventListener('click',e=>{if(e.target===rov)closeReceive();});
-document.getElementById('rcv_save').onclick=()=>{
-  let count=0;
-  Object.keys(recv).forEach(id=>{
-    const v=parseFloat(recv[id]);
-    if(!isNaN(v)&&v>0){const it=state.items.find(x=>x.id===id);if(it){it.qty=Number(it.qty)+v;count++;}}
-  });
-  if(count>0){save();render();}
-  closeReceive();
+/* ============== Saisie ligne par ligne — réception / utilisation / commande ============== */
+const rov=document.getElementById('rov'),uov=document.getElementById('uov'),cov=document.getElementById('cov');
+const $=id=>document.getElementById(id);
+const today=()=>new Date().toISOString().slice(0,10);
+const ENTRY={
+  rcv:{lines:[],pick:'rcv_pick',res:'rcv_results',qty:'rcv_qty',add:'rcv_add',list:'rcv_list',sum:'rcv_summary',can:()=>true,tone:'filled',word:'à ajouter au stock'},
+  use:{lines:[],pick:'use_pick',res:'use_results',qty:'use_qty',add:'use_add',list:'use_list',sum:'use_summary',can:it=>Number(it.qty)>0,tone:'out',word:'à déduire du stock'},
+  ord:{lines:[],pick:'ord_pick',res:'ord_results',qty:'ord_qty',add:'ord_add',list:'ord_list',sum:'ord_summary',can:()=>true,tone:'filled',word:'sur le bon de commande'}
 };
-document.getElementById('btnReceive').onclick=openReceive;
+const pickSel={rcv:null,use:null,ord:null};
+const itById=id=>state.items.find(i=>i.id===id);
+function entrySearch(key){
+  const cfg=ENTRY[key],q=$(cfg.pick).value.trim().toLowerCase(),res=$(cfg.res);
+  if(!q){res.classList.remove('show');res.innerHTML='';return;}
+  const m=state.items.filter(i=>cfg.can(i)&&i.name.toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,12);
+  res.innerHTML=m.length?m.map((it,i)=>{const c=cat(it.cat);return `<div class="r${i===0?' active':''}" data-id="${it.id}"><b><span class="rdot" style="background:${c?c.color:'#999'}"></span>${it.name}</b><small>${num(it.qty)} ${it.unit||''}</small></div>`;}).join(''):'<div class="none">Aucun article trouvé.</div>';
+  res.classList.add('show');
+}
+function entryPick(key,id){
+  pickSel[key]=id;const cfg=ENTRY[key];
+  $(cfg.pick).value=(itById(id)||{}).name||'';
+  $(cfg.res).classList.remove('show');$(cfg.res).innerHTML='';
+  $(cfg.qty).focus();
+}
+function entryAdd(key){
+  const cfg=ENTRY[key],id=pickSel[key];
+  if(!id){$(cfg.pick).focus();return;}
+  const v=parseFloat($(cfg.qty).value);
+  if(isNaN(v)||v<=0){$(cfg.qty).focus();return;}
+  const ex=cfg.lines.find(l=>l.id===id);
+  if(ex)ex.qty=String(v);else cfg.lines.push({id,qty:String(v)});
+  pickSel[key]=null;$(cfg.pick).value='';$(cfg.qty).value='';
+  renderBasket(key);$(cfg.pick).focus();
+}
+function updateSum(key){
+  const cfg=ENTRY[key],n=cfg.lines.filter(l=>parseFloat(l.qty)>0).length;
+  $(cfg.sum).innerHTML=n?`<b${cfg.tone==='out'?' style="color:var(--red)"':''}>${n}</b> ligne(s) ${cfg.word}`:'Aucune ligne — cherche un article ci-dessus puis « + Ajouter ».';
+}
+function renderBasket(key){
+  const cfg=ENTRY[key];
+  $(cfg.list).innerHTML=cfg.lines.length?cfg.lines.map(l=>{const it=itById(l.id);if(!it)return '';const c=cat(it.cat);return `<div class="recv-row ${cfg.tone}"><div class="rn"><b><span class="rdot" style="background:${c?c.color:'#999'}"></span>${it.name}</b><small>en stock : ${num(it.qty)} ${it.unit||''}</small></div><input type="number" step="any" inputmode="decimal" data-id="${l.id}" value="${l.qty}"><span class="u">${it.unit||''}</span><button class="lineDel" data-id="${l.id}" title="Retirer la ligne">✕</button></div>`;}).join(''):'<div class="empty-cat" style="padding:.8rem 1.2rem">Aucune ligne pour le moment.</div>';
+  updateSum(key);
+}
+function wireEntry(key){
+  const cfg=ENTRY[key],pick=$(cfg.pick),res=$(cfg.res),qty=$(cfg.qty),list=$(cfg.list);
+  pick.addEventListener('input',()=>{pickSel[key]=null;entrySearch(key);});
+  pick.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const f=res.querySelector('.r');if(f)entryPick(key,f.dataset.id);}});
+  pick.addEventListener('blur',()=>setTimeout(()=>res.classList.remove('show'),150));
+  res.addEventListener('mousedown',e=>{const r=e.target.closest('.r');if(r){e.preventDefault();entryPick(key,r.dataset.id);}});
+  qty.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();entryAdd(key);}});
+  $(cfg.add).addEventListener('click',()=>entryAdd(key));
+  list.addEventListener('input',e=>{const inp=e.target.closest('input[data-id]');if(!inp)return;const l=cfg.lines.find(x=>x.id===inp.dataset.id);if(l)l.qty=inp.value;updateSum(key);});
+  list.addEventListener('click',e=>{const d=e.target.closest('.lineDel');if(!d)return;cfg.lines=cfg.lines.filter(x=>x.id!==d.dataset.id);renderBasket(key);});
+}
+wireEntry('rcv');wireEntry('use');wireEntry('ord');
+
+/* ---- Réception ---- */
+function openReceive(){ENTRY.rcv.lines=[];pickSel.rcv=null;$('rcv_date').value=today();$('rcv_supplier').value='';$('rcv_pick').value='';$('rcv_qty').value='';$('rcv_results').classList.remove('show');renderBasket('rcv');rov.classList.add('show');setTimeout(()=>$('rcv_pick').focus(),60);}
+function closeReceive(){rov.classList.remove('show');}
+$('rcv_cancel').onclick=closeReceive;
+rov.addEventListener('click',e=>{if(e.target===rov)closeReceive();});
+$('rcv_save').onclick=()=>{let n=0;ENTRY.rcv.lines.forEach(l=>{const v=parseFloat(l.qty);if(!isNaN(v)&&v>0){const it=itById(l.id);if(it){it.qty=Number(it.qty)+v;n++;}}});if(n>0){save();render();}closeReceive();};
+$('btnReceive').onclick=openReceive;
 
 /* ---- Utilisation / sortie de stock ---- */
-const uov=document.getElementById('uov');
-let usage={};
-function openUse(){
-  usage={};
-  document.getElementById('use_date').value=new Date().toISOString().slice(0,10);
-  document.getElementById('use_reason').value='';
-  document.getElementById('use_search').value='';
-  renderUse('');
-  uov.classList.add('show');
-}
+function openUse(){ENTRY.use.lines=[];pickSel.use=null;$('use_date').value=today();$('use_reason').value='';$('use_pick').value='';$('use_qty').value='';$('use_results').classList.remove('show');renderBasket('use');uov.classList.add('show');setTimeout(()=>$('use_pick').focus(),60);}
 function closeUse(){uov.classList.remove('show');}
-function renderUse(q){
-  q=(q||'').trim().toLowerCase();
-  let html='';
-  CATS.forEach(c=>{
-    const its=state.items.filter(i=>i.cat===c.id&&Number(i.qty)>0&&(!q||i.name.toLowerCase().includes(q)))
-      .sort((a,b)=>a.name.localeCompare(b.name));
-    if(!its.length)return;
-    html+=`<div class="recv-cat"><span class="dot" style="background:${c.color}"></span>${c.label}</div>`;
-    its.forEach(it=>{
-      const v=usage[it.id]!=null?usage[it.id]:'';
-      const filled=v!==''&&parseFloat(v)>0;
-      html+=`<div class="recv-row ${filled?'out':''}">
-        <div class="rn"><b>${it.name}</b><small>en stock : ${num(it.qty)} ${it.unit||''}</small></div>
-        <input type="number" step="any" inputmode="decimal" data-id="${it.id}" value="${v}" placeholder="− utilisé">
-        <span class="u">${it.unit||''}</span></div>`;
-    });
-  });
-  document.getElementById('use_list').innerHTML=html||'<div class="empty-cat" style="padding:1rem 1.2rem">Aucun article en stock.</div>';
-  updateUseSummary();
-}
-function updateUseSummary(){
-  const n=Object.values(usage).filter(v=>v!==''&&parseFloat(v)>0).length;
-  document.getElementById('use_summary').innerHTML=n?`<b style="color:var(--red)">${n}</b> article(s) à déduire du stock`:'Saisis les quantités utilisées ci-dessous.';
-}
-document.getElementById('use_list').addEventListener('input',e=>{
-  const inp=e.target.closest('input[data-id]');if(!inp)return;
-  usage[inp.dataset.id]=inp.value;
-  const row=inp.closest('.recv-row');
-  if(row)row.classList.toggle('out',inp.value!==''&&parseFloat(inp.value)>0);
-  updateUseSummary();
-});
-document.getElementById('use_search').addEventListener('input',e=>renderUse(e.target.value));
-document.getElementById('use_cancel').onclick=closeUse;
+$('use_cancel').onclick=closeUse;
 uov.addEventListener('click',e=>{if(e.target===uov)closeUse();});
-document.getElementById('use_save').onclick=()=>{
-  let count=0;
-  Object.keys(usage).forEach(id=>{
-    const v=parseFloat(usage[id]);
-    if(!isNaN(v)&&v>0){const it=state.items.find(x=>x.id===id);if(it){it.qty=Math.max(0,Number(it.qty)-v);count++;}}
-  });
-  if(count>0){save();render();}
-  closeUse();
-};
-document.getElementById('btnUse').onclick=openUse;
+$('use_save').onclick=()=>{let n=0;ENTRY.use.lines.forEach(l=>{const v=parseFloat(l.qty);if(!isNaN(v)&&v>0){const it=itById(l.id);if(it){it.qty=Math.max(0,Number(it.qty)-v);n++;}}});if(n>0){save();render();}closeUse();};
+$('btnUse').onclick=openUse;
 
 /* ---- Bon de commande ---- */
-const cov=document.getElementById('cov');
-let order={};
 function openOrder(){
-  order={};
+  ENTRY.ord.lines=[];pickSel.ord=null;
   // pré-remplissage : articles sous le seuil → quantité suggérée pour revenir à 2× le seuil
-  state.items.forEach(it=>{
-    if(isLow(it)){
-      const min=Number(it.min)||0,q=Number(it.qty)||0;
-      const sugg=Math.ceil(Math.max(min*2-q,1));
-      order[it.id]=String(sugg);
-    }
-  });
-  document.getElementById('ord_date').value=new Date().toISOString().slice(0,10);
-  document.getElementById('ord_supplier').value='';
-  document.getElementById('ord_search').value='';
-  renderOrder('');
-  cov.classList.add('show');
+  state.items.forEach(it=>{if(isLow(it)){const min=Number(it.min)||0,q=Number(it.qty)||0;ENTRY.ord.lines.push({id:it.id,qty:String(Math.ceil(Math.max(min*2-q,1)))});}});
+  $('ord_date').value=today();$('ord_supplier').value='';$('ord_pick').value='';$('ord_qty').value='';$('ord_results').classList.remove('show');
+  renderBasket('ord');cov.classList.add('show');setTimeout(()=>$('ord_pick').focus(),60);
 }
 function closeOrder(){cov.classList.remove('show');}
-function renderOrder(q){
-  q=(q||'').trim().toLowerCase();
-  let html='';
-  CATS.forEach(c=>{
-    const its=state.items.filter(i=>i.cat===c.id&&(!q||i.name.toLowerCase().includes(q)))
-      .sort((a,b)=>{if(isLow(a)!==isLow(b))return isLow(a)?-1:1;return a.name.localeCompare(b.name);});
-    if(!its.length)return;
-    html+=`<div class="recv-cat"><span class="dot" style="background:${c.color}"></span>${c.label}</div>`;
-    its.forEach(it=>{
-      const v=order[it.id]!=null?order[it.id]:'';
-      const filled=v!==''&&parseFloat(v)>0;
-      html+=`<div class="recv-row ${filled?'filled':''}">
-        <div class="rn"><b>${it.name}${isLow(it)?'<span class="lowtag">Stock bas</span>':''}</b><small>en stock : ${num(it.qty)} ${it.unit||''}${it.min!==''&&it.min!=null?' · seuil '+num(it.min):''}</small></div>
-        <input type="number" step="any" inputmode="decimal" data-id="${it.id}" value="${v}" placeholder="à cmd.">
-        <span class="u">${it.unit||''}</span></div>`;
-    });
-  });
-  document.getElementById('ord_list').innerHTML=html||'<div class="empty-cat" style="padding:1rem 1.2rem">Aucun article.</div>';
-  updateOrderSummary();
-}
-function updateOrderSummary(){
-  const n=Object.values(order).filter(v=>v!==''&&parseFloat(v)>0).length;
-  document.getElementById('ord_summary').innerHTML=n?`<b>${n}</b> article(s) sur le bon de commande`:'Saisis les quantités à commander (stock bas pré-rempli).';
-}
-document.getElementById('ord_list').addEventListener('input',e=>{
-  const inp=e.target.closest('input[data-id]');if(!inp)return;
-  order[inp.dataset.id]=inp.value;
-  const row=inp.closest('.recv-row');
-  if(row)row.classList.toggle('filled',inp.value!==''&&parseFloat(inp.value)>0);
-  updateOrderSummary();
-});
-document.getElementById('ord_search').addEventListener('input',e=>renderOrder(e.target.value));
-document.getElementById('ord_cancel').onclick=closeOrder;
+$('ord_cancel').onclick=closeOrder;
 cov.addEventListener('click',e=>{if(e.target===cov)closeOrder();});
-document.getElementById('ord_print').onclick=()=>{
+$('ord_print').onclick=()=>{
   const lines=[];
-  CATS.forEach(c=>{
-    state.items.filter(i=>i.cat===c.id).sort((a,b)=>a.name.localeCompare(b.name)).forEach(it=>{
-      const v=parseFloat(order[it.id]);
-      if(!isNaN(v)&&v>0)lines.push({cat:c.label,name:it.name,unit:it.unit||'',qty:v,stock:it.qty,note:it.note||''});
-    });
-  });
-  if(!lines.length){alert('Aucune quantité saisie.');return;}
-  const d=document.getElementById('ord_date').value;
+  CATS.forEach(c=>{ENTRY.ord.lines.forEach(l=>{const it=itById(l.id);if(it&&it.cat===c.id){const v=parseFloat(l.qty);if(!isNaN(v)&&v>0)lines.push({cat:c.label,name:it.name,unit:it.unit||'',qty:v,stock:it.qty,note:it.note||''});}});});
+  if(!lines.length){alert('Aucune ligne saisie.');return;}
+  const d=$('ord_date').value;
   const dateFr=d?new Date(d+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'';
-  const sup=document.getElementById('ord_supplier').value.trim();
-  document.getElementById('orderPrint').innerHTML=`
+  const sup=$('ord_supplier').value.trim();
+  $('orderPrint').innerHTML=`
     <h1>Bon de commande</h1>
     <div class="meta">${dateFr}${sup?' — Fournisseur : <b>'+sup+'</b>':''}</div>
     <table><thead><tr><th>Catégorie</th><th>Article</th><th>En stock</th><th>Quantité commandée</th><th>Note</th></tr></thead>
@@ -617,7 +582,7 @@ document.getElementById('ord_print').onclick=()=>{
     <div class="foot">${lines.length} article(s) — généré le ${new Date().toLocaleDateString('fr-FR')}</div>`;
   window.print();
 };
-document.getElementById('btnOrder').onclick=openOrder;
+$('btnOrder').onclick=openOrder;
 
 render();
 </script>
