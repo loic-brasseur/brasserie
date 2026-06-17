@@ -149,6 +149,9 @@
   .recv-row .lineDel{flex:0 0 auto;background:transparent;border:none;color:var(--ink-soft);font-size:1rem;
     padding:.2rem .35rem;line-height:1;cursor:pointer}
   .recv-row .lineDel:hover{color:var(--red)}
+  #ov{z-index:60}
+  .pick-results .r-create{border-top:1px dashed var(--line-strong)}
+  .pick-results .r-create b{color:var(--copper)}
 
   /* Bon de commande — impression */
   #orderPrint{display:none}
@@ -247,6 +250,9 @@
         <label>Date<input class="input" id="rcv_date" type="date"></label>
         <label>Fournisseur (optionnel)<input class="input" id="rcv_supplier" placeholder="ex. Castle Malting"></label>
       </div>
+      <label id="rcv_orderwrap" class="hidden">Réceptionner une commande enregistrée
+        <select class="input" id="rcv_order"></select>
+      </label>
     </div>
     <div class="picker">
       <div class="pick-wrap"><input class="input" id="rcv_pick" placeholder="Rechercher un article (1res lettres)…" autocomplete="off"></div>
@@ -308,7 +314,8 @@
     <div class="recv-list" id="ord_list"></div>
     <div class="modal-actions">
       <button class="btn-ghost" id="ord_cancel">Annuler</button>
-      <button class="btn-copper" id="ord_print">Imprimer / PDF</button>
+      <button class="btn-ghost" id="ord_print">Imprimer</button>
+      <button class="btn-copper" id="ord_done">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -335,7 +342,7 @@ const SEED=[
 ];
 function uid(){return 'a'+Math.random().toString(36).slice(2,9);}
 let state=load();
-let filter='all', search='', editId=null;
+let filter='all', search='', editId=null, afterCreate=null;
 
 function migrate(s){
   // Houblons en grammes (conversion unique kg -> g, ×1000), avec drapeau anti-rejeu
@@ -356,6 +363,7 @@ function load(){
   let s=null;
   try{const p=JSON.parse(localStorage.getItem(STORE));if(p&&p.items)s=p;}catch(e){}
   if(!s)s={items:SEED};
+  if(!Array.isArray(s.orders))s.orders=[];
   if(migrate(s)){try{localStorage.setItem(STORE,JSON.stringify(s));}catch(e){}}
   return s;
 }
@@ -429,7 +437,13 @@ function openModal(id){
   ov.classList.add('show');
   setTimeout(()=>document.getElementById('f_name').focus(),50);
 }
-function closeModal(){ov.classList.remove('show');editId=null;}
+function closeModal(){ov.classList.remove('show');editId=null;afterCreate=null;}
+// Créer un article à la volée puis le sélectionner dans l'écran appelant (ex. commande)
+function openCreate(name,key){
+  afterCreate=ni=>{const cfg=ENTRY[key];if(!cfg)return;pickSel[key]=ni.id;$(cfg.pick).value=ni.name;$(cfg.qty).value='';$(cfg.res).classList.remove('show');$(cfg.qty).focus();};
+  openModal(null);
+  if(name)document.getElementById('f_name').value=name;
+}
 document.getElementById('mCancel').onclick=closeModal;
 ov.addEventListener('click',e=>{if(e.target===ov)closeModal();});
 document.getElementById('mSave').onclick=()=>{
@@ -443,9 +457,12 @@ document.getElementById('mSave').onclick=()=>{
     min:document.getElementById('f_min').value!==''?parseFloat(document.getElementById('f_min').value):'',
     note:document.getElementById('f_note').value.trim()
   };
+  let created=null;
   if(editId){Object.assign(state.items.find(i=>i.id===editId),data);}
-  else{state.items.push({id:uid(),...data});}
+  else{created={id:uid(),...data};state.items.push(created);}
+  const cb=afterCreate;afterCreate=null;
   save();render();closeModal();
+  if(created&&cb)cb(created);
 };
 document.getElementById('mDelete').onclick=()=>{
   if(confirm('Supprimer cet article ?')){state.items=state.items.filter(i=>i.id!==editId);save();render();closeModal();}
@@ -491,15 +508,18 @@ const today=()=>new Date().toISOString().slice(0,10);
 const ENTRY={
   rcv:{lines:[],pick:'rcv_pick',res:'rcv_results',qty:'rcv_qty',add:'rcv_add',list:'rcv_list',sum:'rcv_summary',can:()=>true,tone:'filled',word:'à ajouter au stock'},
   use:{lines:[],pick:'use_pick',res:'use_results',qty:'use_qty',add:'use_add',list:'use_list',sum:'use_summary',can:it=>Number(it.qty)>0,tone:'out',word:'à déduire du stock'},
-  ord:{lines:[],pick:'ord_pick',res:'ord_results',qty:'ord_qty',add:'ord_add',list:'ord_list',sum:'ord_summary',can:()=>true,tone:'filled',word:'sur le bon de commande'}
+  ord:{lines:[],pick:'ord_pick',res:'ord_results',qty:'ord_qty',add:'ord_add',list:'ord_list',sum:'ord_summary',can:()=>true,tone:'filled',word:'sur le bon de commande',create:true}
 };
 const pickSel={rcv:null,use:null,ord:null};
 const itById=id=>state.items.find(i=>i.id===id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function entrySearch(key){
-  const cfg=ENTRY[key],q=$(cfg.pick).value.trim().toLowerCase(),res=$(cfg.res);
+  const cfg=ENTRY[key],rawQ=$(cfg.pick).value.trim(),q=rawQ.toLowerCase(),res=$(cfg.res);
   if(!q){res.classList.remove('show');res.innerHTML='';return;}
   const m=state.items.filter(i=>cfg.can(i)&&i.name.toLowerCase().includes(q)).sort((a,b)=>a.name.localeCompare(b.name)).slice(0,12);
-  res.innerHTML=m.length?m.map((it,i)=>{const c=cat(it.cat);return `<div class="r${i===0?' active':''}" data-id="${it.id}"><b><span class="rdot" style="background:${c?c.color:'#999'}"></span>${it.name}</b><small>${num(it.qty)} ${it.unit||''}</small></div>`;}).join(''):'<div class="none">Aucun article trouvé.</div>';
+  let html=m.length?m.map((it,i)=>{const c=cat(it.cat);return `<div class="r${i===0?' active':''}" data-id="${it.id}"><b><span class="rdot" style="background:${c?c.color:'#999'}"></span>${it.name}</b><small>${num(it.qty)} ${it.unit||''}</small></div>`;}).join(''):(cfg.create?'':'<div class="none">Aucun article trouvé.</div>');
+  if(cfg.create)html+=`<div class="r r-create" data-create="1"><b>+ Créer « ${esc(rawQ)} »</b><small>nouvel article</small></div>`;
+  res.innerHTML=html;
   res.classList.add('show');
 }
 function entryPick(key,id){
@@ -530,9 +550,9 @@ function renderBasket(key){
 function wireEntry(key){
   const cfg=ENTRY[key],pick=$(cfg.pick),res=$(cfg.res),qty=$(cfg.qty),list=$(cfg.list);
   pick.addEventListener('input',()=>{pickSel[key]=null;entrySearch(key);});
-  pick.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const f=res.querySelector('.r');if(f)entryPick(key,f.dataset.id);}});
+  pick.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();const f=res.querySelector('.r');if(!f)return;if(f.dataset.create)openCreate(pick.value.trim(),key);else entryPick(key,f.dataset.id);}});
   pick.addEventListener('blur',()=>setTimeout(()=>res.classList.remove('show'),150));
-  res.addEventListener('mousedown',e=>{const r=e.target.closest('.r');if(r){e.preventDefault();entryPick(key,r.dataset.id);}});
+  res.addEventListener('mousedown',e=>{const r=e.target.closest('.r');if(!r)return;e.preventDefault();if(r.dataset.create)openCreate(pick.value.trim(),key);else entryPick(key,r.dataset.id);});
   qty.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();entryAdd(key);}});
   $(cfg.add).addEventListener('click',()=>entryAdd(key));
   list.addEventListener('input',e=>{const inp=e.target.closest('input[data-id]');if(!inp)return;const l=cfg.lines.find(x=>x.id===inp.dataset.id);if(l)l.qty=inp.value;updateSum(key);});
@@ -540,12 +560,34 @@ function wireEntry(key){
 }
 wireEntry('rcv');wireEntry('use');wireEntry('ord');
 
-/* ---- Réception ---- */
-function openReceive(){ENTRY.rcv.lines=[];pickSel.rcv=null;$('rcv_date').value=today();$('rcv_supplier').value='';$('rcv_pick').value='';$('rcv_qty').value='';$('rcv_results').classList.remove('show');renderBasket('rcv');rov.classList.add('show');setTimeout(()=>$('rcv_pick').focus(),60);}
+/* ---- Réception (+ réception d'une commande enregistrée) ---- */
+let rcvOrderId=null;
+const pendingOrders=()=>(state.orders||[]).filter(o=>o.status==='pending');
+function fmtOrder(o){const d=o.date?new Date(o.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'';return `Commande ${d}${o.supplier?' · '+o.supplier:''} (${o.lines.length} art.)`;}
+function refreshOrderSelect(){
+  const po=pendingOrders(),wrap=$('rcv_orderwrap'),sel=$('rcv_order');
+  if(!po.length){wrap.classList.add('hidden');sel.innerHTML='';return;}
+  sel.innerHTML='<option value="">— Réception libre —</option>'+po.map(o=>`<option value="${o.id}">${esc(fmtOrder(o))}</option>`).join('');
+  wrap.classList.remove('hidden');
+}
+$('rcv_order').addEventListener('change',e=>{
+  rcvOrderId=e.target.value||null;
+  if(!rcvOrderId){ENTRY.rcv.lines=[];renderBasket('rcv');return;}
+  const o=(state.orders||[]).find(x=>x.id===rcvOrderId);if(!o)return;
+  ENTRY.rcv.lines=o.lines.filter(l=>itById(l.id)).map(l=>({id:l.id,qty:String(l.qty)}));
+  if(o.supplier)$('rcv_supplier').value=o.supplier;
+  renderBasket('rcv');
+});
+function openReceive(){ENTRY.rcv.lines=[];pickSel.rcv=null;rcvOrderId=null;$('rcv_date').value=today();$('rcv_supplier').value='';$('rcv_pick').value='';$('rcv_qty').value='';$('rcv_results').classList.remove('show');refreshOrderSelect();$('rcv_order').value='';renderBasket('rcv');rov.classList.add('show');setTimeout(()=>$('rcv_pick').focus(),60);}
 function closeReceive(){rov.classList.remove('show');}
 $('rcv_cancel').onclick=closeReceive;
 rov.addEventListener('click',e=>{if(e.target===rov)closeReceive();});
-$('rcv_save').onclick=()=>{let n=0;ENTRY.rcv.lines.forEach(l=>{const v=parseFloat(l.qty);if(!isNaN(v)&&v>0){const it=itById(l.id);if(it){it.qty=Number(it.qty)+v;n++;}}});if(n>0){save();render();}closeReceive();};
+$('rcv_save').onclick=()=>{
+  let n=0;ENTRY.rcv.lines.forEach(l=>{const v=parseFloat(l.qty);if(!isNaN(v)&&v>0){const it=itById(l.id);if(it){it.qty=Number(it.qty)+v;n++;}}});
+  if(rcvOrderId){const o=(state.orders||[]).find(x=>x.id===rcvOrderId);if(o){o.status='received';o.received=today();}}
+  if(n>0||rcvOrderId){save();render();}
+  closeReceive();
+};
 $('btnReceive').onclick=openReceive;
 
 /* ---- Utilisation / sortie de stock ---- */
@@ -581,6 +623,14 @@ $('ord_print').onclick=()=>{
     <tbody>${lines.map(l=>`<tr><td>${l.cat}</td><td>${l.name}</td><td class="qn">${num(l.stock)} ${l.unit}</td><td class="qn"><b>${num(l.qty)} ${l.unit}</b></td><td>${l.note}</td></tr>`).join('')}</tbody></table>
     <div class="foot">${lines.length} article(s) — généré le ${new Date().toLocaleDateString('fr-FR')}</div>`;
   window.print();
+};
+$('ord_done').onclick=()=>{
+  const lines=ENTRY.ord.lines.map(l=>({id:l.id,qty:parseFloat(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
+  if(!lines.length){alert('Aucune ligne à enregistrer.');return;}
+  state.orders=state.orders||[];
+  state.orders.push({id:'o'+Math.random().toString(36).slice(2,9),date:$('ord_date').value||today(),supplier:$('ord_supplier').value.trim(),lines,status:'pending',created:today()});
+  save();closeOrder();
+  alert('Commande enregistrée — tu pourras la réceptionner depuis « Réception ».');
 };
 $('btnOrder').onclick=openOrder;
 
