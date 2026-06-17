@@ -168,19 +168,45 @@
     padding:.3rem .35rem;cursor:pointer;line-height:1}
   .hist-acts button:hover{color:var(--ink)}
 
-  /* Bon de commande — impression */
+  /* En-tête brasserie (réglages) */
+  textarea.input{resize:vertical;min-height:54px;font-family:var(--sans)}
+  .co-logo-row{display:flex;gap:.8rem;align-items:flex-start}
+  .co-logo-prev{width:72px;height:72px;flex:0 0 auto;border:1px solid var(--line-strong);border-radius:12px;
+    background:#fff;display:grid;place-items:center;overflow:hidden}
+  .co-logo-prev img{width:100%;height:100%;object-fit:contain}
+  .co-logo-prev span{font-size:.66rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:.08em}
+
+  /* Documents imprimés (bon de commande / réception / sortie) */
   #orderPrint{display:none}
   @media print{
     body>*:not(#orderPrint){display:none!important}
-    #orderPrint{display:block!important;font-family:var(--sans);color:#000}
     body{background:#fff;padding:0}
-    #orderPrint h1{font-family:var(--serif);font-weight:600;font-size:1.5rem;margin:0 0 .2rem}
-    #orderPrint .meta{font-size:.85rem;margin-bottom:1rem;color:#333}
-    #orderPrint table{width:100%;border-collapse:collapse;font-size:.85rem}
-    #orderPrint th,#orderPrint td{border:1px solid #999;padding:.4rem .55rem;text-align:left}
-    #orderPrint th{background:#eee;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
-    #orderPrint td.qn{text-align:right;font-family:var(--mono)}
-    #orderPrint .foot{margin-top:1.2rem;font-size:.75rem;color:#555}
+    #orderPrint{display:block!important;font-family:var(--sans);color:#1A1612;padding:16mm 14mm;font-size:12px;line-height:1.5}
+    #orderPrint .po-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;
+      border-bottom:3px solid #16285A;padding-bottom:12px}
+    #orderPrint .po-accent{height:3px;background:#F3B61F;margin:0 0 18px}
+    #orderPrint .po-company{display:flex;gap:14px;align-items:center}
+    #orderPrint .po-logo{width:66px;height:66px;object-fit:contain;flex:0 0 auto}
+    #orderPrint .po-co-name{font-family:var(--serif);font-size:21px;font-weight:600;line-height:1.05;color:#16285A}
+    #orderPrint .po-co-line{font-size:11px;color:#555;margin-top:3px}
+    #orderPrint .po-doc{text-align:right;white-space:nowrap}
+    #orderPrint .po-title{font-family:var(--serif);font-size:19px;font-weight:600;letter-spacing:.02em;text-transform:uppercase;color:#16285A}
+    #orderPrint .po-num{font-size:12px;font-weight:600;margin-top:5px}
+    #orderPrint .po-date{font-size:12px;color:#555;margin-top:2px}
+    #orderPrint .po-supplier{margin-bottom:14px}
+    #orderPrint .po-lbl{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.09em;color:#8a8170;margin-bottom:4px}
+    #orderPrint .po-sup-name{font-size:14px;font-weight:600;border:1px solid #d8d2c4;border-radius:7px;padding:8px 13px;display:inline-block;min-width:240px}
+    #orderPrint table{width:100%;border-collapse:collapse;font-size:12px}
+    #orderPrint thead th{background:#16285A;color:#fff;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:8px 11px;font-weight:600}
+    #orderPrint thead th.qn{text-align:right}
+    #orderPrint tbody td{border-bottom:1px solid #e2ddd0;padding:7px 11px;vertical-align:top}
+    #orderPrint tbody td.qn{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600}
+    #orderPrint tbody tr:nth-child(even){background:#FAF6EC}
+    #orderPrint .po-foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:24px;gap:24px}
+    #orderPrint .po-total{font-size:12px;color:#555}
+    #orderPrint .po-sign{width:240px;text-align:center}
+    #orderPrint .po-sign-line{height:54px;border:1px solid #d8d2c4;border-radius:7px}
+    #orderPrint .po-sign-lbl{font-size:9.5px;color:#8a8170;margin-top:5px}
   }
 </style>
 </head>
@@ -205,6 +231,7 @@
       <button class="btn-copper" id="btnAdd">+ Article</button>
       <button class="btn-ghost" id="btnExport">Exporter</button>
       <button class="btn-ghost" id="btnImport">Importer</button>
+      <button class="btn-ghost" id="btnSettings" title="En-tête / coordonnées de la brasserie">⚙ En-tête</button>
       <input type="file" id="fileInput" accept="application/json" class="hidden">
     </div>
   </header>
@@ -336,6 +363,33 @@
   </div>
 </div>
 
+<!-- Modal coordonnées / en-tête brasserie -->
+<div class="overlay" id="sov">
+  <div class="modal">
+    <h2>En-tête de la brasserie</h2>
+    <div class="form">
+      <div class="co-logo-row">
+        <div class="co-logo-prev" id="co_logo_prev"><span>Logo</span></div>
+        <div style="flex:1">
+          <label style="margin:0">Logo (image)
+            <input class="input" id="co_logo" type="file" accept="image/*">
+          </label>
+          <button type="button" class="btn-ghost" id="co_logo_clear" style="margin-top:.4rem;font-size:.78rem;padding:.4rem .7rem">Retirer le logo</button>
+        </div>
+      </div>
+      <label>Nom<input class="input" id="co_name" placeholder="ex. Brasserie Madame Nature"></label>
+      <label>Adresse<textarea class="input" id="co_addr" rows="2" placeholder="N°, rue, code postal, ville"></textarea></label>
+      <label>Téléphone / email<input class="input" id="co_contact" placeholder="ex. 03 00 00 00 00 · contact@…"></label>
+      <label>SIRET / TVA<input class="input" id="co_legal" placeholder="ex. SIRET 000 000 000 · TVA FR…"></label>
+      <div class="recv-summary" style="padding:.2rem 0 0">Ces informations s'affichent en en-tête du bon de commande, de réception et de sortie.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="co_cancel">Annuler</button>
+      <button class="btn-copper" id="co_save">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal historique -->
 <div class="overlay" id="hov">
   <div class="modal wide">
@@ -398,6 +452,8 @@ function load(){
   if(!s)s={items:SEED};
   if(!Array.isArray(s.orders))s.orders=[];
   if(!Array.isArray(s.moves))s.moves=[];
+  if(!s.company)s.company={name:'Brasserie Madame Nature'};
+  if(typeof s.orderSeq!=='number')s.orderSeq=0;
   if(migrate(s)){try{localStorage.setItem(STORE,JSON.stringify(s));}catch(e){}}
   return s;
 }
@@ -689,12 +745,16 @@ function openOrder(edit){
 function closeOrder(){cov.classList.remove('show');}
 $('ord_cancel').onclick=closeOrder;
 cov.addEventListener('click',e=>{if(e.target===cov)closeOrder();});
-$('ord_print').onclick=()=>printOrder({date:$('ord_date').value,supplier:$('ord_supplier').value.trim(),lines:ENTRY.ord.lines});
+$('ord_print').onclick=()=>{
+  const o={date:$('ord_date').value,supplier:$('ord_supplier').value.trim(),lines:ENTRY.ord.lines};
+  o.num=ordEditId?(((state.orders||[]).find(x=>x.id===ordEditId)||{}).num||''):nextOrderNum($('ord_date').value);
+  printOrder(o);
+};
 $('ord_done').onclick=()=>{
   const lines=ENTRY.ord.lines.map(l=>({id:l.id,qty:parseFloat(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
   if(!lines.length){alert('Aucune ligne à enregistrer.');return;}
   if(ordEditId){const o=(state.orders||[]).find(x=>x.id===ordEditId);if(o){o.lines=lines;o.date=$('ord_date').value||today();o.supplier=$('ord_supplier').value.trim();}}
-  else{state.orders=state.orders||[];state.orders.push({id:genId('o'),date:$('ord_date').value||today(),supplier:$('ord_supplier').value.trim(),lines,status:'pending',createdAt:Date.now()});}
+  else{state.orders=state.orders||[];state.orderSeq=(state.orderSeq||0)+1;const od=$('ord_date').value||today();const onum='BC-'+new Date(od+'T12:00:00').getFullYear()+'-'+String(state.orderSeq).padStart(3,'0');state.orders.push({id:genId('o'),num:onum,date:od,supplier:$('ord_supplier').value.trim(),lines,status:'pending',createdAt:Date.now()});}
   const wasEdit=!!ordEditId;
   save();render();closeOrder();
   alert(wasEdit?'Commande modifiée.':'Commande enregistrée — tu pourras la réceptionner depuis « Réception ».');
@@ -713,38 +773,51 @@ function reapply(type,oldLines,newLines){
 function rowsByCat(lines){
   const rows=[];CATS.forEach(c=>{(lines||[]).forEach(l=>{const it=itById(l.id);if(it&&it.cat===c.id){const q=parseFloat(l.qty);if(!isNaN(q)&&q>0)rows.push({name:it.name,unit:it.unit||'',qty:q,note:it.note||''});}});});return rows;
 }
-function printOrder(o){
-  const rows=rowsByCat(o.lines);
-  if(!rows.length){alert('Aucune ligne à imprimer.');return;}
+function nextOrderNum(date){const y=(date?new Date(date+'T12:00:00'):new Date()).getFullYear();return 'BC-'+y+'-'+String((state.orderSeq||0)+1).padStart(3,'0');}
+function printDoc(o){
+  const c=state.company||{};
   const dateFr=o.date?new Date(o.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'';
+  const noteCol=!!o.showNote;
   $('orderPrint').innerHTML=`
-    <h1>Bon de commande</h1>
-    <div class="meta">${dateFr?'Date : '+dateFr:''}${o.supplier?(dateFr?' &nbsp;·&nbsp; ':'')+'Fournisseur : <b>'+esc(o.supplier)+'</b>':''}</div>
-    <table><thead><tr><th>Article</th><th>Quantité</th><th>Note</th></tr></thead>
-    <tbody>${rows.map(r=>`<tr><td>${esc(r.name)}</td><td class="qn"><b>${num(r.qty)} ${r.unit}</b></td><td>${esc(r.note)}</td></tr>`).join('')}</tbody></table>
-    <div class="foot">${rows.length} article(s) — édité le ${new Date().toLocaleDateString('fr-FR')}</div>`;
-  window.print();
+    <div class="po-head">
+      <div class="po-company">
+        ${companyLogo?`<img class="po-logo" src="${companyLogo}" alt="">`:''}
+        <div>
+          <div class="po-co-name">${esc(c.name||'Brasserie')}</div>
+          ${c.address?`<div class="po-co-line">${esc(c.address).replace(/\n/g,'<br>')}</div>`:''}
+          ${c.contact?`<div class="po-co-line">${esc(c.contact)}</div>`:''}
+          ${c.legal?`<div class="po-co-line">${esc(c.legal)}</div>`:''}
+        </div>
+      </div>
+      <div class="po-doc">
+        <div class="po-title">${o.title}</div>
+        ${o.docNum?`<div class="po-num">N° ${esc(o.docNum)}</div>`:''}
+        <div class="po-date">Date : ${dateFr||'—'}</div>
+      </div>
+    </div>
+    <div class="po-accent"></div>
+    ${o.partyLabel?`<div class="po-supplier"><span class="po-lbl">${o.partyLabel}</span><div class="po-sup-name">${o.party?esc(o.party):'—'}</div></div>`:''}
+    <table><thead><tr><th>Article</th><th class="qn">Quantité</th>${noteCol?'<th>Note</th>':''}</tr></thead>
+    <tbody>${o.rows.map(r=>`<tr><td>${esc(r.name)}</td><td class="qn">${num(r.qty)} ${esc(r.unit)}</td>${noteCol?`<td>${esc(r.note||'')}</td>`:''}</tr>`).join('')}</tbody></table>
+    <div class="po-foot">
+      <div class="po-total">${o.rows.length} référence(s)</div>
+      <div class="po-sign"><div class="po-sign-line"></div><div class="po-sign-lbl">Bon pour accord — date &amp; signature</div></div>
+    </div>`;
+  const img=$('orderPrint').querySelector('img.po-logo');
+  if(img&&!img.complete){img.onload=img.onerror=()=>window.print();}
+  else window.print();
 }
-function printMove(m){
-  const isU=m.type==='usage',rows=rowsByCat(m.lines);
-  if(!rows.length){alert('Aucune ligne à imprimer.');return;}
-  const dateFr=m.date?new Date(m.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}):'';
-  const lbl=isU?'Motif':'Fournisseur';
-  $('orderPrint').innerHTML=`
-    <h1>${isU?'Bon de sortie de stock':'Bon de réception'}</h1>
-    <div class="meta">${dateFr?'Date : '+dateFr:''}${m.party?(dateFr?' &nbsp;·&nbsp; ':'')+lbl+' : <b>'+esc(m.party)+'</b>':''}</div>
-    <table><thead><tr><th>Article</th><th>Quantité ${isU?'sortie':'reçue'}</th></tr></thead>
-    <tbody>${rows.map(r=>`<tr><td>${esc(r.name)}</td><td class="qn"><b>${num(r.qty)} ${r.unit}</b></td></tr>`).join('')}</tbody></table>
-    <div class="foot">${rows.length} article(s) — édité le ${new Date().toLocaleDateString('fr-FR')}</div>`;
-  window.print();
-}
+function printOrder(o){const rows=rowsByCat(o.lines);if(!rows.length){alert('Aucune ligne à imprimer.');return;}
+  printDoc({title:'Bon de commande',docNum:o.num||'',date:o.date,partyLabel:'Fournisseur',party:o.supplier||'',rows,showNote:true});}
+function printMove(m){const rows=rowsByCat(m.lines);if(!rows.length){alert('Aucune ligne à imprimer.');return;}const isU=m.type==='usage';
+  printDoc({title:isU?'Bon de sortie de stock':'Bon de réception',docNum:'',date:m.date,partyLabel:isU?'Motif':'Fournisseur',party:m.party||'',rows,showNote:false});}
 
 /* ============== Historique ============== */
 const hov=document.getElementById('hov');
 let histFilter='all';
 function allHistory(){
   const a=[];
-  (state.orders||[]).forEach(o=>a.push({kind:'order',type:'order',id:o.id,date:o.date,party:o.supplier,lines:o.lines,status:o.status,sort:o.createdAt||Date.parse((o.date||'')+'T12:00:00')||0}));
+  (state.orders||[]).forEach(o=>a.push({kind:'order',type:'order',id:o.id,date:o.date,party:o.supplier,lines:o.lines,status:o.status,num:o.num,sort:o.createdAt||Date.parse((o.date||'')+'T12:00:00')||0}));
   (state.moves||[]).forEach(m=>a.push({kind:'move',type:m.type,id:m.id,date:m.date,party:m.party,lines:m.lines,sort:m.createdAt||Date.parse((m.date||'')+'T12:00:00')||0}));
   return a.sort((x,y)=>y.sort-x.sort);
 }
@@ -757,7 +830,7 @@ function renderHistory(){
     const st=x.kind==='order'?` · ${x.status==='received'?'reçue':'en attente'}`:'';
     return `<div class="hist-row">
       <div class="hist-main"><span class="hist-badge badge-${x.type}">${lab[x.type]}</span><b>${dateFr}</b>${x.party?' · '+esc(x.party):''}
-        <small>${n} article(s)${st}</small></div>
+        <small>${x.num?esc(x.num)+' · ':''}${n} article(s)${st}</small></div>
       <div class="hist-acts">
         <button data-hact="print" data-kind="${x.kind}" data-id="${x.id}" title="Réimprimer" aria-label="Réimprimer">⎙</button>
         <button data-hact="edit" data-kind="${x.kind}" data-id="${x.id}" title="Modifier" aria-label="Modifier">✎</button>
@@ -786,6 +859,24 @@ $('hist_list').addEventListener('click',e=>{
     else if(act==='del'){if(confirm('Supprimer ce mouvement ? Le stock sera ré-ajusté en conséquence.')){reapply(m.type,m.lines,[]);state.moves=state.moves.filter(x=>x.id!==id);save();render();renderHistory();}}
   }
 });
+
+/* ============== En-tête / coordonnées brasserie ============== */
+const sov=document.getElementById('sov');
+let companyLogo=localStorage.getItem('brasserie_logo')||'';
+let pendingLogo=null;
+function renderLogoPrev(){const src=pendingLogo!=null?pendingLogo:companyLogo;$('co_logo_prev').innerHTML=src?`<img src="${src}" alt="">`:'<span>Logo</span>';}
+function openSettings(){const c=state.company||{};$('co_name').value=c.name||'';$('co_addr').value=c.address||'';$('co_contact').value=c.contact||'';$('co_legal').value=c.legal||'';pendingLogo=null;renderLogoPrev();sov.classList.add('show');setTimeout(()=>$('co_name').focus(),50);}
+function closeSettings(){sov.classList.remove('show');}
+$('co_cancel').onclick=closeSettings;
+sov.addEventListener('click',e=>{if(e.target===sov)closeSettings();});
+$('co_logo').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{pendingLogo=rd.result;renderLogoPrev();};rd.readAsDataURL(f);};
+$('co_logo_clear').onclick=()=>{pendingLogo='';renderLogoPrev();};
+$('co_save').onclick=()=>{
+  state.company={name:$('co_name').value.trim(),address:$('co_addr').value.trim(),contact:$('co_contact').value.trim(),legal:$('co_legal').value.trim()};
+  if(pendingLogo!=null){companyLogo=pendingLogo;try{companyLogo?localStorage.setItem('brasserie_logo',companyLogo):localStorage.removeItem('brasserie_logo');}catch(e){}}
+  save();closeSettings();
+};
+$('btnSettings').onclick=openSettings;
 
 render();
 </script>
