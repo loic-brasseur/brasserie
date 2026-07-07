@@ -558,6 +558,31 @@ footer {
 /* ============ PRINT / PDF EXPORT ============ */
 .print-only { display: none; }
 
+/* Récapitulatif imprimable (bière × format + DDM dépassées) */
+#recapPrint { display: none; }
+@media print {
+  body.print-recap > *:not(#recapPrint) { display: none !important; }
+  body.print-recap #recapPrint { display: block !important; }
+  #recapPrint { color:#1A1612; font-size:10pt; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  #recapPrint .rc-head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2.5px solid #16285A; padding-bottom:8pt; margin-bottom:12pt; }
+  #recapPrint .rc-title { font-size:17pt; font-weight:700; color:#16285A; }
+  #recapPrint .rc-sub { font-size:10pt; color:#555; margin-top:2pt; }
+  #recapPrint .rc-date { font-size:10pt; color:#555; white-space:nowrap; }
+  #recapPrint .rc-table { width:100%; border-collapse:collapse; font-size:9.5pt; margin-bottom:6pt; }
+  #recapPrint .rc-table th { background:#16285A; color:#fff; text-align:left; padding:5pt 7pt; font-size:8pt; text-transform:uppercase; letter-spacing:.03em; }
+  #recapPrint .rc-table th.num { text-align:right; }
+  #recapPrint .rc-table td { border-bottom:1px solid #e2ddd0; padding:4.5pt 7pt; }
+  #recapPrint .rc-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  #recapPrint .rc-table td.rc-hl { font-weight:700; }
+  #recapPrint .rc-table tbody tr:nth-child(even) td { background:#FAF6EC; }
+  #recapPrint .rc-table tr.rc-tot td { font-weight:700; border-top:2px solid #16285A; background:#fff !important; }
+  #recapPrint .rc-code { font-family:var(--font-mono, monospace); font-size:7.5pt; color:#8a8170; }
+  #recapPrint .rc-h2 { font-size:12pt; color:#A8392B; margin:14pt 0 5pt; }
+  #recapPrint .rc-exp th { background:#A8392B; }
+  #recapPrint .rc-none { margin-top:12pt; font-size:10.5pt; color:#3B6D11; }
+  #recapPrint .rc-foot { margin-top:14pt; font-size:8pt; color:#888; border-top:1px solid #eee; padding-top:6pt; }
+}
+
 @media print {
   @page {
     size: A4 portrait;
@@ -1005,12 +1030,17 @@ footer {
     <button class="ghost" id="importBtn">Importer</button>
     <button class="ghost" id="excelBtn">Vers Excel</button>
     <button class="primary" id="pdfBtn" style="padding:8px 16px; font-size:13px;">Exporter PDF</button>
+    <button class="ghost" id="recapPdfBtn">Récap PDF</button>
+    <button class="ghost" id="recapXlsxBtn">Récap Excel</button>
     <button class="ghost danger" id="resetAllBtn">Tout effacer</button>
     <input type="file" id="importFile" accept=".json" style="display:none">
   </div>
 </footer>
 
 </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<div id="recapPrint"></div>
 
 <div class="modal-backdrop" id="modal">
   <div class="modal">
@@ -1703,6 +1733,79 @@ $('pdfBtn').addEventListener('click', () => {
   // Pause briefly so the button click doesn't appear in the print preview
   setTimeout(() => window.print(), 50);
 });
+
+// ============ RÉCAP (bière × format + DDM dépassées) ============
+function normCont(c){ return String(c || '').replace(/\s*\(HL\)\s*/i, '').trim(); }
+function buildRecap() {
+  const active = CONTAINER_ORDER.filter(c => entries.some(e => normCont(e.container) === c && (Number(e.quantity) || 0) > 0));
+  const fmts = active.length ? active : CONTAINER_ORDER.slice();
+  const map = {};
+  entries.forEach(e => {
+    const cont = normCont(e.container), qty = Number(e.quantity) || 0;
+    if (!e.beer || qty <= 0 || !CONTAINER_HL[cont]) return;
+    const m = map[e.beer] = map[e.beer] || { perF: {}, hl: 0 };
+    m.perF[cont] = (m.perF[cont] || 0) + qty;
+    m.hl += CONTAINER_HL[cont] * qty;
+  });
+  const rows = Object.keys(map).sort((a, b) => a.localeCompare(b, 'fr')).map(beer => ({
+    beer, code: beerCodeFor(beer),
+    perF: fmts.map(f => map[beer].perF[f] || 0),
+    hl: +map[beer].hl.toFixed(2)
+  }));
+  const totals = fmts.map((f, i) => rows.reduce((s, r) => s + r.perF[i], 0));
+  const totalHL = +rows.reduce((s, r) => s + r.hl, 0).toFixed(2);
+  const expired = entries.filter(e => ddmStatus(e.ddm) === 'expired' && (Number(e.quantity) || 0) > 0).map(e => {
+    const cont = normCont(e.container), qty = Number(e.quantity) || 0;
+    return { beer: e.beer, code: beerCodeFor(e.beer), container: cont, qty, hl: +((CONTAINER_HL[cont] || 0) * qty).toFixed(2), ddm: e.ddm || '', lot: e.lot || '' };
+  }).sort((a, b) => (a.ddm || '').localeCompare(b.ddm || '') || a.beer.localeCompare(b.beer, 'fr'));
+  return { fmts, rows, totals, totalHL, expired };
+}
+
+function recapPDF() {
+  const R = buildRecap();
+  if (!R.rows.length) { toast('Inventaire vide'); return; }
+  const dateStr = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const th = R.fmts.map(f => `<th class="num">${f}</th>`).join('');
+  const body = R.rows.map(r =>
+    `<tr><td>${r.beer}${r.code ? ` <span class="rc-code">${r.code}</span>` : ''}</td>${r.perF.map(v => `<td class="num">${v ? fmtInt(v) : '—'}</td>`).join('')}<td class="num rc-hl">${fmtHL(r.hl)}</td></tr>`
+  ).join('');
+  const totRow = `<tr class="rc-tot"><td>Total</td>${R.totals.map(v => `<td class="num">${fmtInt(v)}</td>`).join('')}<td class="num rc-hl">${fmtHL(R.totalHL)}</td></tr>`;
+  const exp = R.expired.length
+    ? `<h2 class="rc-h2">DDM dépassées — ${R.expired.length} lot(s)</h2>
+       <table class="rc-table rc-exp"><thead><tr><th>Bière</th><th>Format</th><th class="num">Qté</th><th class="num">HL</th><th>DDM</th><th>Lot</th></tr></thead>
+       <tbody>${R.expired.map(e => `<tr><td>${e.beer}</td><td>${e.container}</td><td class="num">${fmtInt(e.qty)}</td><td class="num">${fmtHL(e.hl)}</td><td>${fmtDate(e.ddm)}</td><td>${e.lot || '—'}</td></tr>`).join('')}</tbody></table>`
+    : `<div class="rc-none">✓ Aucun lot à DDM dépassée.</div>`;
+  $('recapPrint').innerHTML =
+    `<div class="rc-head"><div><div class="rc-title">Inventaire — récapitulatif</div><div class="rc-sub">Brasserie Madame Nature</div></div><div class="rc-date">${dateStr}</div></div>
+     <table class="rc-table"><thead><tr><th>Bière</th>${th}<th class="num">Total HL</th></tr></thead><tbody>${body}${totRow}</tbody></table>
+     ${exp}
+     <div class="rc-foot">${R.rows.length} bière(s) · ${fmtHL(R.totalHL)} HL au total — édité le ${new Date().toLocaleDateString('fr-FR')}</div>`;
+  document.body.classList.add('print-recap');
+  const cleanup = () => { document.body.classList.remove('print-recap'); window.removeEventListener('afterprint', cleanup); };
+  window.addEventListener('afterprint', cleanup);
+  setTimeout(cleanup, 4000);
+  setTimeout(() => window.print(), 60);
+}
+
+function recapXLSX() {
+  const R = buildRecap();
+  if (!R.rows.length) { toast('Inventaire vide'); return; }
+  if (typeof XLSX === 'undefined') { toast('Librairie Excel indisponible (connexion requise)'); return; }
+  const head = ['Bière', 'Code', ...R.fmts, 'Total HL'];
+  const stock = [head, ...R.rows.map(r => [r.beer, r.code, ...r.perF, r.hl]), ['Total', '', ...R.totals, R.totalHL]];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(stock), 'Stock');
+  const eh = ['Bière', 'Code', 'Format', 'Quantité', 'HL', 'DDM', 'Lot'];
+  const edata = R.expired.length
+    ? [eh, ...R.expired.map(e => [e.beer, e.code, e.container, e.qty, e.hl, e.ddm, e.lot])]
+    : [eh, ['Aucun lot à DDM dépassée', '', '', '', '', '', '']];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(edata), 'DDM dépassées');
+  XLSX.writeFile(wb, 'Inventaire_recap_' + new Date().toISOString().slice(0, 10) + '.xlsx');
+  toast('Export Excel téléchargé');
+}
+
+$('recapPdfBtn').addEventListener('click', recapPDF);
+$('recapXlsxBtn').addEventListener('click', recapXLSX);
 
 $('excelBtn').addEventListener('click', openExcelModal);
 $('excelCancel').addEventListener('click', closeExcelModal);
