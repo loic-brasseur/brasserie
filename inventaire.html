@@ -579,6 +579,8 @@ footer {
   #recapPrint .rc-code { font-family:var(--font-mono, monospace); font-size:7.5pt; color:#8a8170; }
   #recapPrint .rc-h2 { font-size:12pt; color:#A8392B; margin:14pt 0 5pt; }
   #recapPrint .rc-exp th { background:#A8392B; }
+  #recapPrint .rc-h2-soon { color:#8a5a12; }
+  #recapPrint .rc-soon th { background:#B8842F; }
   #recapPrint .rc-none { margin-top:12pt; font-size:10.5pt; color:#3B6D11; }
   #recapPrint .rc-foot { margin-top:14pt; font-size:8pt; color:#888; border-top:1px solid #eee; padding-top:6pt; }
 }
@@ -1754,11 +1756,21 @@ function buildRecap() {
   }));
   const totals = fmts.map((f, i) => rows.reduce((s, r) => s + r.perF[i], 0));
   const totalHL = +rows.reduce((s, r) => s + r.hl, 0).toFixed(2);
-  const expired = entries.filter(e => ddmStatus(e.ddm) === 'expired' && (Number(e.quantity) || 0) > 0).map(e => {
-    const cont = normCont(e.container), qty = Number(e.quantity) || 0;
-    return { beer: e.beer, code: beerCodeFor(e.beer), container: cont, qty, hl: +((CONTAINER_HL[cont] || 0) * qty).toFixed(2), ddm: e.ddm || '', lot: e.lot || '' };
-  }).sort((a, b) => (a.ddm || '').localeCompare(b.ddm || '') || a.beer.localeCompare(b.beer, 'fr'));
-  return { fmts, rows, totals, totalHL, expired };
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const cut6 = new Date(today); cut6.setMonth(cut6.getMonth() + 6);
+  const mapLot = e => { const cont = normCont(e.container), qty = Number(e.quantity) || 0;
+    return { beer: e.beer, code: beerCodeFor(e.beer), container: cont, qty, hl: +((CONTAINER_HL[cont] || 0) * qty).toFixed(2), ddm: e.ddm || '', lot: e.lot || '' }; };
+  const bySoonest = (a, b) => (a.ddm || '').localeCompare(b.ddm || '') || a.beer.localeCompare(b.beer, 'fr');
+  const expired = [], soon = [];
+  entries.forEach(e => {
+    const qty = Number(e.quantity) || 0, cont = normCont(e.container);
+    if (!e.beer || qty <= 0 || !CONTAINER_HL[cont] || !e.ddm) return;
+    const dt = new Date(e.ddm + 'T00:00:00'); if (isNaN(dt.getTime())) return;
+    if (dt < today) expired.push(mapLot(e));
+    else if (dt <= cut6) soon.push(mapLot(e));
+  });
+  expired.sort(bySoonest); soon.sort(bySoonest);
+  return { fmts, rows, totals, totalHL, expired, soon };
 }
 
 function recapPDF() {
@@ -1770,6 +1782,11 @@ function recapPDF() {
     `<tr><td>${r.beer}${r.code ? ` <span class="rc-code">${r.code}</span>` : ''}</td>${r.perF.map(v => `<td class="num">${v ? fmtInt(v) : '—'}</td>`).join('')}<td class="num rc-hl">${fmtHL(r.hl)}</td></tr>`
   ).join('');
   const totRow = `<tr class="rc-tot"><td>Total</td>${R.totals.map(v => `<td class="num">${fmtInt(v)}</td>`).join('')}<td class="num rc-hl">${fmtHL(R.totalHL)}</td></tr>`;
+  const soonSec = R.soon.length
+    ? `<h2 class="rc-h2 rc-h2-soon">DDM proches (&lt; 6 mois) — ${R.soon.length} lot(s)</h2>
+       <table class="rc-table rc-soon"><thead><tr><th>Bière</th><th>Format</th><th class="num">Qté</th><th class="num">HL</th><th>DDM</th><th>Lot</th></tr></thead>
+       <tbody>${R.soon.map(e => `<tr><td>${e.beer}</td><td>${e.container}</td><td class="num">${fmtInt(e.qty)}</td><td class="num">${fmtHL(e.hl)}</td><td>${fmtDate(e.ddm)}</td><td>${e.lot || '—'}</td></tr>`).join('')}</tbody></table>`
+    : '';
   const exp = R.expired.length
     ? `<h2 class="rc-h2">DDM dépassées — ${R.expired.length} lot(s)</h2>
        <table class="rc-table rc-exp"><thead><tr><th>Bière</th><th>Format</th><th class="num">Qté</th><th class="num">HL</th><th>DDM</th><th>Lot</th></tr></thead>
@@ -1778,7 +1795,7 @@ function recapPDF() {
   $('recapPrint').innerHTML =
     `<div class="rc-head"><div><div class="rc-title">Inventaire — récapitulatif</div><div class="rc-sub">Brasserie Madame Nature</div></div><div class="rc-date">${dateStr}</div></div>
      <table class="rc-table"><thead><tr><th>Bière</th>${th}<th class="num">Total HL</th></tr></thead><tbody>${body}${totRow}</tbody></table>
-     ${exp}
+     ${soonSec}${exp}
      <div class="rc-foot">${R.rows.length} bière(s) · ${fmtHL(R.totalHL)} HL au total — édité le ${new Date().toLocaleDateString('fr-FR')}</div>`;
   document.body.classList.add('print-recap');
   const cleanup = () => { document.body.classList.remove('print-recap'); window.removeEventListener('afterprint', cleanup); };
@@ -1795,11 +1812,10 @@ function recapXLSX() {
   const stock = [head, ...R.rows.map(r => [r.beer, r.code, ...r.perF, r.hl]), ['Total', '', ...R.totals, R.totalHL]];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(stock), 'Stock');
-  const eh = ['Bière', 'Code', 'Format', 'Quantité', 'HL', 'DDM', 'Lot'];
-  const edata = R.expired.length
-    ? [eh, ...R.expired.map(e => [e.beer, e.code, e.container, e.qty, e.hl, e.ddm, e.lot])]
-    : [eh, ['Aucun lot à DDM dépassée', '', '', '', '', '', '']];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(edata), 'DDM dépassées');
+  const lh = ['Bière', 'Code', 'Format', 'Quantité', 'HL', 'DDM', 'Lot'];
+  const lotRows = (list, empty) => list.length ? [lh, ...list.map(e => [e.beer, e.code, e.container, e.qty, e.hl, e.ddm, e.lot])] : [lh, [empty, '', '', '', '', '', '']];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(lotRows(R.soon, 'Aucun lot à DDM < 6 mois')), 'DDM proches');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(lotRows(R.expired, 'Aucun lot à DDM dépassée')), 'DDM dépassées');
   XLSX.writeFile(wb, 'Inventaire_recap_' + new Date().toISOString().slice(0, 10) + '.xlsx');
   toast('Export Excel téléchargé');
 }
