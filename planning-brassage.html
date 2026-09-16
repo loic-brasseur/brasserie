@@ -787,7 +787,7 @@ footer {
 <section>
   <div class="section-head">
     <h2>Calendrier hebdomadaire</h2>
-    <span class="hint">S21 à S52 · Impair = Brassage · Pair = Conditionnement (S+3)</span>
+    <span class="hint">S21 à S52 · Brassage impair, puis pair dès S39 · Conditionnement S+3 · type ajustable par semaine (⇄)</span>
   </div>
   <div class="view-toggle">
     <button id="viewCalBtn" class="active">Vue calendrier</button>
@@ -1027,7 +1027,15 @@ const STORAGE_KEY = 'brasserie_planning_v1';
 
 // ============ CONSTANTS ============
 const YEAR = 2026;
-const BREW_WEEKS = []; for (let w = 21; w <= 51; w += 2) BREW_WEEKS.push(w);
+// Type de semaine : règle de base avec bascule à S39 (brassage passe en paire,
+// conditionnement en impair) + surcharges manuelles par semaine.
+const FLIP_WEEK = 39;
+let weekTypeOverrides = {};                         // {week: 'brew'|'cond'} — forçage manuel
+function baseIsBrew(w){ return w < FLIP_WEEK ? (w % 2 === 1) : (w % 2 === 0); }
+function isBrewWeek(w){ const o = weekTypeOverrides[w]; return o ? (o === 'brew') : baseIsBrew(w); }
+let BREW_WEEKS = [];
+function recomputeBrewWeeks(){ BREW_WEEKS = []; for (let w = 21; w <= 51; w++) if (isBrewWeek(w)) BREW_WEEKS.push(w); }
+recomputeBrewWeeks();
 const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
 // Volume (HL) d'une unité de chaque contenant — pour convertir l'inventaire (en unités) en HL
@@ -1101,14 +1109,24 @@ function yieldFor(brut) {
 // Returns normalized mix for a beer, applying containerExclusions
 function getEffectiveMix(beer) {
   const raw = DATA.mix[beer] || { keg: 0.7, bottle33: 0.15, bottle75: 0.15 };
-  const ex = containerExclusions[beer] || {};
-  const k  = ex.keg      ? 0 : (raw.keg      || 0);
-  const b3 = ex.bottle33 ? 0 : (raw.bottle33  || 0);
-  const b7 = ex.bottle75 ? 0 : (raw.bottle75  || 0);
-  const tot = k + b3 + b7;
-  return tot > 0
-    ? { keg: k/tot, bottle33: b3/tot, bottle75: b7/tot }
-    : { keg: 1, bottle33: 0, bottle75: 0 };
+  const ex = containerExclusions[beer];
+  // Pas de personnalisation : on garde les proportions historiques telles quelles.
+  if (!ex) {
+    const t = (raw.keg||0) + (raw.bottle33||0) + (raw.bottle75||0);
+    return t > 0 ? { keg:(raw.keg||0)/t, bottle33:(raw.bottle33||0)/t, bottle75:(raw.bottle75||0)/t }
+                 : { keg:1, bottle33:0, bottle75:0 };
+  }
+  // Personnalisé : on ne garde que les formats cochés. Un format coché mais absent
+  // du mix historique reçoit la moyenne des formats présents (part égale si aucun),
+  // pour qu'activer un format non prévu produise réellement du volume.
+  const allowed = ['keg','bottle33','bottle75'].filter(f => !ex[f]);
+  if (!allowed.length) return { keg:1, bottle33:0, bottle75:0 };
+  const rawW = f => Math.max(0, raw[f] || 0);
+  const nz = allowed.filter(f => rawW(f) > 0);
+  const avg = nz.length ? nz.reduce((s,f)=>s+rawW(f),0)/nz.length : 1;
+  const w = {}; let tot = 0;
+  allowed.forEach(f => { const v = rawW(f) > 0 ? rawW(f) : avg; w[f] = v; tot += v; });
+  return { keg:(w.keg||0)/tot, bottle33:(w.bottle33||0)/tot, bottle75:(w.bottle75||0)/tot };
 }
 
 // Fractions bouteille/fût effectives d'une bière (après exclusions)
@@ -1162,6 +1180,37 @@ function condSplitFor(brewWeek, beer, brews) {
     bottle33Hl: +b33.toFixed(1), bottle75Hl: +b75.toFixed(1),
     kegHl: +keg.toFixed(1), week: brewWeek + 3, overridden: false
   };
+}
+
+// Rendu des items de conditionnement (réutilisé dans les cartes condit. ET brassage au besoin)
+function condItemsHtml(items) {
+  return (items || []).map(c => {
+    const moved = (c.condWeek - c.brewWeek) !== 3;
+    return `<div class="cond-item ${c.overridden ? 'overridden' : ''}" title="${moved ? 'Décalé : brassage S' + c.brewWeek + ', condit. S' + c.condWeek : 'Brassage S' + c.brewWeek}">
+      <div>
+        <div class="cond-name">${c.beer}</div>
+        <div class="cond-volumes">${c.kegHl > 0 ? `<span class="v">Fût ${c.kegHl}</span>` : ''}${c.bottle33Hl > 0 ? `<span class="v">B33 ${c.bottle33Hl}</span>` : ''}${c.bottle75Hl > 0 ? `<span class="v">B75 ${c.bottle75Hl}</span>` : ''}</div>
+      </div>
+      <div class="cond-days">${c.daysKeg + c.daysBottle}j</div>
+      <button class="cond-edit" data-bw="${c.brewWeek}" data-beer="${encodeURIComponent(c.beer)}" title="Modifier le mix / décaler">✎</button>
+    </div>`;
+  }).join('');
+}
+
+// Forçage manuel du type d'une semaine (brassage ⇄ conditionnement)
+function toggleWeekType(w) {
+  const currentlyBrew = isBrewWeek(w);
+  if (currentlyBrew && (brewsByWeek[w] || []).length) {
+    showToast('Déplace ou supprime d’abord les brassins de S' + w);
+    return;
+  }
+  const newType = currentlyBrew ? 'cond' : 'brew';
+  if (newType === (baseIsBrew(w) ? 'brew' : 'cond')) delete weekTypeOverrides[w]; // retour à la règle auto
+  else weekTypeOverrides[w] = newType;
+  recomputeBrewWeeks();
+  saveOverrides();
+  render();
+  showToast('S' + w + ' → ' + (newType === 'brew' ? 'Brassage' : 'Conditionnement'));
 }
 
 function isoWeekDates(year, week) {
@@ -1754,7 +1803,7 @@ function render() {
   });
 
   for (let w = 21; w <= 52; w++) {
-    const isBrew = w % 2 === 1;
+    const isBrew = isBrewWeek(w);
     if (isBrew) {
       const items = brewsByWeek[w] || [];
       const load = items.reduce((s, b) => s + b.brut, 0);
@@ -1776,7 +1825,10 @@ function render() {
             <span class="week-num">S${w}</span>
             <span class="week-date" style="margin-left:8px">${fmtWeekRange(w)}</span>
           </div>
-          <span class="week-type">Brassage</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="week-type">Brassage${weekTypeOverrides[w] ? ' •' : ''}</span>
+            <button class="week-type-toggle" data-w="${w}" title="Basculer cette semaine en conditionnement" style="border:none;background:transparent;cursor:pointer;font-size:14px;color:var(--text-muted);padding:0 2px">⇄</button>
+          </div>
         </div>
         <div class="week-load">
           <span>Charge</span>
@@ -1820,6 +1872,7 @@ function render() {
           }
         </div>
         <button class="add-brew-btn" data-w="${w}">+ Ajouter un brassin</button>
+        ${(condByWeek[w] && condByWeek[w].length) ? `<div class="cond-list" style="margin-top:8px;border-top:1px dashed var(--border);padding-top:6px"><div style="font-size:10px;color:var(--text-muted);margin-bottom:3px">Conditionnement cette semaine</div>${condItemsHtml(condByWeek[w])}</div>` : ''}
       </div>`;
     } else {
       const items = condByWeek[w] || [];
@@ -1836,7 +1889,10 @@ function render() {
             <span class="week-num">S${w}</span>
             <span class="week-date" style="margin-left:8px">${fmtWeekRange(w)}</span>
           </div>
-          <span class="week-type">Condit.</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="week-type">Condit.${weekTypeOverrides[w] ? ' •' : ''}</span>
+            <button class="week-type-toggle" data-w="${w}" title="Basculer cette semaine en brassage" style="border:none;background:transparent;cursor:pointer;font-size:14px;color:var(--text-muted);padding:0 2px">⇄</button>
+          </div>
         </div>
         <div class="week-load">
           <span>Jours</span>
@@ -1845,25 +1901,7 @@ function render() {
         <div class="load-bar"><div class="load-bar-fill ${zoneClass}" style="width:${loadPct}%"></div></div>
         <div style="height:8px"></div>
         <div class="cond-list">
-          ${items.length === 0 ? '<div class="week-empty">Pas de conditionnement</div>' :
-            items.map((c, i) => {
-              const offset = c.condWeek - c.brewWeek;
-              const moved = offset !== 3;
-              return `
-              <div class="cond-item ${c.overridden ? 'overridden' : ''}" title="${moved ? 'Décalé : brassage S' + c.brewWeek + ', condit. S' + c.condWeek : 'Brassage S' + c.brewWeek}">
-                <div>
-                  <div class="cond-name">${c.beer}</div>
-                  <div class="cond-volumes">
-                    ${c.kegHl > 0 ? `<span class="v">Fût ${c.kegHl}</span>` : ''}
-                    ${c.bottle33Hl > 0 ? `<span class="v">B33 ${c.bottle33Hl}</span>` : ''}
-                    ${c.bottle75Hl > 0 ? `<span class="v">B75 ${c.bottle75Hl}</span>` : ''}
-                  </div>
-                </div>
-                <div class="cond-days">${c.daysKeg + c.daysBottle}j</div>
-                <button class="cond-edit" data-bw="${c.brewWeek}" data-beer="${encodeURIComponent(c.beer)}" title="Modifier le mix / décaler">✎</button>
-              </div>`;
-            }).join('')
-          }
+          ${items.length === 0 ? '<div class="week-empty">Pas de conditionnement</div>' : condItemsHtml(items)}
         </div>
       </div>`;
     }
@@ -1872,6 +1910,11 @@ function render() {
   grid.innerHTML = html;
   applySearchFilter();
   if (currentView === 'mat') renderMatrix();
+
+  // Bascule manuelle brassage/conditionnement par semaine
+  grid.querySelectorAll('.week-type-toggle').forEach(btn => {
+    btn.addEventListener('click', e => { e.stopPropagation(); toggleWeekType(parseInt(btn.dataset.w)); });
+  });
 
   // Wire up buttons
   grid.querySelectorAll('.brew-remove').forEach(btn => {
@@ -2725,9 +2768,9 @@ async function exportExcelMatrix() {
     const wkCell = ws.getCell(rowIdx, 2);
     wkCell.value = w;
     wkCell.alignment = {horizontal: 'center', vertical: 'middle'};
-    wkCell.font = {bold: w % 2 === 1, size: 10};
+    wkCell.font = {bold: isBrewWeek(w), size: 10};
     wkCell.fill = {type: 'pattern', pattern: 'solid',
-                   fgColor: {argb: w % 2 === 1 ? 'FFF8F4EB' : 'FFFFFFFF'}};
+                   fgColor: {argb: isBrewWeek(w) ? 'FFF8F4EB' : 'FFFFFFFF'}};
     wkCell.border = thinBorder;
 
     // Cuve cells
@@ -3339,7 +3382,7 @@ $('importExcelBtn').addEventListener('click', openImportModal);
 function saveOverrides() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
-      params, manualBrews, removedAutoIds, condOverrides, exceptionIds, cuveAssignments, containerExclusions, initialStock, initialStockSplit
+      params, manualBrews, removedAutoIds, condOverrides, exceptionIds, cuveAssignments, containerExclusions, weekTypeOverrides, initialStock, initialStockSplit
     }));
   } catch (e) {}
 }
@@ -3355,6 +3398,8 @@ function loadOverrides() {
       if (d.exceptionIds) exceptionIds = d.exceptionIds;
       if (d.cuveAssignments) cuveAssignments = d.cuveAssignments;
       if (d.containerExclusions) containerExclusions = d.containerExclusions;
+      if (d.weekTypeOverrides) weekTypeOverrides = d.weekTypeOverrides;
+      recomputeBrewWeeks();
       if (d.initialStock) initialStock = d.initialStock;
       if (d.initialStockSplit) initialStockSplit = d.initialStockSplit;
       syncParamInputs();
@@ -3417,6 +3462,8 @@ $('resetBtn').addEventListener('click', () => {
   exceptionIds = [];
   cuveAssignments = {};
   containerExclusions = {};
+  weekTypeOverrides = {};
+  recomputeBrewWeeks();
   initialStock = {};
   initialStockSplit = {};
   saveOverrides();
@@ -3460,7 +3507,7 @@ $('exportPlanningBtn').addEventListener('click', async () => {
 $('exportJsonBtn').addEventListener('click', () => {
   const data = JSON.stringify({
     version: 3,
-    params, manualBrews, removedAutoIds, condOverrides, exceptionIds, cuveAssignments, containerExclusions, initialStock, initialStockSplit,
+    params, manualBrews, removedAutoIds, condOverrides, exceptionIds, cuveAssignments, containerExclusions, weekTypeOverrides, initialStock, initialStockSplit,
     importedData: DATA
   }, null, 2);
   const blob = new Blob([data], { type: 'application/json' });
@@ -3495,6 +3542,8 @@ $('importFile').addEventListener('change', e => {
       if (d.exceptionIds) exceptionIds = d.exceptionIds;
       if (d.cuveAssignments) cuveAssignments = d.cuveAssignments;
       if (d.containerExclusions) containerExclusions = d.containerExclusions;
+      weekTypeOverrides = d.weekTypeOverrides || {};
+      recomputeBrewWeeks();
       if (d.initialStock) initialStock = d.initialStock;
       if (d.initialStockSplit) initialStockSplit = d.initialStockSplit;
       if (d.importedData && d.importedData.beers && d.importedData.monthlyNeed) {
@@ -3680,16 +3729,16 @@ function openExclusionsModal() {
     return `<tr ${bg}>
       <td style="padding:5px 10px;font-size:12px">${b.name}</td>
       <td style="text-align:center;padding:5px 12px">
-        ${kPct > 0 ? `<input type="checkbox" ${!ex.keg?'checked':''} data-beer="${b.name}" data-cont="keg">
-        <br><span style="font-size:10px;color:var(--text-muted)">${kPct}%</span>` : '<span style="color:#CCC;font-size:11px">—</span>'}
+        <input type="checkbox" ${!ex.keg?'checked':''} data-beer="${b.name}" data-cont="keg">
+        <br><span style="font-size:10px;color:var(--text-muted)">${kPct}%</span>
       </td>
       <td style="text-align:center;padding:5px 12px">
-        ${b3Pct > 0 ? `<input type="checkbox" ${!ex.bottle33?'checked':''} data-beer="${b.name}" data-cont="bottle33">
-        <br><span style="font-size:10px;color:var(--text-muted)">${b3Pct}%</span>` : '<span style="color:#CCC;font-size:11px">—</span>'}
+        <input type="checkbox" ${!ex.bottle33?'checked':''} data-beer="${b.name}" data-cont="bottle33">
+        <br><span style="font-size:10px;color:var(--text-muted)">${b3Pct}%</span>
       </td>
       <td style="text-align:center;padding:5px 12px">
-        ${b7Pct > 0 ? `<input type="checkbox" ${!ex.bottle75?'checked':''} data-beer="${b.name}" data-cont="bottle75">
-        <br><span style="font-size:10px;color:var(--text-muted)">${b7Pct}%</span>` : '<span style="color:#CCC;font-size:11px">—</span>'}
+        <input type="checkbox" ${!ex.bottle75?'checked':''} data-beer="${b.name}" data-cont="bottle75">
+        <br><span style="font-size:10px;color:var(--text-muted)">${b7Pct}%</span>
       </td>
     </tr>`;
   }).join('');
