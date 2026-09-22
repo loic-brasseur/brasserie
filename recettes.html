@@ -196,12 +196,75 @@
     .col-head{display:none}
   }
 
+  /* ============ COÛT DE REVIENT ============ */
+  .cost-panel{margin-top:14px;animation:rise .6s ease .1s both}
+  .cost-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .cost-actions button{padding:6px 12px;font-size:12.5px}
+  .cost-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:14px 16px 2px}
+  .cost-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px 11px;position:relative;overflow:hidden}
+  .cost-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:#8a7a64}
+  .cost-card.bio::before{background:var(--green)}
+  .cost-card.delta::before{background:var(--amber)}
+  .cost-card .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-soft)}
+  .cost-card .val{font-family:var(--serif);font-size:27px;font-weight:600;margin-top:4px;line-height:1;font-variant-numeric:tabular-nums}
+  .cost-card.bio .val{color:var(--green)}
+  .cost-card.delta .val{color:var(--amber)}
+  .cost-card .sm{font-size:11.5px;color:var(--ink-soft);margin-top:6px;font-variant-numeric:tabular-nums}
+  .cost-warn{margin:12px 16px 0;padding:9px 12px;border-radius:9px;background:rgba(168,84,27,.07);border:1px solid rgba(168,84,27,.22);color:var(--amber);font-size:12.5px;line-height:1.45}
+  .cost-warn b{font-weight:700}
+  .cost-warn button{margin-left:8px;padding:4px 10px;font-size:11.5px;background:var(--amber);color:#fff;border-radius:7px;vertical-align:baseline}
+  .cost-body{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;padding:12px 16px 16px;align-items:start}
+  .cost-tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table.ct{width:100%;border-collapse:collapse;min-width:700px;font-variant-numeric:tabular-nums}
+  table.ct th{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;padding:5px 8px;text-align:right;white-space:nowrap}
+  table.ct th.l,table.ct td.l{text-align:left}
+  table.ct tr.grp th{padding-bottom:2px}
+  table.ct tr.grp th.gc span,table.ct tr.grp th.gb span{display:block;border-bottom:1.5px solid currentColor;padding-bottom:3px;text-align:center}
+  table.ct tr.grp th.gb{color:var(--green)}
+  table.ct tr.cols th{border-bottom:1px solid var(--line-strong)}
+  table.ct td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;font-size:13px;white-space:nowrap;vertical-align:middle}
+  table.ct td.l{white-space:normal}
+  table.ct .rn{font-weight:600;line-height:1.2}
+  table.ct .rn small{display:block;font-weight:500;color:var(--ink-soft);font-size:10.5px;margin-top:1px}
+  table.ct tr.sec td{background:var(--bg2);font-weight:700;font-size:12.5px;border-bottom:1px solid var(--line-strong)}
+  table.ct tr.sec td.l{font-family:var(--serif);font-size:14px;font-weight:600}
+  table.ct tr.tot td{font-weight:700;font-size:14px;border-top:2px solid var(--ink);border-bottom:none;padding-top:9px}
+  table.ct tr.tot td.l{font-family:var(--serif);font-size:15px;font-weight:600}
+  table.ct .pw{display:inline-flex;align-items:center;gap:3px;justify-content:flex-end}
+  table.ct .pw small{font-size:10px;color:var(--ink-soft)}
+  input.pz{width:78px;padding:5px 7px;font-size:12.5px;text-align:right;border-radius:7px;font-variant-numeric:tabular-nums}
+  input.pz.miss{border-color:rgba(168,84,27,.55);background:rgba(168,84,27,.05)}
+  input.pz::placeholder{color:#b9a88c;font-size:11px}
+  .c-bio{color:var(--green)}
+  .c-ec{color:var(--amber);font-weight:600}
+  .c-na{color:#a99a82;font-weight:500}
+  .cost-side h4{font-family:var(--serif);font-size:14px;font-weight:600;margin:4px 0 6px}
+  table.cf{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+  table.cf th{font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);font-weight:700;padding:4px 6px;text-align:right;border-bottom:1px solid var(--line-strong)}
+  table.cf th:first-child,table.cf td:first-child{text-align:left}
+  table.cf td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  .cost-why{font-size:12px;color:var(--ink-soft);margin-top:12px;line-height:1.45}
+  .cost-why b{color:var(--amber)}
+  .cost-note{font-size:11px;color:var(--ink-soft);margin:10px 0 0;line-height:1.45}
+  .modal.wide{max-width:980px}
+  .modal.wide .panel-b{max-height:74vh;overflow:auto}
+  .tar-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .tar-tools input[type=search]{flex:1;min-width:180px;width:auto}
+  .tar-tools label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-soft);white-space:nowrap;cursor:pointer}
+  .tar-tools label input{width:auto;margin:0}
+  table.ct tr.miss td:first-child{box-shadow:inset 3px 0 0 var(--amber)}
+  table.ct td.tar-used{font-size:11px;color:var(--ink-soft);white-space:normal;text-align:left;line-height:1.35}
+  .tag-est{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--amber);background:rgba(168,84,27,.1);border-radius:4px;padding:1px 5px;margin-left:6px;vertical-align:1px}
+  .sum-open{padding:4px 10px;font-size:12px}
+  @media(max-width:980px){.cost-body{grid-template-columns:1fr}}
+  @media(max-width:560px){.cost-cards{grid-template-columns:1fr}.cost-card .val{font-size:23px}}
+
   /* ============ PRINT / PDF ============ */
   .print-sheet{display:none}
   @media print{
     @page{size:A4 portrait;margin:22mm 20mm}
     body{background:#fff!important}
-    .grain,.wrap{display:none!important}
+    .grain,.wrap,.modal-bg{display:none!important}
     .print-sheet{display:block!important;color:#1c140d;font-family:var(--serif);line-height:1.5;
       -webkit-print-color-adjust:exact;print-color-adjust:exact}
 
@@ -244,6 +307,30 @@
     /* Notes */
     .ps-notes{font-family:var(--sans);font-size:12px;white-space:pre-wrap;line-height:1.6;color:#3a2c1f;
       background:#fcf8ef;border:1px solid #e6d8bd;border-left:3px solid #cf982b;border-radius:8px;padding:12px 15px}
+
+    /* Coût de revient */
+    .ps-compact .ps-head{margin-bottom:13px;padding-bottom:9px}
+    .ps-compact .ps-head h1{font-size:26px}
+    .ps-compact .ps-stats{margin-bottom:10px}
+    .ps-compact .ps-stat{padding:9px 6px 8px}
+    .ps-compact .ps-stat .v{font-size:18px}
+    .ps-compact .ps-sec{margin-bottom:9px}
+    .ps-compact .ps-sec h2{font-size:11px;margin:0 0 5px;padding-bottom:4px}
+    .ps-compact .ps-table{font-size:10.5px}
+    .ps-compact .ps-table th{padding:2.5px 7px 3px;font-size:8px;letter-spacing:.04em;white-space:nowrap}
+    .ps-compact .ps-table td{padding:2.5px 7px}
+    .ps-2col{display:flex;gap:16px;margin-top:8px}
+    .ps-2col .ps-table{flex:1}
+    .ps-compact .ps-foot{margin-top:8px;padding-top:7px}
+    .ps-table td.bio,.ps-table th.bio{color:#4f6b2f}
+    .ps-table td.ec,.ps-table th.ec{color:#a8541b;font-weight:600}
+    .ps-table tfoot td{font-weight:700;border-top:1.5px solid #d8c7a8;border-bottom:none;background:#fff}
+    .ps-table tr.ps-strong td{font-weight:700;background:#f5edda}
+    .ps-sub{color:#8a7a64;font-size:10px}
+    .ps-stat .v.ps-bio{color:#4f6b2f}
+    .ps-stat .v.ps-ec{color:#a8541b}
+    .ps-warn{font-family:var(--sans);font-size:11px;color:#a8541b;margin:-4px 0 14px}
+    .ps-note{font-family:var(--sans);font-size:10px;color:#8a7a64;margin:2px 0 0;line-height:1.5}
 
     /* Pied de page */
     .ps-foot{margin-top:30px;padding-top:10px;border-top:1px solid #d8c7a8;font-family:var(--sans);
@@ -370,6 +457,11 @@
         <h3>Levure</h3>
         <div id="yeastList"></div>
       </div>
+      <div class="recipe-sec">
+        <h3>Épices &amp; autres <span class="tot" id="beerSoftTot"></span></h3>
+        <div class="col-head soft"><span>Ingrédient</span><span style="text-align:center">Quantité</span><span style="text-align:center">Unité</span><span></span></div>
+        <div id="beerSoftList"></div>
+      </div>
       </div>
       <div id="softComp" style="display:none">
         <div class="recipe-sec">
@@ -381,11 +473,38 @@
     </div>
   </div>
 
+  <!-- COÛT DE REVIENT -->
+  <div class="panel cost-panel" id="costPanel">
+    <div class="panel-h"><h2>Coût de revient</h2>
+      <div class="cost-actions">
+        <button class="btn-ghost" onclick="openTarifs(false)">Tarifs</button>
+        <button class="btn-ghost" onclick="openCostAll()">Toutes les recettes</button>
+        <button class="btn-gold" onclick="exportCostPDF()">PDF coût</button>
+      </div>
+    </div>
+    <div class="cost-cards">
+      <div class="cost-card"><div class="lbl">Conventionnel</div><div class="val" id="cstC">–</div><div class="sm" id="cstCl">–</div></div>
+      <div class="cost-card bio"><div class="lbl">Bio</div><div class="val" id="cstB">–</div><div class="sm" id="cstBl">–</div></div>
+      <div class="cost-card delta"><div class="lbl">Surcoût bio</div><div class="val" id="cstD">–</div><div class="sm" id="cstDl">–</div></div>
+    </div>
+    <div id="costWarn"></div>
+    <div class="cost-body">
+      <div class="cost-tw"><table class="ct" id="costTable"></table></div>
+      <div class="cost-side">
+        <h4>Par contenant</h4>
+        <table class="cf" id="costFmt"></table>
+        <div class="cost-why" id="costWhy"></div>
+        <p class="cost-note">Prix HT des matières premières, hors énergie, conditionnement et accises. Un prix modifié ici s'applique à toutes les recettes qui utilisent l'ingrédient.</p>
+      </div>
+    </div>
+  </div>
+
   <p style="font-size:11.5px;color:var(--ink-soft);max-width:760px;margin:22px auto 0;text-align:center;line-height:1.5">
     Valeurs EBC, extrait et compositions indicatives (fiches techniques fabricants) — ajustables ; à recouper avec les spec sheets de ton lot.
     Bière : couleur (Morey), amertume (Tinseth), DI/DF/ABV standard ; le cold steep contribue à la couleur mais peu à la densité.
     Soft : sucre (g/L), °Brix et acidité (g/L) estimés à partir des teneurs des ingrédients ; couleur indicative.
     Le bouton « + Ingrédient manuel » ajoute un ingrédient personnalisé selon le mode actif.
+    Coût de revient : un prix HT conventionnel et bio par ingrédient, commun à toutes les recettes (bouton « Tarifs »).
   </p>
 </div>
 
@@ -448,6 +567,34 @@
         <button class="btn-primary" id="manualSave" onclick="saveIngredient()">Ajouter à la recette</button>
         <button class="btn-ghost" onclick="closeManual()">Annuler</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TARIFS -->
+<div class="modal-bg" id="tarifsModal">
+  <div class="modal wide">
+    <div class="panel-h"><h2>Tarifs des ingrédients</h2><button class="btn-ghost" style="padding:6px 12px" onclick="closeTarifs()">Fermer</button></div>
+    <div class="panel-b">
+      <div class="tar-tools">
+        <input type="search" id="tarSearch" placeholder="Rechercher un ingrédient…" oninput="renderTarifs()">
+        <label><input type="checkbox" id="tarMiss" onchange="renderTarifs()"> Seulement les prix à saisir</label>
+      </div>
+      <div class="cost-tw"><table class="ct" id="tarTable"></table></div>
+      <p class="cost-note">Prix HT en €/kg, ou €/L pour les liquides. La liste reprend les ingrédients de tes recettes enregistrées et de la recette en cours ; les autres ingrédients se tarifent depuis le catalogue (bouton ✎).</p>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL COÛT DE TOUTES LES RECETTES -->
+<div class="modal-bg" id="costAllModal">
+  <div class="modal wide">
+    <div class="panel-h"><h2>Coût de revient par recette</h2>
+      <div style="display:flex;gap:8px"><button class="btn-gold" style="padding:6px 12px" onclick="exportCostAllPDF()">PDF</button><button class="btn-ghost" style="padding:6px 12px" onclick="closeCostAll()">Fermer</button></div>
+    </div>
+    <div class="panel-b">
+      <div class="cost-tw"><table class="ct" id="costAllTable"></table></div>
+      <p class="cost-note" id="costAllNote"></p>
     </div>
   </div>
 </div>
@@ -682,6 +829,10 @@ const SOFTS=[
 {n:"Acide ascorbique (vitamine C)",c:"additif",sucre:0,acide:0,ebc:0,u:"g",g:1},
 {n:"Écorce de citron",c:"aromate",sucre:4,acide:1,ebc:6,u:"g",g:1},
 {n:"Écorce d'orange",c:"aromate",sucre:8,acide:1,ebc:12,u:"g",g:1},
+{n:"Écorce d'orange amère",c:"aromate",sucre:8,acide:1,ebc:12,u:"g",g:1},
+{n:"Gingembre (poudre)",c:"aromate",sucre:2,acide:0,ebc:5,u:"g",g:1},
+{n:"Coriandre (poudre)",c:"aromate",sucre:0,acide:0,ebc:5,u:"g",g:1},
+{n:"Cannelle de Ceylan (poudre)",c:"aromate",sucre:2,acide:0,ebc:60,u:"g",g:1},
 {n:"Écorce de citron vert",c:"aromate",sucre:2,acide:2,ebc:5,u:"g",g:1},
 {n:"Écorce de pamplemousse",c:"aromate",sucre:6,acide:1,ebc:8,u:"g",g:1},
 {n:"Zeste de citron (séché)",c:"aromate",sucre:2,acide:0,ebc:4,u:"g",g:1},
@@ -753,7 +904,8 @@ function renderTabs(){
   if(state.mode==='biere'){
     t.innerHTML=`<div class="tab ${curTab==='malt'?'active':''}" data-tab="malt" onclick="switchTab('malt')">Malts</div>
       <div class="tab ${curTab==='hop'?'active':''}" data-tab="hop" onclick="switchTab('hop')">Houblons</div>
-      <div class="tab ${curTab==='yeast'?'active':''}" data-tab="yeast" onclick="switchTab('yeast')">Levures</div>`;
+      <div class="tab ${curTab==='yeast'?'active':''}" data-tab="yeast" onclick="switchTab('yeast')">Levures</div>
+      <div class="tab ${curTab==='soft'?'active':''}" data-tab="soft" onclick="switchTab('soft')">Épices &amp; autres</div>`;
   }else{
     t.innerHTML=`<div class="tab active" data-tab="soft">Ingrédients soft</div>`;
   }
@@ -777,7 +929,7 @@ function switchMode(m){
 }
 
 /* ============================ BROWSER ============================ */
-function switchTab(t){curTab=t;curFilter=FILTERS[t][0][0];
+function switchTab(t){curTab=t;curFilter=(t==='soft'&&state.mode==='biere')?'aromate':FILTERS[t][0][0];
   renderTabs();
   document.getElementById('searchBox').value="";renderSubfilters();renderBrowser();}
 function renderSubfilters(){
@@ -881,17 +1033,20 @@ function renderRecipe(){
       <span>g totaux (≈${state.yeast?Math.round(state.yeast.g/ (getVol()/100)):0} g/hL)</span><span>atténuation %</span></div>`;
   }
   document.getElementById('yeastList').innerHTML=yh;
-  // soft
+  // soft (mode soft) / épices & autres (mode bière)
+  const beerM=state.mode==='biere';
   let sh="";
-  if(!state.soft.length)sh='<div class="empty">Ajoute des ingrédients depuis la liste →</div>';
+  if(!state.soft.length)sh=beerM?'<div class="empty">Épices, sucres, acides… depuis l’onglet « Épices &amp; autres » →</div>':'<div class="empty">Ajoute des ingrédients depuis la liste →</div>';
   state.soft.forEach((s,i)=>{
+    const info=beerM?`<span id="sdose${i}">${softDose(s)}</span>`:`${s.sucre?` · ${s.sucre}% sucre`:''}${s.acide?` · ${s.acide}% acide`:''}`;
     sh+=`<div class="ri soft">
-      <span class="rn">${s.n}<small>${SOFTCAT[s.c]}${s.sucre?` · ${s.sucre}% sucre`:''}${s.acide?` · ${s.acide}% acide`:''}</small></span>
+      <span class="rn">${s.n}<small>${SOFTCAT[s.c]}${info}</small></span>
       <input type="number" value="${s.qty}" min="0" step="0.1" oninput="updSoft(${i},'qty',this.value)">
       <select onchange="updSoft(${i},'u',this.value)">${unitOpts(s.u)}</select>
       <button class="del" onclick="rmSoft(${i})">×</button></div>`;
   });
-  document.getElementById('softList').innerHTML=sh;
+  document.getElementById('softList').innerHTML=beerM?'':sh;
+  document.getElementById('beerSoftList').innerHTML=beerM?sh:'';
 }
 function upd(type,i,key,val){
   if(type==='malt'){state.malts[i][key]= key==='cs'?val:parseFloat(val)||0;}
@@ -916,7 +1071,7 @@ function opts(arr,sel){return arr.map(o=>`<option value="${o[0]}" ${o[0]===sel?'
 function gv(id){const el=document.getElementById(id);return el?el.value:'';}
 function num(id,def){const v=parseFloat(gv(id));return isNaN(v)?def:v;}
 
-function ingFields(type,o){
+function ingFieldsBase(type,o){
   o=o||{};
   if(type==='malt'){
     const cats=[['base','Base'],['caramel','Caramélisé'],['roasted','Torréfié'],['special','Spéciaux'],['bio','Bio']];
@@ -965,11 +1120,26 @@ function ingFields(type,o){
      <div class="field"><label>Couleur EBC</label><input id="m_ebc" type="number" value="${o.ebc!=null?o.ebc:0}" min="0"></div>
    </div>`;
 }
+function ingFields(type,o){return ingFieldsBase(type,o)+prixFields(type,o);}
+function prixFields(type,o){
+  const p=o&&o.n?getPrix(prixKey(type,o)):null;
+  const u=prixUnitOf(type,o||{});
+  const v=x=>x==null?'':fmtP(x);
+  return `<div class="row2" style="margin-top:4px">
+     <div class="field"><label>Prix conv. HT <span class="pu">€/${u}</span></label><input id="m_pc" inputmode="decimal" value="${v(p&&p.c)}" placeholder="—"></div>
+     <div class="field"><label>Prix bio HT <span class="pu">€/${u}</span></label><input id="m_pb" inputmode="decimal" value="${v(p&&p.b)}" placeholder="—"></div>
+   </div>
+   <div class="hint" style="margin:-4px 0 8px">Prix commun à toutes les recettes, utilisé pour le coût de revient.</div>`;
+}
+function bindPrixUnit(){
+  const mu=document.getElementById('m_unit');if(!mu)return;
+  mu.addEventListener('change',()=>{document.querySelectorAll('#manualFields .pu').forEach(e=>e.textContent='€/'+((mu.value==='L'||mu.value==='ml')?'L':'kg'));});
+}
 function openManual(){
   editCtx=null;
   const type=curType();
   document.getElementById('manualTitle').textContent='Nouvel ingrédient';
-  document.getElementById('manualFields').innerHTML=ingFields(type,null);
+  document.getElementById('manualFields').innerHTML=ingFields(type,null);bindPrixUnit();
   document.getElementById('manualSave').textContent='Ajouter à la recette';
   document.getElementById('manualModal').classList.add('show');
 }
@@ -977,7 +1147,7 @@ function editIngredient(type,gi){
   const o=arrayFor(type)[gi];if(!o)return;
   editCtx={type:type,index:gi};
   document.getElementById('manualTitle').textContent='Modifier l’ingrédient';
-  document.getElementById('manualFields').innerHTML=ingFields(type,o);
+  document.getElementById('manualFields').innerHTML=ingFields(type,o);bindPrixUnit();
   document.getElementById('manualSave').textContent='Enregistrer les modifications';
   document.getElementById('manualModal').classList.add('show');
 }
@@ -1010,6 +1180,8 @@ function saveIngredient(){
     const u=gv('m_unit');
     obj={n:name,c:gv('m_cat'),sucre:num('m_sucre',0),acide:num('m_acide',0),ebc:num('m_ebc',0),u:u,g:(u==='kg'||u==='L')?1000:1,custom:1};
   }
+  {const pc=parseP(gv('m_pc')),pb=parseP(gv('m_pb')),pk=prixKey(type,obj);
+   if(pc!=null||pb!=null||getPrix(pk))setPrixBoth(pk,pc,pb,prixMeta(type,obj));}
   if(editCtx){arrayFor(type)[editCtx.index]=obj;}
   else{arrayFor(type).push(obj);addToRecipeFromCatalog(type,obj);}
   saveCatalog();closeManual();renderBrowser();renderRecipe();recalc();
@@ -1050,9 +1222,8 @@ function applyResize(){
     state.malts.forEach(m=>m.kg=roundQ(m.kg*k,2));
     state.hops.forEach(h=>h.g=Math.round(h.g*k));
     if(state.yeast)state.yeast.g=Math.round(state.yeast.g*k);
-  }else{
-    state.soft.forEach(s=>{const dec=(s.u==='kg')?2:(s.u==='L')?1:0;s.qty=roundQ(s.qty*k,dec);});
   }
+  state.soft.forEach(s=>{const dec=(s.u==='kg')?2:(s.u==='L')?1:0;s.qty=roundQ(s.qty*k,dec);});
   document.getElementById('pVol').value=tgt;
   closeResize();renderRecipe();recalc();
 }
@@ -1112,6 +1283,8 @@ function recalc(){
   document.getElementById('grainTot').textContent='Plato ≈ '+sgToPlato(OG).toFixed(1)+' °P';
   const hopG=state.hops.reduce((s,h)=>s+h.g,0);
   document.getElementById('hopTot').textContent=hopG+' g';
+  document.getElementById('beerSoftTot').textContent=state.soft.length?state.soft.length+' ingrédient'+(state.soft.length>1?'s':''):'';
+  state.soft.forEach((s,i)=>{const e=document.getElementById('sdose'+i);if(e)e.textContent=softDose(s);});
   // little BJCP-ish context
   document.getElementById('ibuBj').textContent= ibu<20?'doux':ibu<40?'équilibré':ibu<60?'houblonné':'très amer';
   document.getElementById('ogBj').textContent= sgToPlato(OG).toFixed(1)+' °P';
@@ -1119,6 +1292,7 @@ function recalc(){
   // glass
   drawGlass(ebc);
   saveAuto();
+  renderCost();
 }
 function computeSoft(){
   const volL=getVol();
@@ -1155,6 +1329,7 @@ function recalcSoft(){
   document.getElementById('softTot').textContent=state.soft.length+' ingrédient'+(state.soft.length>1?'s':'');
   drawGlass(r.ebcSoft);
   saveAuto();
+  renderCost();
 }
 function sgToPlato(sg){return (-616.868+1111.14*sg-630.272*sg*sg+135.997*sg*sg*sg);}
 
@@ -1252,8 +1427,8 @@ function newRecipe(){if(confirm("Nouvelle recette ? La composition actuelle non 
 
 /* ============================ BACKUP / IMPORT FICHIER ============================ */
 function backupData(){
-  const data={app:"Carnet de Brassage",version:1,exportDate:new Date().toISOString(),
-    recettes:getAll(),courante:snapshot()};
+  const data={app:"Carnet de Brassage",version:2,exportDate:new Date().toISOString(),
+    recettes:getAll(),courante:snapshot(),prix:PRIX};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -1268,7 +1443,8 @@ function importData(input){
     try{
       const data=JSON.parse(e.target.result);
       const incoming=Array.isArray(data)?data:(data.recettes||[]);
-      if(!incoming.length){alert("Aucune recette trouvée dans ce fichier.");input.value="";return;}
+      const prixIn=(!Array.isArray(data)&&data.prix&&data.prix.items&&typeof data.prix.items==='object')?data.prix.items:null;
+      if(!incoming.length&&!prixIn){alert("Aucune recette trouvée dans ce fichier.");input.value="";return;}
       let all=getAll(),added=0,updated=0;
       incoming.forEach(r=>{
         if(!r||!r.name)return;
@@ -1276,8 +1452,10 @@ function importData(input){
         if(idx>=0){all[idx]=r;updated++;}else{all.push(r);added++;}
       });
       localStorage.setItem(LSKEY,JSON.stringify(all));
-      alert("Import terminé : "+added+" ajoutée(s), "+updated+" mise(s) à jour.");
-      openSaved();
+      let np=0;
+      if(prixIn){Object.keys(prixIn).forEach(k=>{const a=prixIn[k],b=PRIX.items[k];if(a&&(!b||String(a.d||'')>String(b.d||''))){PRIX.items[k]=a;np++;}});savePrix();}
+      alert("Import terminé : "+added+" ajoutée(s), "+updated+" mise(s) à jour."+(prixIn?"\n"+np+" prix mis à jour.":""));
+      openSaved();recalc();
     }catch(err){alert("Fichier illisible ou invalide.");}
     input.value="";
   };
@@ -1304,6 +1482,10 @@ function exportPDF(){
   let hopRows=state.hops.map(h=>`<tr><td>${h.n}</td><td>${h.form==='pellets'?'Pellets':'Cônes'}</td><td class="num">${h.g} g</td><td class="num">${h.a}%</td><td class="num">${h.time} min</td></tr>`).join('');
   const y=state.yeast;
   const yeastRow=y?`<tr><td>${y.n}</td><td>${y.t}</td><td class="num">${y.g} g</td><td class="num">${y.attU}%</td><td>${y.tp}</td></tr>`:`<tr><td colspan="5">—</td></tr>`;
+  const softSec=state.soft.length?`<div class="ps-sec"><h2>Épices &amp; autres</h2>
+      <table class="ps-table">${CG}<thead><tr><th>Ingrédient</th><th>Catégorie</th><th class="num">Quantité</th><th class="num">Dose</th><th></th></tr></thead>
+      <tbody>${state.soft.map(s=>{const massG=(parseFloat(s.qty)||0)*(s.g||1);const dose=(s.u==='g'||s.u==='kg')?fmtN(massG/(volL/100),0,1)+' g/hL':'—';
+        return `<tr><td>${hEsc(s.n)}</td><td>${SOFTCAT[s.c]||''}</td><td class="num">${s.qty} ${s.u}</td><td class="num">${dose}</td><td></td></tr>`;}).join('')}</tbody></table></div>`:'';
   const sheet=`
     <div class="ps-head">
       <div><h1>${val('rName')||'Recette sans nom'}</h1>
@@ -1327,6 +1509,7 @@ function exportPDF(){
     <div class="ps-sec"><h2>Levure</h2>
       <table class="ps-table">${CG}<thead><tr><th>Souche</th><th>Type</th><th class="num">Quantité</th><th class="num">Atténuation</th><th>Température</th></tr></thead>
       <tbody>${yeastRow}</tbody></table></div>
+    ${softSec}
     <div class="ps-sec"><h2>Paramètres</h2>
       <div class="ps-params"><span>Rendement : ${val('pEff')} %</span><span>Empâtage : ${val('pMash')} °C</span><span>Volume : ${volL} L</span></div></div>
     ${val('rNotes')?`<div class="ps-sec"><h2>Notes</h2><div class="ps-notes">${val('rNotes').replace(/</g,'&lt;')}</div></div>`:''}
@@ -1367,6 +1550,367 @@ function exportPDFSoft(){
   window.print();
 }
 
+/* ============================ COÛT DE REVIENT ============================ */
+/* Un prix HT par ingrédient (€/kg, ou €/L pour les liquides), en conventionnel (c) et en bio (b),
+   commun à toutes les recettes. Clé localStorage brasserie_prix_v1 : {v:1, items:{clé:{c,b,d,t,n,br,pu,e}}}
+   d = date de mise à jour, e = estimation à confirmer. */
+const PRIXKEY='brasserie_prix_v1';
+const PRIX_DATE0='2026-09-22';
+const PRIX_DEFAUT=[ // tarifs brasserie du 22/09/2026 : [type, marque, nom, conv, bio, estimation]
+  ['malt','Malteurop','Pilsen',0.66,1.04],
+  ['malt','Malteurop','Malt de blé (Wheat)',0.656,1.40],
+  ['malt','Malteurop','Munich',0.728,1.14],
+  ['malt','Dingemans','Cara 120 MD',0.84,1.238],
+  ['malt','Dingemans','Special B MD',0.892,1.26],
+  ['malt','BestMalz','BEST Melanoidin',0.842,1.606],
+  ['hop','','Magnum',10.60,26.90],
+  ['hop','','Aramis',19.20,26.90],
+  ['yeast','','Abbaye (belge)',173.50,173.50],
+  ['soft','',"Écorce d'orange amère",11.45,17.15],
+  ['soft','','Gingembre (poudre)',16.45,21.45],
+  ['soft','','Coriandre (poudre)',7.85,17.15],
+  ['soft','','Cannelle de Ceylan (poudre)',7.85,13.20],
+  ['soft','','Badiane (anis étoilé)',38.80,48.80],
+  ['soft','','Clou de girofle',20.00,36.00,1]
+];
+const CAT_ADDS_V2=[
+  {n:"Écorce d'orange amère",c:"aromate",sucre:8,acide:1,ebc:12,u:"g",g:1},
+  {n:"Gingembre (poudre)",c:"aromate",sucre:2,acide:0,ebc:5,u:"g",g:1},
+  {n:"Coriandre (poudre)",c:"aromate",sucre:0,acide:0,ebc:5,u:"g",g:1},
+  {n:"Cannelle de Ceylan (poudre)",c:"aromate",sucre:2,acide:0,ebc:60,u:"g",g:1}
+];
+const CONTENANTS=[['Litre',1],['33 cl',0.33],['44 cl',0.44],['75 cl',0.75],['1,5 L',1.5],['Fût 10 L',10],['Fût 20 L',20],['Fût 30 L',30]];
+const COST_SECS=['malt','hop','yeast','soft'];
+let COST_CUR=null, COST_ALL=[], TAR_META={};
+
+function hEsc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const NFC={};
+function fmtN(v,min,max){max=max==null?min:max;const k=min+'-'+max;if(!NFC[k])NFC[k]=new Intl.NumberFormat('fr-FR',{minimumFractionDigits:min,maximumFractionDigits:max});return NFC[k].format(v||0).replace(/\u202f/g,'\u00a0');}
+function fmtE(v,d){return fmtN(v,d==null?2:d)+'\u00a0€';}
+function sgnE(v,d){const a=Math.abs(v);if(a<0.005)return '=';return (v>0?'+':'\u2212')+fmtE(a,d);}
+function sgnPct(v,d){return (v>=0?'+':'\u2212')+fmtN(Math.abs(v),d)+'\u00a0%';}
+function fmtP(v){return fmtN(v,2,3);}
+function parseP(s){s=String(s==null?'':s).replace(/[\s\u00a0\u202f€]/g,'').replace(',','.');if(s==='')return null;const v=parseFloat(s);return isFinite(v)&&v>=0?v:null;}
+function fmtDate(iso){const p=String(iso||'').split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0].slice(2):'—';}
+function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function pNorm(s){return String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[’‘`]/g,"'").toLowerCase().replace(/\s+/g,' ').trim();}
+function prixKey(type,it){return type==='malt'?'malt|'+pNorm(it.b)+'|'+pNorm(it.n):type+'|'+pNorm(it.n);}
+function prixUnitOf(type,it){return (type==='soft'&&it&&(it.u==='L'||it.u==='ml'))?'L':'kg';}
+function prixMeta(type,it){return {t:type,n:it.n||'',br:type==='malt'?(it.b||''):'',pu:prixUnitOf(type,it)};}
+function loadPrix(){
+  let p=null;try{p=JSON.parse(localStorage.getItem(PRIXKEY));}catch(e){}
+  if(!p||typeof p!=='object'||!p.items||typeof p.items!=='object'){
+    p={v:1,items:{}};
+    PRIX_DEFAUT.forEach(([t,br,n,c,b,e])=>{const it={t:t,n:n,br:br,pu:'kg',c:c,b:b,d:PRIX_DATE0};if(e)it.e=1;p.items[prixKey(t,{b:br,n:n})]=it;});
+    try{localStorage.setItem(PRIXKEY,JSON.stringify(p));}catch(e){}
+  }
+  return p;
+}
+let PRIX=loadPrix();
+function savePrix(){try{localStorage.setItem(PRIXKEY,JSON.stringify(PRIX));}catch(e){}}
+function getPrix(k){return PRIX.items[k]||null;}
+function setPrixField(k,f,v,meta){
+  let it=PRIX.items[k];
+  if(!it){if(v==null)return;it=PRIX.items[k]={c:null,b:null};}
+  if(meta)Object.assign(it,meta);
+  it[f]=v;it.d=todayISO();delete it.e;
+  if(it.c==null&&it.b==null)delete PRIX.items[k];
+  savePrix();
+}
+function setPrixBoth(k,c,b,meta){
+  if(c==null&&b==null){if(PRIX.items[k]){delete PRIX.items[k];savePrix();}return;}
+  const it=PRIX.items[k]||{};const changed=it.c!==c||it.b!==b;
+  Object.assign(it,meta||{});it.c=c;it.b=b;
+  if(changed){it.d=todayISO();delete it.e;}
+  PRIX.items[k]=it;savePrix();
+}
+function mergeCatalogAdds(){
+  const FLAG='brasserie_catalogue_add_v2';
+  try{if(localStorage.getItem(FLAG))return;}catch(e){return;}
+  let changed=false;
+  CAT_ADDS_V2.forEach(it=>{if(!SOFTS.some(x=>pNorm(x.n)===pNorm(it.n))){SOFTS.push({...it});changed=true;}});
+  if(changed)saveCatalog();
+  try{localStorage.setItem(FLAG,'1');}catch(e){}
+}
+function softDose(s){
+  if(s.u!=='g'&&s.u!=='kg')return '';
+  const massG=(parseFloat(s.qty)||0)*(s.g||1);
+  return ' · '+fmtN(massG/(getVol()/100),0,1)+' g/hL';
+}
+function secLabel(sec,mode){return sec==='malt'?'Malts & grains':sec==='hop'?'Houblons':sec==='yeast'?'Levure':(mode==='soft'?'Ingrédients':'Épices & autres');}
+function secOf(sec,mode){return sec==='malt'?'des malts':sec==='hop'?'des houblons':sec==='yeast'?'de la levure':(mode==='soft'?'des ingrédients':'des épices et autres ajouts');}
+
+function costLines(r){
+  const L=[],mode=r.mode||'biere';
+  const push=(sec,type,it,sub,q,qu,qp)=>{
+    const k=prixKey(type,it),p=getPrix(k);
+    const pc=p&&p.c!=null?p.c:null,pb=p&&p.b!=null?p.b:null;
+    L.push({sec,type,key:k,meta:prixMeta(type,it),n:it.n||'',sub,q,qu,qp,pu:prixUnitOf(type,it),pc,pb,
+      vc:pc!=null?qp*pc:null,vb:pb!=null?qp*pb:null,est:!!(p&&p.e)});
+  };
+  if(mode==='biere'){
+    (r.malts||[]).forEach(m=>{const q=parseFloat(m.kg)||0;push('malt','malt',m,(m.b||'')+(m.cs?' · cold steep':''),q,'kg',q);});
+    (r.hops||[]).forEach(h=>{const q=parseFloat(h.g)||0;push('hop','hop',h,(h.form==='cones'?'Cônes':'Pellets')+' · '+fmtN(parseFloat(h.a)||0,0,1)+' % α · '+(parseFloat(h.time)||0)+' min',q,'g',q/1000);});
+    if(r.yeast){const q=parseFloat(r.yeast.g)||0;push('yeast','yeast',r.yeast,r.yeast.t||'',q,'g',q/1000);}
+  }
+  (r.soft||[]).forEach(s=>{const q=parseFloat(s.qty)||0,u=s.u||'kg';push('soft','soft',s,SOFTCAT[s.c]||'',q,u,(u==='g'||u==='ml')?q/1000:q);});
+  return L;
+}
+function costSummary(r){
+  const lines=costLines(r),vol=Math.max(1,parseFloat(r.vol)||1),mode=r.mode||'biere';
+  let c=0,b=0;const miss={};
+  lines.forEach(l=>{
+    c+=l.vc||0;b+=l.vb||0;
+    if(l.pc==null||l.pb==null){const m=miss[l.key]||(miss[l.key]={n:l.n,c:false,b:false});if(l.pc==null)m.c=true;if(l.pb==null)m.b=true;}
+  });
+  const secs={};
+  COST_SECS.forEach(sc=>{const L=lines.filter(l=>l.sec===sc);secs[sc]={n:L.length,c:L.reduce((a,l)=>a+(l.vc||0),0),b:L.reduce((a,l)=>a+(l.vb||0),0)};});
+  return {lines,vol,mode,c,b,d:b-c,pct:c>0?(b-c)/c*100:0,plc:c/vol,plb:b/vol,miss,nMiss:Object.keys(miss).length,secs};
+}
+function secQty(L,sec){
+  if(sec==='malt')return fmtN(L.reduce((a,l)=>a+l.q,0),0,1)+'\u00a0kg';
+  if(sec==='hop'||sec==='yeast'){const g=L.reduce((a,l)=>a+l.q,0);return g>=1000?fmtN(g/1000,0,2)+'\u00a0kg':fmtN(g,0)+'\u00a0g';}
+  return '';
+}
+function qtyTxt(l){return fmtN(l.q,0,2)+'\u00a0'+l.qu;}
+
+/* ---- Panneau de la recette en cours ---- */
+function renderCost(){
+  const T=document.getElementById('costTable');if(!T)return;
+  const S=costSummary(snapshot());
+  let h='<colgroup><col style="width:29%"><col style="width:11%"><col style="width:12%"><col style="width:11%"><col style="width:12%"><col style="width:11%"><col style="width:14%"></colgroup>'+
+    '<thead><tr class="grp"><th></th><th></th><th class="gc" colspan="2"><span>Conventionnel</span></th><th class="gb" colspan="2"><span>Bio</span></th><th></th></tr>'+
+    '<tr class="cols"><th class="l">Ingrédient</th><th>Quantité</th><th>Prix HT</th><th>Coût</th><th>Prix HT</th><th>Coût</th><th>Écart</th></tr></thead><tbody>';
+  if(!S.lines.length)h+='<tr><td class="l" colspan="7"><div class="empty">Compose la recette pour voir son coût.</div></td></tr>';
+  COST_SECS.forEach(sec=>{
+    const L=S.lines.map((l,i)=>({l,i})).filter(x=>x.l.sec===sec);if(!L.length)return;
+    h+=`<tr class="sec"><td class="l">${secLabel(sec,S.mode)}</td><td>${secQty(L.map(x=>x.l),sec)}</td><td></td><td id="cs-c-${sec}"></td><td></td><td class="c-bio" id="cs-b-${sec}"></td><td class="c-ec" id="cs-d-${sec}"></td></tr>`;
+    L.forEach(({l,i})=>{
+      const inp=(f,v)=>`<span class="pw"><input class="pz${v==null?' miss':''}" inputmode="decimal" data-i="${i}" data-f="${f}" value="${v==null?'':fmtP(v)}" placeholder="à saisir" aria-label="Prix ${f==='c'?'conventionnel':'bio'} HT de ${hEsc(l.n)}">${l.pu==='L'?'<small>/L</small>':''}</span>`;
+      h+=`<tr><td class="l"><div class="rn">${hEsc(l.n)}${l.est?'<span class="tag-est">estim.</span>':''}<small>${hEsc(l.sub)}</small></div></td><td>${qtyTxt(l)}</td>`+
+        `<td>${inp('c',l.pc)}</td><td id="cv-c-${i}"></td><td>${inp('b',l.pb)}</td><td class="c-bio" id="cv-b-${i}"></td><td class="c-ec" id="cv-d-${i}"></td></tr>`;
+    });
+  });
+  if(S.lines.length)h+='<tr class="tot"><td class="l">Total matières premières</td><td></td><td></td><td id="ct-c"></td><td></td><td class="c-bio" id="ct-b"></td><td class="c-ec" id="ct-d"></td></tr>';
+  T.innerHTML=h+'</tbody>';
+  refreshCostValues(S);
+}
+function refreshCostValues(S){
+  if(!S)S=costSummary(snapshot());
+  COST_CUR=S;
+  const set=(id,t)=>{const e=document.getElementById(id);if(e)e.textContent=t;};
+  const act=document.activeElement;
+  S.lines.forEach((l,i)=>{
+    set('cv-c-'+i,l.vc==null?'—':fmtE(l.vc));
+    set('cv-b-'+i,l.vb==null?'—':fmtE(l.vb));
+    set('cv-d-'+i,(l.vc==null||l.vb==null)?'—':sgnE(l.vb-l.vc));
+  });
+  document.querySelectorAll('#costTable input.pz').forEach(inp=>{
+    const l=S.lines[+inp.dataset.i];if(!l)return;
+    const v=inp.dataset.f==='c'?l.pc:l.pb;
+    inp.classList.toggle('miss',v==null);
+    if(inp!==act)inp.value=v==null?'':fmtP(v);
+    const tag=inp.closest('tr').querySelector('.tag-est');if(tag&&!l.est)tag.remove();
+  });
+  COST_SECS.forEach(sec=>{const x=S.secs[sec];set('cs-c-'+sec,fmtE(x.c));set('cs-b-'+sec,fmtE(x.b));set('cs-d-'+sec,sgnE(x.b-x.c));});
+  set('ct-c',fmtE(S.c));set('ct-b',fmtE(S.b));set('ct-d',sgnE(S.d));
+  const any=S.c>0||S.b>0;
+  set('cstC',any?fmtE(S.c,0):'–');
+  set('cstB',any?fmtE(S.b,0):'–');
+  set('cstCl',any?fmtN(S.plc,3)+'\u00a0€ par litre':'aucun prix saisi');
+  set('cstBl',any?fmtN(S.plb,3)+'\u00a0€ par litre':'aucun prix saisi');
+  set('cstD',any?sgnE(S.d,0):'–');
+  set('cstDl',S.c>0?sgnPct(S.pct,1)+', soit '+(S.d>=0?'+':'\u2212')+fmtN(Math.abs(S.plb-S.plc),3)+'\u00a0€ par litre':'–');
+  const W=document.getElementById('costWarn');
+  if(S.nMiss){
+    const names=Object.values(S.miss).map(m=>hEsc(m.n)+' ('+(m.c&&m.b?'conv. et bio':m.c?'conv.':'bio')+')');
+    W.innerHTML=`<div class="cost-warn"><b>${S.nMiss} ingrédient${S.nMiss>1?'s':''} sans prix</b> : ${names.slice(0,6).join(', ')}${names.length>6?'…':''}. Les totaux sont incomplets.<button type="button" onclick="openTarifs(true)">Compléter les tarifs</button></div>`;
+  }else W.innerHTML='';
+  document.getElementById('costFmt').innerHTML='<thead><tr><th>Contenant</th><th>Conv.</th><th class="c-bio">Bio</th><th>Écart</th></tr></thead><tbody>'+
+    CONTENANTS.map(([lab,l])=>{const c=S.plc*l,b=S.plb*l,d=l<2?3:2;return `<tr><td>${lab}</td><td>${fmtE(c,d)}</td><td class="c-bio">${fmtE(b,d)}</td><td class="c-ec">${sgnE(b-c,d)}</td></tr>`;}).join('')+'</tbody>';
+  const Y=document.getElementById('costWhy');
+  if(S.d>0.005){
+    let top=null,topV=0;
+    S.lines.forEach(l=>{if(l.vc!=null&&l.vb!=null&&l.vb-l.vc>topV){topV=l.vb-l.vc;top=l.n;}});
+    const main=COST_SECS.map(sc=>({sc,v:S.secs[sc].b-S.secs[sc].c})).sort((a,b)=>b.v-a.v)[0];
+    Y.innerHTML=`Le surcoût bio vient à <b>${Math.round(main.v/S.d*100)}\u00a0%</b> ${secOf(main.sc,S.mode)}.`+(top?` Premier poste : ${hEsc(top)} (<b>+${fmtE(topV,0)}</b>).`:'');
+  }else Y.innerHTML='';
+}
+function bindCostEvents(){
+  const T=document.getElementById('costTable');
+  T.addEventListener('input',e=>{
+    const t=e.target;if(!t.classList.contains('pz')||!COST_CUR)return;
+    const l=COST_CUR.lines[+t.dataset.i];if(!l)return;
+    setPrixField(l.key,t.dataset.f,parseP(t.value),l.meta);
+    refreshCostValues();
+  });
+  const fmtOnBlur=e=>{const t=e.target;if(!t.classList.contains('pz'))return;const v=parseP(t.value);t.value=v==null?'':fmtP(v);};
+  T.addEventListener('change',fmtOnBlur);
+  const TT=document.getElementById('tarTable');
+  TT.addEventListener('input',e=>{
+    const t=e.target;if(!t.classList.contains('pz'))return;
+    const k=t.dataset.key;
+    setPrixField(k,t.dataset.f,parseP(t.value),TAR_META[k]);
+    const p=getPrix(k)||{};
+    t.classList.toggle('miss',parseP(t.value)==null);
+    const tr=t.closest('tr');
+    if(tr){tr.classList.toggle('miss',p.c==null||p.b==null);const dc=tr.querySelector('.tar-d');if(dc)dc.textContent=p.d?fmtDate(p.d):'—';const tg=tr.querySelector('.tag-est');if(tg&&!p.e)tg.remove();}
+    refreshCostValues();
+  });
+  TT.addEventListener('change',fmtOnBlur);
+}
+
+/* ---- Tarifs ---- */
+function collectIngredients(){
+  const map={};
+  const add=(t,it,rn)=>{
+    if(!it||!it.n)return;const k=prixKey(t,it);
+    if(!map[k])map[k]={key:k,t:t,n:it.n,br:t==='malt'?(it.b||''):'',pu:prixUnitOf(t,it),used:new Set()};
+    if(rn)map[k].used.add(rn);
+  };
+  const cur=snapshot(),cn=(cur.name||'').trim();
+  const recs=getAll().filter(r=>!cn||r.name!==cn);
+  recs.push({...cur,name:cn||'Recette en cours'});
+  recs.forEach(r=>{
+    const rn=r.name||'(sans nom)';
+    if((r.mode||'biere')==='biere'){(r.malts||[]).forEach(m=>add('malt',m,rn));(r.hops||[]).forEach(h=>add('hop',h,rn));if(r.yeast)add('yeast',r.yeast,rn);}
+    (r.soft||[]).forEach(s=>add('soft',s,rn));
+  });
+  Object.keys(PRIX.items).forEach(k=>{if(map[k])return;const p=PRIX.items[k];map[k]={key:k,t:p.t||k.split('|')[0],n:p.n||k,br:p.br||'',pu:p.pu||'kg',used:new Set()};});
+  return Object.values(map);
+}
+function renderTarifs(){
+  const q=pNorm(document.getElementById('tarSearch').value);
+  const onlyMiss=document.getElementById('tarMiss').checked;
+  const items=collectIngredients();TAR_META={};
+  const G=[['malt','Malts & grains'],['hop','Houblons'],['yeast','Levures'],['soft','Épices & autres']];
+  let h='<colgroup><col style="width:29%"><col style="width:8%"><col style="width:13%"><col style="width:13%"><col style="width:27%"><col style="width:10%"></colgroup>'+
+    '<thead><tr class="grp"><th></th><th></th><th class="gc"><span>Conv.</span></th><th class="gb"><span>Bio</span></th><th></th><th></th></tr>'+
+    '<tr class="cols"><th class="l">Ingrédient</th><th>Unité</th><th>Prix HT</th><th>Prix HT</th><th class="l">Utilisé dans</th><th>Mis à jour</th></tr></thead><tbody>';
+  let n=0;
+  G.forEach(([t,lab])=>{
+    let L=items.filter(x=>x.t===t).map(x=>({...x,p:getPrix(x.key)}));
+    if(q)L=L.filter(x=>pNorm(x.n+' '+x.br).includes(q));
+    if(onlyMiss)L=L.filter(x=>!x.p||x.p.c==null||x.p.b==null);
+    if(!L.length)return;
+    L.sort((a,b)=>((a.used.size?0:1)-(b.used.size?0:1))||(a.br+' '+a.n).localeCompare(b.br+' '+b.n,'fr'));
+    h+=`<tr class="sec"><td class="l" colspan="6">${lab}</td></tr>`;
+    L.forEach(x=>{
+      n++;const p=x.p||{};TAR_META[x.key]={t:x.t,n:x.n,br:x.br,pu:x.pu};
+      const inp=(f,v)=>`<input class="pz${v==null?' miss':''}" inputmode="decimal" data-key="${hEsc(x.key)}" data-f="${f}" value="${v==null?'':fmtP(v)}" placeholder="à saisir" aria-label="Prix ${f==='c'?'conventionnel':'bio'} HT de ${hEsc(x.n)}">`;
+      const used=[...x.used];
+      h+=`<tr class="${p.c==null||p.b==null?'miss':''}"><td class="l"><div class="rn">${hEsc(x.n)}${p.e?'<span class="tag-est">estim.</span>':''}<small>${hEsc(x.br)}</small></div></td>`+
+        `<td>€/${x.pu}</td><td>${inp('c',p.c==null?null:p.c)}</td><td>${inp('b',p.b==null?null:p.b)}</td>`+
+        `<td class="tar-used">${used.length?hEsc(used.join(', ')):'<span class="c-na">aucune recette</span>'}</td>`+
+        `<td class="tar-d c-na">${p.d?fmtDate(p.d):'—'}</td></tr>`;
+    });
+  });
+  if(!n)h+=`<tr><td class="l" colspan="6"><div class="empty">${onlyMiss?'Tous les prix sont renseignés.':'Aucun ingrédient trouvé.'}</div></td></tr>`;
+  document.getElementById('tarTable').innerHTML=h+'</tbody>';
+}
+function openTarifs(onlyMiss){
+  document.getElementById('tarMiss').checked=!!onlyMiss;
+  document.getElementById('tarSearch').value='';
+  renderTarifs();
+  document.getElementById('tarifsModal').classList.add('show');
+}
+function closeTarifs(){document.getElementById('tarifsModal').classList.remove('show');renderCost();}
+
+/* ---- Toutes les recettes ---- */
+function costRecipes(){
+  const cur=snapshot(),cn=(cur.name||'').trim();
+  return getAll().map(r=>(cn&&r.name===cn)?{...cur}:r).sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
+}
+function renderCostAll(){
+  const recs=costRecipes();COST_ALL=recs;
+  let h='<colgroup><col style="width:24%"><col style="width:8%"><col style="width:11%"><col style="width:9%"><col style="width:11%"><col style="width:9%"><col style="width:9%"><col style="width:10%"><col style="width:9%"></colgroup>'+
+    '<thead><tr class="grp"><th></th><th></th><th class="gc" colspan="2"><span>Conventionnel</span></th><th class="gb" colspan="2"><span>Bio</span></th><th></th><th></th><th></th></tr>'+
+    '<tr class="cols"><th class="l">Recette</th><th>Volume</th><th>Brassin</th><th>Litre</th><th>Brassin</th><th>Litre</th><th>Surcoût</th><th>Sans prix</th><th></th></tr></thead><tbody>';
+  if(!recs.length)h+='<tr><td class="l" colspan="9"><div class="empty">Aucune recette enregistrée. Enregistre tes recettes pour les comparer ici.</div></td></tr>';
+  let nm=0;
+  recs.forEach((r,i)=>{
+    const S=costSummary(r);if(S.nMiss)nm++;
+    h+=`<tr class="${S.nMiss?'miss':''}"><td class="l"><div class="rn">${hEsc(r.name||'(sans nom)')}<small>${hEsc(r.style||'')}${r.mode==='soft'?(r.style?' · ':'')+'soft':''}</small></div></td>`+
+      `<td>${fmtN(S.vol/100,0,1)}\u00a0HL</td><td>${fmtE(S.c,0)}</td><td>${fmtN(S.plc,3)}\u00a0€</td>`+
+      `<td class="c-bio">${fmtE(S.b,0)}</td><td class="c-bio">${fmtN(S.plb,3)}\u00a0€</td>`+
+      `<td class="c-ec">${S.c>0?sgnPct(S.pct,0):'—'}</td>`+
+      `<td>${S.nMiss?`<span class="c-ec">${S.nMiss}</span>`:'<span class="c-na">aucun</span>'}</td>`+
+      `<td><button class="btn-ghost sum-open" onclick="openCostRecipe(${i})">Ouvrir</button></td></tr>`;
+  });
+  document.getElementById('costAllTable').innerHTML=h+'</tbody>';
+  document.getElementById('costAllNote').textContent=recs.length?
+    recs.length+' recette'+(recs.length>1?'s':'')+', calculées avec les tarifs actuels (HT, matières premières).'+(nm?' '+nm+' recette'+(nm>1?'s ont':' a')+' des ingrédients sans prix : leurs totaux sont incomplets.':''):'';
+}
+function openCostAll(){renderCostAll();document.getElementById('costAllModal').classList.add('show');}
+function closeCostAll(){document.getElementById('costAllModal').classList.remove('show');}
+function openCostRecipe(i){
+  const r=COST_ALL[i];if(!r)return;
+  loadInto(JSON.parse(JSON.stringify(r)));closeCostAll();
+  setTimeout(()=>document.getElementById('costPanel').scrollIntoView({behavior:'smooth',block:'start'}),60);
+}
+
+/* ---- Export PDF du coût ---- */
+function costSheetHead(title,sub,brand){
+  return `<div class="ps-head"><div><h1>${hEsc(title)}</h1><div class="ps-style">${hEsc(sub)}</div></div><div class="ps-brand">${brand}<br>${new Date().toLocaleDateString('fr-FR')}</div></div>`;
+}
+function exportCostPDF(){
+  const r=snapshot(),S=costSummary(r);
+  const CG='<colgroup><col style="width:29%"><col style="width:11%"><col style="width:11%"><col style="width:12%"><col style="width:11%"><col style="width:12%"><col style="width:14%"></colgroup>';
+  const pr=(v,l)=>v==null?'—':fmtP(v)+(l.pu==='L'?' /L':'');
+  let secs='';
+  COST_SECS.forEach(sec=>{
+    const L=S.lines.filter(l=>l.sec===sec);if(!L.length)return;const x=S.secs[sec];
+    const rows=L.map(l=>`<tr><td>${hEsc(l.n)}<span class="ps-sub">${l.sub&&l.sec!=='soft'?' · '+hEsc(l.sub):''}</span></td><td class="num">${qtyTxt(l)}</td>`+
+      `<td class="num">${pr(l.pc,l)}</td><td class="num">${l.vc==null?'—':fmtE(l.vc)}</td>`+
+      `<td class="num bio">${pr(l.pb,l)}</td><td class="num bio">${l.vb==null?'—':fmtE(l.vb)}</td>`+
+      `<td class="num ec">${(l.vc==null||l.vb==null)?'—':sgnE(l.vb-l.vc)}</td></tr>`).join('');
+    secs+=`<div class="ps-sec"><h2>${secLabel(sec,S.mode)}</h2><table class="ps-table">${CG}`+
+      `<thead><tr><th>Ingrédient</th><th class="num">Quantité</th><th class="num">Prix conv.</th><th class="num">Conv.</th><th class="num bio">Prix bio</th><th class="num bio">Bio</th><th class="num">Écart</th></tr></thead>`+
+      `<tbody>${rows}</tbody><tfoot><tr><td>Sous-total</td><td class="num">${secQty(L,sec)}</td><td></td><td class="num">${fmtE(x.c)}</td><td></td><td class="num bio">${fmtE(x.b)}</td><td class="num ec">${sgnE(x.b-x.c)}</td></tr></tfoot></table></div>`;
+  });
+  const CG4='<colgroup><col style="width:31%"><col style="width:23%"><col style="width:23%"><col style="width:23%"></colgroup>';
+  const TH4='<thead><tr><th>Contenant</th><th class="num">Conv.</th><th class="num bio">Bio</th><th class="num">Écart</th></tr></thead>';
+  const fr=([lab,l])=>{const c=S.plc*l,b=S.plb*l,d=l<2?3:2;return `<tr><td>${lab}</td><td class="num">${fmtE(c,d)}</td><td class="num bio">${fmtE(b,d)}</td><td class="num ec">${sgnE(b-c,d)}</td></tr>`;};
+  const half=Math.ceil(CONTENANTS.length/2);
+  const fmt=`<div class="ps-2col"><table class="ps-table">${CG4}${TH4}<tbody>${CONTENANTS.slice(0,half).map(fr).join('')}</tbody></table>`+
+    `<table class="ps-table">${CG4}${TH4}<tbody>${CONTENANTS.slice(half).map(fr).join('')}</tbody></table></div>`;
+  const miss=S.nMiss?`<p class="ps-warn">${S.nMiss} ingrédient${S.nMiss>1?'s':''} sans prix (${Object.values(S.miss).map(m=>hEsc(m.n)).join(', ')}) : totaux incomplets.</p>`:'';
+  const sheet=`<style>@page{size:A4 portrait;margin:13mm 14mm}</style><div class="ps-compact">${costSheetHead(r.name||'Recette sans nom',r.style||'—','Coût de revient')}
+    <div class="ps-stats">
+      <div class="ps-stat"><div class="l">Volume</div><div class="v">${fmtN(S.vol/100,0,1)} HL</div></div>
+      <div class="ps-stat"><div class="l">Conventionnel</div><div class="v">${fmtE(S.c,0)}</div></div>
+      <div class="ps-stat"><div class="l">Bio</div><div class="v ps-bio">${fmtE(S.b,0)}</div></div>
+      <div class="ps-stat"><div class="l">Surcoût bio</div><div class="v ps-ec">${sgnE(S.d,0)}</div></div>
+      <div class="ps-stat"><div class="l">Conv. par litre</div><div class="v">${fmtN(S.plc,3)} €</div></div>
+      <div class="ps-stat"><div class="l">Bio par litre</div><div class="v ps-bio">${fmtN(S.plb,3)} €</div></div>
+    </div>${miss}${secs}
+    <div class="ps-sec"><h2>Total et contenants</h2>
+      <table class="ps-table"><colgroup><col style="width:34%"><col style="width:22%"><col style="width:22%"><col style="width:22%"></colgroup>
+      <thead><tr><th></th><th class="num">Conventionnel</th><th class="num bio">Bio</th><th class="num">Écart</th></tr></thead>
+      <tbody><tr class="ps-strong"><td>Total matières premières</td><td class="num">${fmtE(S.c)}</td><td class="num bio">${fmtE(S.b)}</td><td class="num ec">${sgnE(S.d)}</td></tr></tbody></table>${fmt}</div>
+    <p class="ps-note">Prix HT des matières premières, hors énergie, conditionnement, main-d'œuvre et accises. Tarifs du Carnet de Brassage au ${new Date().toLocaleDateString('fr-FR')}.</p>
+    <div class="ps-foot"><span>Carnet de Brassage — coût de revient généré le ${new Date().toLocaleString('fr-FR')}</span><span>${hEsc(r.name||'')}</span></div></div>`;
+  document.getElementById('printSheet').innerHTML=sheet;
+  window.print();
+}
+function exportCostAllPDF(){
+  const recs=costRecipes();
+  const CG='<colgroup><col style="width:28%"><col style="width:9%"><col style="width:11%"><col style="width:10%"><col style="width:11%"><col style="width:10%"><col style="width:10%"><col style="width:11%"></colgroup>';
+  const rows=recs.map(r=>{const S=costSummary(r);
+    return `<tr><td>${hEsc(r.name||'(sans nom)')}<span class="ps-sub">${r.style?' · '+hEsc(r.style):''}</span></td><td class="num">${fmtN(S.vol/100,0,1)} HL</td>`+
+      `<td class="num">${fmtE(S.c,0)}</td><td class="num">${fmtN(S.plc,3)} €</td><td class="num bio">${fmtE(S.b,0)}</td><td class="num bio">${fmtN(S.plb,3)} €</td>`+
+      `<td class="num ec">${S.c>0?sgnPct(S.pct,0):'—'}</td><td class="num">${S.nMiss||'—'}</td></tr>`;}).join('');
+  const sheet=`<style>@page{size:A4 portrait;margin:13mm 14mm}</style><div class="ps-compact">${costSheetHead('Coût de revient','Toutes les recettes','Carnet de Brassage')}
+    <div class="ps-sec"><h2>Par recette</h2><table class="ps-table">${CG}
+      <thead><tr><th>Recette</th><th class="num">Volume</th><th class="num">Conv. brassin</th><th class="num">Conv. / L</th><th class="num bio">Bio brassin</th><th class="num bio">Bio / L</th><th class="num">Surcoût</th><th class="num">Sans prix</th></tr></thead>
+      <tbody>${rows||'<tr><td colspan="8">—</td></tr>'}</tbody></table></div>
+    <p class="ps-note">Prix HT des matières premières, calculés avec les tarifs actuels. Une recette avec des ingrédients sans prix a des totaux incomplets.</p>
+    <div class="ps-foot"><span>Carnet de Brassage — coûts générés le ${new Date().toLocaleString('fr-FR')}</span><span>${recs.length} recette${recs.length>1?'s':''}</span></div></div>`;
+  closeCostAll();
+  document.getElementById('printSheet').innerHTML=sheet;
+  window.print();
+}
+
 /* ============================ INIT ============================ */
 function seedDemo(){
   // Pré-remplit la stout en cours pour démonstration (robuste si le catalogue a été modifié)
@@ -1385,6 +1929,8 @@ function seedDemo(){
 }
 window.addEventListener('DOMContentLoaded',()=>{
   loadCatalog();
+  mergeCatalogAdds();
+  bindCostEvents();
   let auto=null;try{auto=JSON.parse(localStorage.getItem(AUTOKEY));}catch(e){}
   if(auto && ((auto.malts&&auto.malts.length)||(auto.soft&&auto.soft.length))){
     loadInto(auto);
