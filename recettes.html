@@ -178,6 +178,12 @@
   .modal-bg.show{display:flex}
   .modal{background:var(--card);border-radius:16px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
   .modal .panel-b{padding:18px}
+  .modal{max-height:calc(100vh - 40px);display:flex;flex-direction:column}
+  .modal .panel-h{flex:none}
+  .modal .panel-b{overflow:auto;-webkit-overflow-scrolling:touch;min-height:0}
+  #savedList{max-height:46vh;overflow:auto;-webkit-overflow-scrolling:touch;padding-right:2px}
+  #savedSearch{width:100%;margin-bottom:10px}
+  .saved-count{font-size:11px;color:var(--ink-soft);margin:-4px 0 8px}
 
   @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
@@ -513,6 +519,8 @@
   <div class="modal">
     <div class="panel-h"><h2>Mes recettes</h2><button class="btn-ghost" style="padding:6px 12px" onclick="closeSaved()">Fermer</button></div>
     <div class="panel-b">
+      <input type="search" id="savedSearch" placeholder="Rechercher une recette…" oninput="renderSaved()">
+      <div class="saved-count" id="savedCount"></div>
       <div class="saved-list" id="savedList"></div>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-soft);font-weight:700;margin-bottom:9px">Recettes d'exemple</div>
@@ -1394,14 +1402,23 @@ function saveRecipe(){
 }
 function getAll(){try{return JSON.parse(localStorage.getItem(LSKEY))||[];}catch(e){return[];}}
 function openSaved(){
-  const all=getAll().sort((a,b)=>b.ts-a.ts);const L=document.getElementById('savedList');
-  if(!all.length){L.innerHTML='<div class="empty">Aucune recette enregistrée.</div>';}
-  else{L.innerHTML=all.map((r,i)=>`<div class="saved-item">
-    <span class="si-nm">${r.name||'(sans nom)'}<small>${r.style||''} · ${new Date(r.ts).toLocaleDateString('fr-FR')}</small></span>
-    <button class="btn-ghost" onclick='loadSaved(${i})'>Ouvrir</button>
-    <button class="btn-ghost" style="color:#a23" onclick='delSaved(${i})'>Suppr.</button></div>`).join('');}
-  renderExamples();
+  const q=document.getElementById('savedSearch');if(q)q.value='';
+  renderSaved();renderExamples();
   document.getElementById('savedModal').classList.add('show');
+}
+function renderSaved(){
+  const q=bNorm(document.getElementById('savedSearch').value||'');
+  const all=getAll();
+  const list=all.filter(r=>!q||bNorm(r.name||'').includes(q)||bNorm(r.style||'').includes(q))
+    .sort((a,b)=>String(a.name||'').localeCompare(String(b.name||''),'fr',{sensitivity:'base',numeric:true}));
+  const L=document.getElementById('savedList');
+  document.getElementById('savedCount').textContent=all.length?(list.length+' / '+all.length+' recette'+(all.length>1?'s':'')):'';
+  if(!all.length){L.innerHTML='<div class="empty">Aucune recette enregistrée.</div>';return;}
+  if(!list.length){L.innerHTML='<div class="empty">Aucun résultat.</div>';return;}
+  L.innerHTML=list.map(r=>`<div class="saved-item">
+    <span class="si-nm">${r.name||'(sans nom)'}<small>${r.style?r.style+' · ':''}${new Date(r.ts).toLocaleDateString('fr-FR')}</small></span>
+    <button class="btn-ghost" onclick="loadSaved(${r.ts})">Ouvrir</button>
+    <button class="btn-ghost" style="color:#a23" onclick="delSaved(${r.ts})">Suppr.</button></div>`).join('');
 }
 function renderExamples(){
   document.getElementById('exampleList').innerHTML=EXAMPLES.map((r,i)=>`<div class="saved-item">
@@ -1410,14 +1427,13 @@ function renderExamples(){
 }
 function loadExample(i){loadInto(JSON.parse(JSON.stringify(EXAMPLES[i])));closeSaved();}
 function closeSaved(){document.getElementById('savedModal').classList.remove('show');}
-function loadSaved(i){const all=getAll().sort((a,b)=>b.ts-a.ts);loadInto(all[i]);closeSaved();}
-function delSaved(i){const all=getAll().sort((a,b)=>b.ts-a.ts);if(confirm("Supprimer « "+all[i].name+" » ?")){
-  const full=getAll();const t=all[i].ts;const name=all[i].name;
-  localStorage.setItem(LSKEY,JSON.stringify(full.filter(r=>r.ts!==t)));
+function loadSaved(t){const r=getAll().find(x=>x.ts===t);if(r){loadInto(r);closeSaved();}}
+function delSaved(t){const r=getAll().find(x=>x.ts===t);if(!r)return;if(confirm("Supprimer « "+r.name+" » ?")){
+  localStorage.setItem(LSKEY,JSON.stringify(getAll().filter(x=>x.ts!==t)));
   // retire la bière du registre commun (uniquement depuis le carnet de brassage)
-  if(name&&bieresRemove(name))
-    alert("« "+name+" » retirée de la liste commune des bières (carbo, cuves, qualité, inventaire, planning).");
-  openSaved();}}
+  if(r.name&&bieresRemove(r.name))
+    alert("« "+r.name+" » retirée de la liste commune des bières (carbo, cuves, qualité, inventaire, planning).");
+  renderSaved();}}
 function newRecipe(){if(confirm("Nouvelle recette ? La composition actuelle non enregistrée sera perdue.")){
   const m=state.mode;
   state={mode:m,malts:[],hops:[],yeast:null,soft:[]};
