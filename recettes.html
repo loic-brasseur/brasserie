@@ -1444,7 +1444,19 @@ function importData(input){
       const data=JSON.parse(e.target.result);
       const incoming=Array.isArray(data)?data:(data.recettes||[]);
       const prixIn=(!Array.isArray(data)&&data.prix&&data.prix.items&&typeof data.prix.items==='object')?data.prix.items:null;
-      if(!incoming.length&&!prixIn){alert("Aucune recette trouvée dans ce fichier.");input.value="";return;}
+      const catIn=(!Array.isArray(data)&&data.catalogue&&typeof data.catalogue==='object')?data.catalogue:null;
+      if(!incoming.length&&!prixIn&&!catIn){alert("Aucune recette trouvée dans ce fichier.");input.value="";return;}
+      let nc=0;
+      if(catIn){
+        const nk=x=>String(x||'').trim().toLowerCase();
+        const merge=(arr,list,keyf)=>{if(!Array.isArray(list))return;const have=new Set(arr.map(keyf));
+          list.forEach(o=>{if(!o||!o.n)return;const k=keyf(o);if(!have.has(k)){arr.push({...o,custom:1});have.add(k);nc++;}});};
+        merge(MALTS,catIn.malts,o=>nk(o.b)+'|'+nk(o.n));
+        merge(HOPS,catIn.hops,o=>nk(o.n));
+        merge(YEASTS,catIn.yeasts,o=>nk(o.n));
+        merge(SOFTS,catIn.softs,o=>nk(o.n));
+        if(nc){saveCatalog();renderBrowser();}
+      }
       let all=getAll(),added=0,updated=0;
       incoming.forEach(r=>{
         if(!r||!r.name)return;
@@ -1454,7 +1466,7 @@ function importData(input){
       localStorage.setItem(LSKEY,JSON.stringify(all));
       let np=0;
       if(prixIn){Object.keys(prixIn).forEach(k=>{const a=prixIn[k],b=PRIX.items[k];if(a&&(!b||String(a.d||'')>String(b.d||''))){PRIX.items[k]=a;np++;}});savePrix();}
-      alert("Import terminé : "+added+" ajoutée(s), "+updated+" mise(s) à jour."+(prixIn?"\n"+np+" prix mis à jour.":""));
+      alert("Import terminé : "+added+" ajoutée(s), "+updated+" mise(s) à jour."+(prixIn?"\n"+np+" prix mis à jour.":"")+(catIn?"\n"+nc+" ingrédient(s) ajouté(s) au catalogue.":""));
       openSaved();recalc();
     }catch(err){alert("Fichier illisible ou invalide.");}
     input.value="";
