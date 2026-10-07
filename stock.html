@@ -128,6 +128,7 @@
   .rq-tbl select.unmapped{border-color:var(--red);background:rgba(168,57,43,.05)}
   .rq-tbl tr.zero td.n.ord{color:var(--ink-soft)}
   .rq-tbl td.n.ord{font-weight:700;color:var(--copper)}
+  .rq-q{width:78px;font-family:var(--mono);font-size:.9rem;font-weight:700;color:var(--copper);padding:.3rem .4rem;border:1px solid #E0D4BE;border-radius:8px;background:#fff;text-align:right;min-height:34px;-webkit-appearance:none;appearance:none}
   @media(max-width:560px){.rq-tbl .hide-m{display:none}.rq-tbl select{max-width:118px}.rq-tbl th,.rq-tbl td{padding-left:.2rem;padding-right:.2rem}}
   .recv-list{display:flex;flex-direction:column;gap:.45rem;max-height:48vh;overflow:auto;padding:0 1.2rem .6rem}
   .recv-cat{font-family:var(--serif);font-weight:600;font-size:.92rem;color:var(--ink-soft);margin:.5rem 0 .1rem;display:flex;align-items:center;gap:.4rem}
@@ -843,11 +844,11 @@ function rqCalc(row){
   const net=$('rq_net').checked,it=itById(row.sel);
   const unit=it?(it.unit||row.u):(row.sel==='__new'?rqDefUnit(row):row.u);
   const need=rqConv(row.q,row.u,unit);
-  if(!it){return {unit,need,stock:0,ord:row.sel==='__skip'?0:rqRound(need,unit)};}
+  if(!it){return {unit,need,stock:0,ord:row.sel==='__skip'?0:(row.ov!=null?row.ov:rqRound(need,unit))};}
   const stock=Math.max(0,Number(it.qty)||0);
   const prev=(ENTRY.ord.need||{})[it.id]||0;
   const ord=net?Math.max(0,need+prev-stock)-Math.max(0,prev-stock):need;
-  return {unit,need,stock,ord:rqRound(Math.max(0,ord),unit)};
+  return {unit,need,stock,ord:row.ov!=null?row.ov:rqRound(Math.max(0,ord),unit)};
 }
 function rqDefUnit(row){return row.cat==='houblon'?'g':(row.cat==='conso'?((row.u==='L'||row.u==='ml')?'L':'kg'):'kg');}
 function rqRender(){
@@ -860,7 +861,7 @@ function rqRender(){
       <td><select data-i="${i}" class="${r.sel?'':'unmapped'}">${rqOptions(r,r.sel)}</select></td>
       <td class="n hide-m">${num(rqRound(c.need,c.unit))} ${esc(c.unit)}</td>
       <td class="n hide-m">${itById(r.sel)?num(c.stock)+' '+esc(c.unit):'—'}</td>
-      <td class="n ord">${r.sel==='__skip'?'—':num(c.ord)+' '+esc(c.unit)}</td></tr>`;}).join('')}</tbody></table>`;
+      <td class="n ord">${r.sel==='__skip'?'—':`<input class="rq-q" type="number" min="0" step="any" inputmode="decimal" data-q="${i}" value="${c.ord}"> ${esc(c.unit)}`}</td></tr>`;}).join('')}</tbody></table>`;
   sum.innerHTML=(miss?`<span style="color:var(--red)">${miss} ingrédient(s) à associer à un article</span> · `:'')+`<b>${n}</b> ligne(s) à ajouter au bon`;
 }
 function rqLoad(){
@@ -879,9 +880,10 @@ function openFromRecipe(){
 }
 $('ord_fromrec').onclick=openFromRecipe;
 $('rq_rec').onchange=()=>{const r=rqRecipes()[parseInt($('rq_rec').value,10)];$('rq_vol').value=r&&r.vol||'';rqRows=[];rqLoad();};
-$('rq_vol').oninput=rqLoad;
-$('rq_net').onchange=rqRender;
-$('rq_body').addEventListener('change',e=>{const s=e.target.closest('select[data-i]');if(!s)return;rqRows[+s.dataset.i].sel=s.value;rqRender();});
+$('rq_vol').oninput=()=>{rqRows.forEach(r=>r.ov=null);rqLoad();};
+$('rq_net').onchange=()=>{rqRows.forEach(r=>r.ov=null);rqRender();};
+$('rq_body').addEventListener('change',e=>{const s=e.target.closest('select[data-i]');if(!s)return;rqRows[+s.dataset.i].sel=s.value;rqRows[+s.dataset.i].ov=null;rqRender();});
+$('rq_body').addEventListener('input',e=>{const q=e.target.closest('input[data-q]');if(!q)return;const v=parseFloat(q.value);rqRows[+q.dataset.q].ov=isNaN(v)?0:Math.max(0,v);});
 $('rq_cancel').onclick=()=>rqov.classList.remove('show');
 rqov.addEventListener('click',e=>{if(e.target===rqov)rqov.classList.remove('show');});
 $('rq_add').onclick=()=>{
