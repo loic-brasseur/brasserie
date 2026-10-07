@@ -112,6 +112,23 @@
   .hidden{display:none!important}
   @media(max-width:560px){.summary{gap:.5rem}.stat{flex:1;min-width:0}.item .qtybox{margin-left:auto}}
   .modal.wide{max-width:600px}
+  .modal.xwide{max-width:760px}
+  .fromrec{padding:0 1.2rem .5rem}
+  .fromrec button{width:100%;font-size:.86rem;padding:.55rem .8rem;border-style:dashed}
+  .rq-opts{display:flex;align-items:center;gap:.5rem;font-size:.84rem;color:var(--ink);text-transform:none;letter-spacing:0;font-weight:500;flex-direction:row}
+  .rq-opts input{width:18px;height:18px;accent-color:var(--copper)}
+  .rq-wrap{max-height:52vh;overflow:auto;padding:0 1.2rem .6rem}
+  .rq-tbl{width:100%;border-collapse:collapse;font-size:.84rem}
+  .rq-tbl th{font-size:.66rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:600;text-align:left;padding:.35rem .3rem;border-bottom:1px solid var(--line-strong);position:sticky;top:0;background:var(--card)}
+  .rq-tbl td{padding:.4rem .3rem;border-bottom:1px solid var(--line);vertical-align:middle}
+  .rq-tbl td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+  .rq-tbl td.ing b{font-weight:600;display:block}
+  .rq-tbl td.ing small{color:var(--ink-soft);font-size:.7rem}
+  .rq-tbl select{font-size:.82rem;padding:.3rem .4rem;border:1px solid #E0D4BE;border-radius:8px;background:#fff;max-width:200px;min-height:34px;font-family:var(--sans)}
+  .rq-tbl select.unmapped{border-color:var(--red);background:rgba(168,57,43,.05)}
+  .rq-tbl tr.zero td.n.ord{color:var(--ink-soft)}
+  .rq-tbl td.n.ord{font-weight:700;color:var(--copper)}
+  @media(max-width:560px){.rq-tbl .hide-m{display:none}.rq-tbl select{max-width:118px}.rq-tbl th,.rq-tbl td{padding-left:.2rem;padding-right:.2rem}}
   .recv-list{display:flex;flex-direction:column;gap:.45rem;max-height:48vh;overflow:auto;padding:0 1.2rem .6rem}
   .recv-cat{font-family:var(--serif);font-weight:600;font-size:.92rem;color:var(--ink-soft);margin:.5rem 0 .1rem;display:flex;align-items:center;gap:.4rem}
   .recv-cat .dot{width:8px;height:8px;border-radius:50%}
@@ -353,12 +370,33 @@
       <input class="input qtyin" id="ord_qty" type="number" step="any" inputmode="decimal" placeholder="Qté">
       <button class="btn-copper addbtn" id="ord_add">+ Ajouter</button>
     </div>
+    <div class="fromrec"><button class="btn-ghost" id="ord_fromrec">+ Depuis une recette</button></div>
     <div class="recv-summary" id="ord_summary"></div>
     <div class="recv-list" id="ord_list"></div>
     <div class="modal-actions">
       <button class="btn-ghost" id="ord_cancel">Annuler</button>
       <button class="btn-ghost" id="ord_print">Imprimer</button>
       <button class="btn-copper" id="ord_done">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal commande depuis une recette -->
+<div class="overlay" id="rqov" style="z-index:60">
+  <div class="modal xwide">
+    <h2>Commande depuis une recette</h2>
+    <div class="form" style="padding-bottom:.5rem">
+      <div class="two">
+        <label style="flex:2">Recette<select class="input" id="rq_rec"></select></label>
+        <label>Volume (L)<input class="input" id="rq_vol" type="number" min="1" step="any" inputmode="decimal"></label>
+      </div>
+      <label class="rq-opts"><input type="checkbox" id="rq_net" checked> Déduire le stock actuel (ne commander que ce qui manque)</label>
+    </div>
+    <div class="recv-summary" id="rq_sum"></div>
+    <div class="rq-wrap" id="rq_body"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="rq_cancel">Annuler</button>
+      <button class="btn-copper" id="rq_add">Ajouter au bon</button>
     </div>
   </div>
 </div>
@@ -732,7 +770,7 @@ $('btnUse').onclick=()=>openUse();
 /* ---- Bon de commande (+ édition depuis l'historique) ---- */
 let ordEditId=null;
 function openOrder(edit){
-  ENTRY.ord.lines=[];pickSel.ord=null;ordEditId=edit?edit.id:null;
+  ENTRY.ord.lines=[];ENTRY.ord.need={};pickSel.ord=null;ordEditId=edit?edit.id:null;
   if(edit){ENTRY.ord.lines=edit.lines.filter(l=>itById(l.id)).map(l=>({id:l.id,qty:String(l.qty)}));}
   else{state.items.forEach(it=>{if(isLow(it)){const min=Number(it.min)||0,q=Number(it.qty)||0;ENTRY.ord.lines.push({id:it.id,qty:String(Math.ceil(Math.max(min*2-q,1)))});}});}
   $('ord_h2').textContent=edit?'Modifier la commande':'Bon de commande';
@@ -760,6 +798,111 @@ $('ord_done').onclick=()=>{
   alert(wasEdit?'Commande modifiée.':'Commande enregistrée — tu pourras la réceptionner depuis « Réception ».');
 };
 $('btnOrder').onclick=()=>openOrder();
+
+/* ============== Commande depuis une recette (lit brasserie_recettes_v1) ============== */
+const RECKEY='brasserie_recettes_v1',rqov=$('rqov');
+let rqRows=[];
+function rqRecipes(){let a=[];try{a=JSON.parse(localStorage.getItem(RECKEY))||[];}catch(e){}return (Array.isArray(a)?a:[]).filter(r=>r&&r.name).sort((x,y)=>x.name.localeCompare(y.name,'fr'));}
+const rqNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+const RQ_STOP=new Set(['malt','malts','levure','levures','conv','bio','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
+const rqTok=t=>rqNorm(t).split(' ').filter(w=>w&&!RQ_STOP.has(w));
+const U={g:['m',1],kg:['m',1000],ml:['v',1],l:['v',1000]};
+function rqConv(q,from,to){const a=U[String(from||'').toLowerCase()],b=U[String(to||'').toLowerCase()];if(!a||!b||a[0]!==b[0])return q;return q*a[1]/b[1];}
+function rqRound(q,u){u=String(u||'').toLowerCase();return (u==='g'||u==='ml')?Math.ceil(q-1e-9):Math.ceil(q*100-1e-9)/100;}
+// Ingrédients d'une recette ramenés au volume voulu
+function rqIngredients(r,vol){
+  const k=vol/(parseFloat(r.vol)||vol||1),out=[];
+  (r.malts||[]).forEach(m=>out.push({type:'malt',cat:'malt',n:m.n,sub:m.b||'',q:(parseFloat(m.kg)||0)*k,u:'kg'}));
+  (r.hops||[]).forEach(h=>out.push({type:'houblon',cat:'houblon',n:h.n,sub:h.time!=null?h.time+' min':'',q:(parseFloat(h.g)||0)*k,u:'g'}));
+  if(r.yeast&&r.yeast.n)out.push({type:'levure',cat:'levure',n:r.yeast.n,sub:'',q:(parseFloat(r.yeast.g)||0)*k,u:'g'});
+  (r.soft||[]).forEach(x=>{if(x.c==='eau'||x.u==='Eau'||rqNorm(x.n)==='eau')return;out.push({type:'soft',cat:'conso',n:x.n,sub:'',q:(parseFloat(x.qty)||0)*k,u:x.u||'kg'});});
+  // regroupe les doublons (ex. même houblon à 60 et 10 min)
+  const g={};out.forEach(i=>{const key=i.type+'|'+rqNorm(i.n);if(g[key]){g[key].q+=rqConv(i.q,i.u,g[key].u);if(i.sub&&g[key].type==='houblon')g[key].sub+=' + '+i.sub;}else g[key]={...i,key};});
+  return Object.values(g).filter(i=>i.q>0);
+}
+function rqGuess(ing){
+  const saved=(state.recipeMap||{})[ing.key];
+  if(saved&&(saved==='__skip'||itById(saved)))return saved;
+  const t=rqTok(ing.n);if(!t.length)return '';
+  let best='',bs=0;
+  state.items.forEach(it=>{const it2=rqTok(it.name);const hit=t.filter(w=>it2.includes(w)).length;if(!hit)return;
+    if(hit<t.length)return; // tous les mots de l'ingrédient doivent figurer dans l'article
+    const sc=10-(it2.length-hit)+(it.cat===ing.cat?5:0);if(sc>bs){bs=sc;best=it.id;}});
+  return best;
+}
+function rqOptions(ing,sel){
+  const items=[...state.items].sort((a,b)=>(a.cat===ing.cat?0:1)-(b.cat===ing.cat?0:1)||a.name.localeCompare(b.name));
+  let h=`<option value="">— Choisir un article —</option><option value="__new"${sel==='__new'?' selected':''}>+ Créer « ${esc(ing.n)} »</option><option value="__skip"${sel==='__skip'?' selected':''}>Ne pas commander</option>`;
+  let lastCat=null;
+  items.forEach(it=>{if(it.cat!==lastCat){if(lastCat!==null)h+='</optgroup>';const c=cat(it.cat);h+=`<optgroup label="${esc(c?c.label:it.cat)}">`;lastCat=it.cat;}
+    h+=`<option value="${it.id}"${it.id===sel?' selected':''}>${esc(it.name)}</option>`;});
+  return h+(lastCat!==null?'</optgroup>':'');
+}
+function rqCalc(row){
+  // besoin et quantité à commander, dans l'unité de l'article de stock
+  const net=$('rq_net').checked,it=itById(row.sel);
+  const unit=it?(it.unit||row.u):(row.sel==='__new'?rqDefUnit(row):row.u);
+  const need=rqConv(row.q,row.u,unit);
+  if(!it){return {unit,need,stock:0,ord:row.sel==='__skip'?0:rqRound(need,unit)};}
+  const stock=Math.max(0,Number(it.qty)||0);
+  const prev=(ENTRY.ord.need||{})[it.id]||0;
+  const ord=net?Math.max(0,need+prev-stock)-Math.max(0,prev-stock):need;
+  return {unit,need,stock,ord:rqRound(Math.max(0,ord),unit)};
+}
+function rqDefUnit(row){return row.cat==='houblon'?'g':(row.cat==='conso'?((row.u==='L'||row.u==='ml')?'L':'kg'):'kg');}
+function rqRender(){
+  const body=$('rq_body'),sum=$('rq_sum');
+  if(!rqRows.length){body.innerHTML='<div class="empty-cat" style="padding:.6rem 0">Aucun ingrédient dans cette recette.</div>';sum.textContent='';return;}
+  let n=0,miss=0;
+  body.innerHTML=`<table class="rq-tbl"><thead><tr><th>Ingrédient</th><th>Article du stock</th><th class="hide-m" style="text-align:right">Besoin</th><th class="hide-m" style="text-align:right">En stock</th><th style="text-align:right">À cder</th></tr></thead><tbody>${rqRows.map((r,i)=>{
+    const c=rqCalc(r);if(!r.sel)miss++;else if(c.ord>0)n++;
+    return `<tr class="${c.ord>0?'':'zero'}"><td class="ing"><b>${esc(r.n)}</b>${r.sub?`<small>${esc(r.sub)}</small>`:''}</td>
+      <td><select data-i="${i}" class="${r.sel?'':'unmapped'}">${rqOptions(r,r.sel)}</select></td>
+      <td class="n hide-m">${num(rqRound(c.need,c.unit))} ${esc(c.unit)}</td>
+      <td class="n hide-m">${itById(r.sel)?num(c.stock)+' '+esc(c.unit):'—'}</td>
+      <td class="n ord">${r.sel==='__skip'?'—':num(c.ord)+' '+esc(c.unit)}</td></tr>`;}).join('')}</tbody></table>`;
+  sum.innerHTML=(miss?`<span style="color:var(--red)">${miss} ingrédient(s) à associer à un article</span> · `:'')+`<b>${n}</b> ligne(s) à ajouter au bon`;
+}
+function rqLoad(){
+  const recs=rqRecipes(),r=recs[parseInt($('rq_rec').value,10)];
+  if(!r){rqRows=[];rqRender();return;}
+  const vol=parseFloat($('rq_vol').value)||parseFloat(r.vol)||0;
+  const prevSel={};rqRows.forEach(x=>prevSel[x.key]=x.sel);
+  rqRows=rqIngredients(r,vol).map(i=>({...i,sel:prevSel[i.key]!=null?prevSel[i.key]:rqGuess(i)}));
+  rqRender();
+}
+function openFromRecipe(){
+  const recs=rqRecipes();
+  if(!recs.length){alert('Aucune recette enregistrée trouvée.\nEnregistre d’abord tes recettes dans l’app Recettes (même site).');return;}
+  $('rq_rec').innerHTML=recs.map((r,i)=>`<option value="${i}">${esc(r.name)}${r.vol?' — '+num(r.vol)+' L':''}</option>`).join('');
+  $('rq_vol').value=recs[0].vol||'';rqRows=[];rqLoad();rqov.classList.add('show');
+}
+$('ord_fromrec').onclick=openFromRecipe;
+$('rq_rec').onchange=()=>{const r=rqRecipes()[parseInt($('rq_rec').value,10)];$('rq_vol').value=r&&r.vol||'';rqRows=[];rqLoad();};
+$('rq_vol').oninput=rqLoad;
+$('rq_net').onchange=rqRender;
+$('rq_body').addEventListener('change',e=>{const s=e.target.closest('select[data-i]');if(!s)return;rqRows[+s.dataset.i].sel=s.value;rqRender();});
+$('rq_cancel').onclick=()=>rqov.classList.remove('show');
+rqov.addEventListener('click',e=>{if(e.target===rqov)rqov.classList.remove('show');});
+$('rq_add').onclick=()=>{
+  if(rqRows.some(r=>!r.sel)&&!confirm('Certains ingrédients ne sont associés à aucun article et seront ignorés. Continuer ?'))return;
+  state.recipeMap=state.recipeMap||{};ENTRY.ord.need=ENTRY.ord.need||{};
+  let added=0;
+  rqRows.forEach(r=>{
+    if(!r.sel)return;
+    if(r.sel==='__skip'){state.recipeMap[r.key]='__skip';return;}
+    if(r.sel==='__new'){const ni={id:uid(),cat:r.cat,name:r.n,unit:rqDefUnit(r),qty:0,min:'',note:''};state.items.push(ni);r.sel=ni.id;}
+    state.recipeMap[r.key]=r.sel;
+    const c=rqCalc(r);
+    ENTRY.ord.need[r.sel]=((ENTRY.ord.need||{})[r.sel]||0)+c.need;
+    if(c.ord<=0)return;
+    const ex=ENTRY.ord.lines.find(l=>l.id===r.sel);
+    if(ex)ex.qty=String(rqRound((parseFloat(ex.qty)||0)+c.ord,c.unit));else ENTRY.ord.lines.push({id:r.sel,qty:String(c.ord)});
+    added++;
+  });
+  save();render();renderBasket('ord');rqov.classList.remove('show');
+  if(!added)alert('Rien à commander : le stock couvre déjà cette recette.');
+};
 
 /* ============== Helpers mouvements + impression ============== */
 const genId=p=>p+Math.random().toString(36).slice(2,9);
