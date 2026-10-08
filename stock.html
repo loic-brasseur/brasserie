@@ -127,6 +127,8 @@
   .rq-tbl select{font-size:.82rem;padding:.3rem .4rem;border:1px solid #E0D4BE;border-radius:8px;background:#fff;max-width:200px;min-height:34px;font-family:var(--sans)}
   .rq-tbl select.unmapped{border-color:var(--red);background:rgba(168,57,43,.05)}
   .rq-tbl tr.zero td.n.ord{color:var(--ink-soft)}
+  .rq-tbl tr.over .rq-q{border-color:var(--red);color:var(--red)}
+  .rq-tbl tr.over td.ing small.ov{color:var(--red);display:block}
   .rq-tbl td.n.ord{font-weight:700;color:var(--copper)}
   .rq-q{width:78px;font-family:var(--mono);font-size:.9rem;font-weight:700;color:var(--copper);padding:.3rem .4rem;border:1px solid #E0D4BE;border-radius:8px;background:#fff;text-align:right;min-height:34px;-webkit-appearance:none;appearance:none}
   @media(max-width:560px){.rq-tbl .hide-m{display:none}.rq-tbl select{max-width:118px}.rq-tbl th,.rq-tbl td{padding-left:.2rem;padding-right:.2rem}}
@@ -346,6 +348,7 @@
       <input class="input qtyin" id="use_qty" type="number" step="any" inputmode="decimal" placeholder="Qté utilisée">
       <button class="btn-copper addbtn" id="use_add">+ Ajouter</button>
     </div>
+    <div class="fromrec"><button class="btn-ghost" id="use_fromrec">+ Depuis une recette</button></div>
     <div class="recv-summary" id="use_summary"></div>
     <div class="recv-list" id="use_list"></div>
     <div class="modal-actions">
@@ -385,13 +388,13 @@
 <!-- Modal commande depuis une recette -->
 <div class="overlay" id="rqov" style="z-index:60">
   <div class="modal xwide">
-    <h2>Commande depuis une recette</h2>
+    <h2 id="rq_h2">Commande depuis une recette</h2>
     <div class="form" style="padding-bottom:.5rem">
       <div class="two">
         <label style="flex:2">Recette<select class="input" id="rq_rec"></select></label>
         <label>Volume (L)<input class="input" id="rq_vol" type="number" min="1" step="any" inputmode="decimal"></label>
       </div>
-      <label class="rq-opts"><input type="checkbox" id="rq_net" checked> Déduire le stock actuel (ne commander que ce qui manque)</label>
+      <label class="rq-opts" id="rq_netwrap"><input type="checkbox" id="rq_net" checked> Déduire le stock actuel (ne commander que ce qui manque)</label>
     </div>
     <div class="recv-summary" id="rq_sum"></div>
     <div class="rq-wrap" id="rq_body"></div>
@@ -742,7 +745,7 @@ $('btnReceive').onclick=()=>openReceive();
 let useEditId=null;
 function openUse(edit){
   ENTRY.use.lines=edit?edit.lines.filter(l=>itById(l.id)).map(l=>({id:l.id,qty:String(l.qty)})):[];
-  pickSel.use=null;useEditId=edit?edit.id:null;
+  pickSel.use=null;ENTRY.use.need={};useEditId=edit?edit.id:null;
   $('use_h2').textContent=edit?'Modifier la sortie':'Sortie de stock';
   $('use_save').textContent=edit?'Enregistrer les modifications':'Valider la sortie';
   $('use_date').value=(edit&&edit.date)||today();
@@ -802,7 +805,7 @@ $('btnOrder').onclick=()=>openOrder();
 
 /* ============== Commande depuis une recette (lit brasserie_recettes_v1) ============== */
 const RECKEY='brasserie_recettes_v1',rqov=$('rqov');
-let rqRows=[];
+let rqRows=[],rqMode='ord';
 function rqRecipes(){let a=[];try{a=JSON.parse(localStorage.getItem(RECKEY))||[];}catch(e){}return (Array.isArray(a)?a:[]).filter(r=>r&&r.name).sort((x,y)=>x.name.localeCompare(y.name,'fr'));}
 const rqNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 const RQ_STOP=new Set(['malt','malts','levure','levures','conv','bio','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
@@ -833,7 +836,7 @@ function rqGuess(ing){
 }
 function rqOptions(ing,sel){
   const items=[...state.items].sort((a,b)=>(a.cat===ing.cat?0:1)-(b.cat===ing.cat?0:1)||a.name.localeCompare(b.name));
-  let h=`<option value="">— Choisir un article —</option><option value="__new"${sel==='__new'?' selected':''}>+ Créer « ${esc(ing.n)} »</option><option value="__skip"${sel==='__skip'?' selected':''}>Ne pas commander</option>`;
+  let h=`<option value="">— Choisir un article —</option>${rqMode==='ord'?`<option value="__new"${sel==='__new'?' selected':''}>+ Créer « ${esc(ing.n)} »</option>`:''}<option value="__skip"${sel==='__skip'?' selected':''}>${rqMode==='ord'?'Ne pas commander':'Ne pas déduire'}</option>`;
   let lastCat=null;
   items.forEach(it=>{if(it.cat!==lastCat){if(lastCat!==null)h+='</optgroup>';const c=cat(it.cat);h+=`<optgroup label="${esc(c?c.label:it.cat)}">`;lastCat=it.cat;}
     h+=`<option value="${it.id}"${it.id===sel?' selected':''}>${esc(it.name)}</option>`;});
@@ -841,11 +844,12 @@ function rqOptions(ing,sel){
 }
 function rqCalc(row){
   // besoin et quantité à commander, dans l'unité de l'article de stock
-  const net=$('rq_net').checked,it=itById(row.sel);
+  const net=rqMode==='ord'&&$('rq_net').checked,it=itById(row.sel);
   const unit=it?(it.unit||row.u):(row.sel==='__new'?rqDefUnit(row):row.u);
   const need=rqConv(row.q,row.u,unit);
   if(!it){return {unit,need,stock:0,ord:row.sel==='__skip'?0:(row.ov!=null?row.ov:rqRound(need,unit))};}
   const stock=Math.max(0,Number(it.qty)||0);
+  if(rqMode==='use'){const prevU=(ENTRY.use.need||{})[it.id]||0;const o=row.ov!=null?row.ov:rqRound(need,unit);return {unit,need,stock,ord:o,over:o+prevU>stock+1e-9};}
   const prev=(ENTRY.ord.need||{})[it.id]||0;
   const ord=net?Math.max(0,need+prev-stock)-Math.max(0,prev-stock):need;
   return {unit,need,stock,ord:row.ov!=null?row.ov:rqRound(Math.max(0,ord),unit)};
@@ -854,15 +858,16 @@ function rqDefUnit(row){return row.cat==='houblon'?'g':(row.cat==='conso'?((row.
 function rqRender(){
   const body=$('rq_body'),sum=$('rq_sum');
   if(!rqRows.length){body.innerHTML='<div class="empty-cat" style="padding:.6rem 0">Aucun ingrédient dans cette recette.</div>';sum.textContent='';return;}
-  let n=0,miss=0;
-  body.innerHTML=`<table class="rq-tbl"><thead><tr><th>Ingrédient</th><th>Article du stock</th><th class="hide-m" style="text-align:right">Besoin</th><th class="hide-m" style="text-align:right">En stock</th><th style="text-align:right">À cder</th></tr></thead><tbody>${rqRows.map((r,i)=>{
+  let n=0,miss=0,over=0;
+  body.innerHTML=`<table class="rq-tbl"><thead><tr><th>Ingrédient</th><th>Article du stock</th><th class="hide-m" style="text-align:right">Besoin</th><th class="hide-m" style="text-align:right">En stock</th><th style="text-align:right">${rqMode==='ord'?'À cder':'À sortir'}</th></tr></thead><tbody>${rqRows.map((r,i)=>{
     const c=rqCalc(r);if(!r.sel)miss++;else if(c.ord>0)n++;
-    return `<tr class="${c.ord>0?'':'zero'}"><td class="ing"><b>${esc(r.n)}</b>${r.sub?`<small>${esc(r.sub)}</small>`:''}</td>
+    if(c.over)over++;
+    return `<tr class="${c.ord>0?'':'zero'}${c.over?' over':''}"><td class="ing"><b>${esc(r.n)}</b>${r.sub?`<small>${esc(r.sub)}</small>`:''}${c.over?`<small class="ov">stock : ${num(c.stock)} ${esc(c.unit)}</small>`:''}</td>
       <td><select data-i="${i}" class="${r.sel?'':'unmapped'}">${rqOptions(r,r.sel)}</select></td>
       <td class="n hide-m">${num(rqRound(c.need,c.unit))} ${esc(c.unit)}</td>
       <td class="n hide-m">${itById(r.sel)?num(c.stock)+' '+esc(c.unit):'—'}</td>
       <td class="n ord">${r.sel==='__skip'?'—':`<input class="rq-q" type="number" min="0" step="any" inputmode="decimal" data-q="${i}" value="${c.ord}"> ${esc(c.unit)}`}</td></tr>`;}).join('')}</tbody></table>`;
-  sum.innerHTML=(miss?`<span style="color:var(--red)">${miss} ingrédient(s) à associer à un article</span> · `:'')+`<b>${n}</b> ligne(s) à ajouter au bon`;
+  sum.innerHTML=(miss?`<span style="color:var(--red)">${miss} ingrédient(s) à associer à un article</span> · `:'')+(over?`<span style="color:var(--red)">${over} au-delà du stock</span> · `:'')+`<b>${n}</b> ligne(s) ${rqMode==='ord'?'à ajouter au bon':'à déduire du stock'}`;
 }
 function rqLoad(){
   const recs=rqRecipes(),r=recs[parseInt($('rq_rec').value,10)];
@@ -872,13 +877,18 @@ function rqLoad(){
   rqRows=rqIngredients(r,vol).map(i=>({...i,sel:prevSel[i.key]!=null?prevSel[i.key]:rqGuess(i)}));
   rqRender();
 }
-function openFromRecipe(){
+function openFromRecipe(mode){
+  rqMode=mode||'ord';
+  $('rq_h2').textContent=rqMode==='ord'?'Commande depuis une recette':'Sortie depuis une recette';
+  $('rq_add').textContent=rqMode==='ord'?'Ajouter au bon':'Ajouter à la sortie';
+  $('rq_netwrap').classList.toggle('hidden',rqMode!=='ord');
   const recs=rqRecipes();
   if(!recs.length){alert('Aucune recette enregistrée trouvée.\nEnregistre d’abord tes recettes dans l’app Recettes (même site).');return;}
   $('rq_rec').innerHTML=recs.map((r,i)=>`<option value="${i}">${esc(r.name)}${r.vol?' — '+num(r.vol)+' L':''}</option>`).join('');
   $('rq_vol').value=recs[0].vol||'';rqRows=[];rqLoad();rqov.classList.add('show');
 }
-$('ord_fromrec').onclick=openFromRecipe;
+$('ord_fromrec').onclick=()=>openFromRecipe('ord');
+$('use_fromrec').onclick=()=>openFromRecipe('use');
 $('rq_rec').onchange=()=>{const r=rqRecipes()[parseInt($('rq_rec').value,10)];$('rq_vol').value=r&&r.vol||'';rqRows=[];rqLoad();};
 $('rq_vol').oninput=()=>{rqRows.forEach(r=>r.ov=null);rqLoad();};
 $('rq_net').onchange=()=>{rqRows.forEach(r=>r.ov=null);rqRender();};
@@ -888,7 +898,8 @@ $('rq_cancel').onclick=()=>rqov.classList.remove('show');
 rqov.addEventListener('click',e=>{if(e.target===rqov)rqov.classList.remove('show');});
 $('rq_add').onclick=()=>{
   if(rqRows.some(r=>!r.sel)&&!confirm('Certains ingrédients ne sont associés à aucun article et seront ignorés. Continuer ?'))return;
-  state.recipeMap=state.recipeMap||{};ENTRY.ord.need=ENTRY.ord.need||{};
+  const E=ENTRY[rqMode];
+  state.recipeMap=state.recipeMap||{};E.need=E.need||{};
   let added=0;
   rqRows.forEach(r=>{
     if(!r.sel)return;
@@ -896,14 +907,15 @@ $('rq_add').onclick=()=>{
     if(r.sel==='__new'){const ni={id:uid(),cat:r.cat,name:r.n,unit:rqDefUnit(r),qty:0,min:'',note:''};state.items.push(ni);r.sel=ni.id;}
     state.recipeMap[r.key]=r.sel;
     const c=rqCalc(r);
-    ENTRY.ord.need[r.sel]=((ENTRY.ord.need||{})[r.sel]||0)+c.need;
+    E.need[r.sel]=(E.need[r.sel]||0)+(rqMode==='use'?c.ord:c.need);
     if(c.ord<=0)return;
-    const ex=ENTRY.ord.lines.find(l=>l.id===r.sel);
-    if(ex)ex.qty=String(rqRound((parseFloat(ex.qty)||0)+c.ord,c.unit));else ENTRY.ord.lines.push({id:r.sel,qty:String(c.ord)});
+    const ex=E.lines.find(l=>l.id===r.sel);
+    if(ex)ex.qty=String(rqRound((parseFloat(ex.qty)||0)+c.ord,c.unit));else E.lines.push({id:r.sel,qty:String(c.ord)});
     added++;
   });
-  save();render();renderBasket('ord');rqov.classList.remove('show');
-  if(!added)alert('Rien à commander : le stock couvre déjà cette recette.');
+  if(rqMode==='use'&&!$('use_reason').value.trim()){const r=rqRecipes()[parseInt($('rq_rec').value,10)];if(r)$('use_reason').value='Brassin '+r.name+' — '+num(parseFloat($('rq_vol').value)||r.vol)+' L';}
+  save();render();renderBasket(rqMode);rqov.classList.remove('show');
+  if(!added)alert(rqMode==='ord'?'Rien à commander : le stock couvre déjà cette recette.':'Aucune ligne ajoutée.');
 };
 
 /* ============== Helpers mouvements + impression ============== */
