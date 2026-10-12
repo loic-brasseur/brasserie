@@ -137,7 +137,10 @@
   .recipe-sec h3 .tot{font-family:var(--sans);font-size:12px;color:var(--ink-soft);font-weight:600}
   .ri{display:grid;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--line)}
   .ri.malt{grid-template-columns:14px 1fr 92px 70px 26px}
-  .ri.hop{grid-template-columns:1fr 70px 64px 78px 70px 26px}
+  .ri.hop{grid-template-columns:1fr 70px 50px 98px 72px 80px 22px}
+  .hdur{display:flex;align-items:center;gap:4px}.hdur input{width:100%;min-width:0}.hdur span{font-size:10.5px;color:var(--ink-soft);width:20px;flex:0 0 20px}
+  .hop-grp{padding:7px 14px 3px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-soft);border-top:1px solid var(--line);display:flex;justify-content:space-between}
+  .hop-grp span{font-weight:500;text-transform:none;letter-spacing:0}
   .ri.yeast{grid-template-columns:1fr 84px 78px 26px}
   .ri.soft{grid-template-columns:1fr 88px 76px 26px}
   .ri .rn{font-size:13px;font-weight:600;line-height:1.15}
@@ -151,7 +154,7 @@
   .col-head{display:grid;gap:8px;padding:2px 14px 4px;font-size:9.5px;text-transform:uppercase;
     letter-spacing:.05em;color:var(--ink-soft);font-weight:700}
   .col-head.malt{grid-template-columns:14px 1fr 92px 70px 26px}
-  .col-head.hop{grid-template-columns:1fr 70px 64px 78px 70px 26px}
+  .col-head.hop{grid-template-columns:1fr 70px 50px 98px 72px 80px 22px}
   .col-head.soft{grid-template-columns:1fr 88px 76px 26px}
 
   /* Mode bar */
@@ -456,7 +459,7 @@
       </div>
       <div class="recipe-sec">
         <h3>Houblons <span class="tot" id="hopTot"></span></h3>
-        <div class="col-head hop"><span>Variété</span><span style="text-align:center">g</span><span style="text-align:center">α %</span><span style="text-align:center">min</span><span style="text-align:center">forme</span><span></span></div>
+        <div class="col-head hop"><span>Variété</span><span style="text-align:center">g</span><span style="text-align:center">α %</span><span style="text-align:center">ajout</span><span style="text-align:center">durée</span><span style="text-align:center">forme</span><span></span></div>
         <div id="hopList"></div>
       </div>
       <div class="recipe-sec">
@@ -897,6 +900,10 @@ function colorName(ebc){
 
 /* ============================ STATE ============================ */
 let state={mode:'biere',malts:[],hops:[],yeast:null,soft:[]};
+/* Ajout houblon : boil = ébullition (min), wp = whirlpool (min de contact), dh = dry hop (jours de contact) */
+const HOPUSE={boil:{l:'Ébullition',u:'min',def:60},wp:{l:'Whirlpool',u:'min',def:20},dh:{l:'Dry hop',u:'j',def:3}};
+const hopUse=h=>HOPUSE[h&&h.use]?h.use:'boil';
+function hopWhen(h){const u=hopUse(h),t=parseFloat(h.time)||0;return u==='boil'?t+' min':u==='wp'?'Whirlpool '+t+' min':'Dry hop '+t+' j';}
 let curTab="malt", curFilter="base";
 const FILTERS={
   malt:[["base","Base"],["caramel","Caramélisé"],["roasted","Torréfié"],["special","Spéciaux"],["bio","Bio"]],
@@ -1016,16 +1023,23 @@ function renderRecipe(){
   // hops
   let hh="";
   if(!state.hops.length)hh='<div class="empty">Ajoute des houblons →</div>';
-  state.hops.forEach((h,i)=>{
+  ['boil','wp','dh'].forEach(gu=>{
+   const idx=state.hops.map((h,i)=>i).filter(i=>hopUse(state.hops[i])===gu);
+   if(!idx.length)return;
+   const gtot=idx.reduce((s,i)=>s+(parseFloat(state.hops[i].g)||0),0);
+   hh+=`<div class="hop-grp">${HOPUSE[gu].l}<span>${gtot} g${gu==='dh'&&getVol()>0?' · '+fmtN(gtot/(getVol()/100),0,1)+' g/hL':''}</span></div>`;
+   idx.forEach(i=>{const h=state.hops[i],u=hopUse(h);
     hh+=`<div class="ri hop">
       <span class="rn">${h.n}</span>
-      <input type="number" value="${h.g}" min="0" step="1" oninput="upd('hop',${i},'g',this.value)">
-      <input type="number" value="${h.a}" min="0" step="0.1" oninput="upd('hop',${i},'a',this.value)">
-      <input type="number" value="${h.time}" min="0" step="1" oninput="upd('hop',${i},'time',this.value)">
+      <input type="number" value="${h.g}" min="0" step="1" title="Quantité (g)" oninput="upd('hop',${i},'g',this.value)">
+      <input type="number" value="${h.a}" min="0" step="0.1" title="Alpha (%)" oninput="upd('hop',${i},'a',this.value)">
+      <select title="Moment d'ajout" onchange="setHopUse(${i},this.value)">${Object.keys(HOPUSE).map(k=>`<option value="${k}"${k===u?' selected':''}>${HOPUSE[k].l}</option>`).join('')}</select>
+      <div class="hdur"><input type="number" value="${h.time}" min="0" step="1" title="Durée (${HOPUSE[u].u==='j'?'jours':'minutes'})" oninput="upd('hop',${i},'time',this.value)"><span>${HOPUSE[u].u}</span></div>
       <select onchange="upd('hop',${i},'form',this.value)">
         <option value="pellets" ${h.form==='pellets'?'selected':''}>Pellets</option>
         <option value="cones" ${h.form==='cones'?'selected':''}>Cônes</option></select>
       <button class="del" onclick="rm('hop',${i})">×</button></div>`;
+   });
   });
   document.getElementById('hopList').innerHTML=hh;
   // yeast
@@ -1056,6 +1070,7 @@ function renderRecipe(){
   document.getElementById('softList').innerHTML=beerM?'':sh;
   document.getElementById('beerSoftList').innerHTML=beerM?sh:'';
 }
+function setHopUse(i,u){const h=state.hops[i];if(!h||!HOPUSE[u])return;h.use=u;h.time=HOPUSE[u].def;renderRecipe();recalc();}
 function upd(type,i,key,val){
   if(type==='malt'){state.malts[i][key]= key==='cs'?val:parseFloat(val)||0;}
   else if(type==='hop'){state.hops[i][key]= key==='form'?val:parseFloat(val)||0;}
@@ -1272,8 +1287,9 @@ function recalc(){
   let ibu=0;
   const bigness=1.65*Math.pow(0.000125,(OG-1));
   state.hops.forEach(h=>{
+    const u=hopUse(h);if(u==='dh')return; // dry hop : pas d'amertume
     const btf=(1-Math.exp(-0.04*h.time))/4.15;
-    let util=bigness*btf;
+    let util=bigness*btf*(u==='wp'?0.5:1); // whirlpool : utilisation réduite (≈50 %, T° < ébullition)
     if(h.form==='pellets')util*=1.10;
     ibu+=(h.a/100)*h.g*1000*util/volL;
   });
@@ -1507,7 +1523,8 @@ function exportPDF(){
     const pct=tot?(m.kg/tot*100).toFixed(1):0;
     return `<tr><td><span class="ps-swatch" style="width:16px;background:${ebcHex(m.ebc)}"></span> ${m.n}</td>
       <td>${m.b}</td><td class="num">${m.kg} kg</td><td class="num">${pct}%</td><td>${m.cs?'Cold steep':'Maische'}</td></tr>`;}).join('');
-  let hopRows=state.hops.map(h=>`<tr><td>${h.n}</td><td>${h.form==='pellets'?'Pellets':'Cônes'}</td><td class="num">${h.g} g</td><td class="num">${h.a}%</td><td class="num">${h.time} min</td></tr>`).join('');
+  const hopOrd={boil:0,wp:1,dh:2};
+  let hopRows=[...state.hops].sort((a,b)=>hopOrd[hopUse(a)]-hopOrd[hopUse(b)]||((hopUse(a)==='boil')?(b.time-a.time):0)).map(h=>`<tr><td>${h.n}</td><td>${h.form==='pellets'?'Pellets':'Cônes'}</td><td class="num">${h.g} g</td><td class="num">${h.a}%</td><td class="num">${hopWhen(h)}</td></tr>`).join('');
   const y=state.yeast;
   const yeastRow=y?`<tr><td>${y.n}</td><td>${y.t}</td><td class="num">${y.g} g</td><td class="num">${y.attU}%</td><td>${y.tp}</td></tr>`:`<tr><td colspan="5">—</td></tr>`;
   const softSec=state.soft.length?`<div class="ps-sec"><h2>Épices &amp; autres</h2>
@@ -1532,7 +1549,7 @@ function exportPDF(){
       <table class="ps-table">${CG}<thead><tr><th>Ingrédient</th><th>Marque</th><th class="num">Quantité</th><th class="num">% grist</th><th>Process</th></tr></thead>
       <tbody>${maltRows||'<tr><td colspan="5">—</td></tr>'}</tbody></table></div>
     <div class="ps-sec"><h2>Houblons</h2>
-      <table class="ps-table">${CG}<thead><tr><th>Variété</th><th>Forme</th><th class="num">Quantité</th><th class="num">α</th><th class="num">Ébullition</th></tr></thead>
+      <table class="ps-table">${CG}<thead><tr><th>Variété</th><th>Forme</th><th class="num">Quantité</th><th class="num">α</th><th class="num">Ajout</th></tr></thead>
       <tbody>${hopRows||'<tr><td colspan="5">—</td></tr>'}</tbody></table></div>
     <div class="ps-sec"><h2>Levure</h2>
       <table class="ps-table">${CG}<thead><tr><th>Souche</th><th>Type</th><th class="num">Quantité</th><th class="num">Atténuation</th><th>Température</th></tr></thead>
@@ -1678,7 +1695,7 @@ function costLines(r){
   };
   if(mode==='biere'){
     (r.malts||[]).forEach(m=>{const q=parseFloat(m.kg)||0;push('malt','malt',m,(m.b||'')+(m.cs?' · cold steep':''),q,'kg',q);});
-    (r.hops||[]).forEach(h=>{const q=parseFloat(h.g)||0;push('hop','hop',h,(h.form==='cones'?'Cônes':'Pellets')+' · '+fmtN(parseFloat(h.a)||0,0,1)+' % α · '+(parseFloat(h.time)||0)+' min',q,'g',q/1000);});
+    (r.hops||[]).forEach(h=>{const q=parseFloat(h.g)||0;push('hop','hop',h,(h.form==='cones'?'Cônes':'Pellets')+' · '+fmtN(parseFloat(h.a)||0,0,1)+' % α · '+hopWhen(h),q,'g',q/1000);});
     if(r.yeast){const q=parseFloat(r.yeast.g)||0;push('yeast','yeast',r.yeast,r.yeast.t||'',q,'g',q/1000);}
   }
   (r.soft||[]).forEach(s=>{const q=parseFloat(s.qty)||0,u=s.u||'kg';push('soft','soft',s,SOFTCAT[s.c]||'',q,u,(u==='g'||u==='ml')?q/1000:q);});
