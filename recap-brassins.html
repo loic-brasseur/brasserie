@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
 <style>
   :root{
     --bg:#FBF5EC;--bg2:#F4ECDC;--card:#FFFDF7;--ink:#1A1612;--ink-soft:#7A6F5C;
@@ -42,7 +43,7 @@
   .kpi .v small{font-family:var(--sans);font-size:.8rem;font-weight:600;color:var(--ink-soft)}
   .kpi .s{font-size:.78rem;color:var(--ink-soft);margin-top:.15rem}
   .kpi.accent{background:var(--ink);color:#FBF5EC;border-color:var(--ink)}
-  .kpi.accent .l,.kpi.accent .s,.kpi.accent .v small{color:#D8CBB4}
+  .kpi.accent .l,.kpi.accent .s,.kpi.accent .v small,.kpi.accent .lt{color:#D8CBB4}
   .kpi input{width:4.2rem;font:inherit;font-weight:700;padding:.1rem .3rem;border:1px solid var(--line-strong);border-radius:6px;background:#FFFDF7;color:var(--ink)}
   .tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem}
   .tabs button{font:inherit;font-size:.88rem;font-weight:700;padding:.5rem .95rem;border-radius:999px;border:1px solid var(--line-strong);background:var(--card);color:var(--ink);cursor:pointer}
@@ -57,6 +58,10 @@
   tr.subt td{background:var(--sub);font-weight:700}
   tr.tot td{background:var(--gold);color:var(--ink);font-weight:800}
   tr.month td{font-family:var(--serif);font-weight:600;font-size:1rem;text-align:left;padding-top:.9rem;border-bottom:1px solid var(--line-strong)}
+  .hl{display:block;line-height:1.15}
+  .lt{display:block;font-size:.7rem;color:var(--ink-soft);font-weight:500;line-height:1.1}
+  .kpi .lt{font-size:.8rem;margin-top:.1rem}
+  tr.tot .lt{color:var(--ink)}
   .chip{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .45rem;border-radius:999px;font-style:normal}
   .chip.r{background:#E3EAD6;color:var(--green)}
   .chip.p{background:#F1D3BE;color:var(--copper)}
@@ -64,6 +69,31 @@
   .empty{text-align:center;padding:2.4rem 1rem}
   .empty p{color:var(--ink-soft);max-width:30rem;margin:.6rem auto 1.2rem}
   .btn{display:inline-block;font:inherit;font-weight:700;font-size:.9rem;padding:.6rem 1.1rem;border-radius:10px;background:var(--copper);color:#fff;text-decoration:none}
+  .bar-top{display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1rem}
+  .tabs{margin-bottom:0}
+  .exports{display:flex;gap:.4rem}
+  .exports button{font:inherit;font-size:.85rem;font-weight:700;padding:.5rem .85rem;border-radius:10px;border:1px solid var(--line-strong);background:var(--card);color:var(--ink);cursor:pointer}
+  .exports button:hover{border-color:var(--copper);color:var(--copper)}
+  .sec[hidden]{display:none}
+  .print-only{display:none}
+  @media print{
+    @page{size:A4 portrait;margin:12mm}
+    body{background:#fff;padding:0;font-size:10pt}
+    .back,.bar-top,footer,.kpi input{display:none!important}
+    .print-only{display:inline}
+    .sec,.sec[hidden]{display:block!important}
+    .sec + .sec{break-before:page}
+    .card,.kpi{box-shadow:none;break-inside:auto}
+    .kpis{grid-template-columns:repeat(5,1fr);gap:.4rem}
+    .kpi{padding:.5rem .6rem}.kpi .v{font-size:1.15rem}
+    .kpi.accent{background:#fff;color:var(--ink);border:2px solid var(--ink)}
+    .kpi.accent .l,.kpi.accent .s,.kpi.accent .v small,.kpi.accent .lt{color:var(--ink-soft)}
+    .tw{overflow:visible}
+    th{position:static}
+    tr{break-inside:avoid}
+    th,td{padding:.25rem .4rem;font-size:8.5pt}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  }
   footer{text-align:center;margin-top:2rem;color:var(--ink-soft);font-size:.8rem}
   @media (max-width:560px){ th,td{padding:.4rem .45rem} .kpi .v{font-size:1.45rem} }
 </style>
@@ -86,9 +116,103 @@ const MOIS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août'
 const L = hl => hl * 100;                       // HL → litres
 const fmt = n => n ? new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) : '–';
 const pct = n => new Intl.NumberFormat('fr-FR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n || 0);
+const fHL = l => new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(l / 100);
+const q = l => l ? `<span class="hl">${fHL(l)}</span><span class="lt">${fmt(l)} L</span>` : '–';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const shortBeer = n => String(n).replace(/^bi[eèé]re\s+/i, '');
 let tab = 'mois';
+let LAST = null;
+
+async function exportXlsx() {
+  if (!LAST) return;
+  if (typeof ExcelJS === 'undefined') { alert('Export Excel indisponible : connexion internet requise pour charger la librairie.'); return; }
+  const { snap, today, brews, done, prev, totDone, totPrev, totYear, months, avg } = LAST;
+  const wb = new ExcelJS.Workbook();
+  const NF = '#,##0.0;-#,##0.0;"-"'; const NFL = '#,##0;-#,##0;"-"';
+  const HDR = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1A1612' } };
+  const SUB = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFE6D4' } };
+  const TOT = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCF982B' } };
+  const PRV = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF6E3D3' } };
+  const B = { style: 'thin', color: { argb: 'FFC9BFAE' } };
+  const BORD = { top: B, bottom: B, left: B, right: B };
+  const font = (o = {}) => ({ name: 'Arial', size: 10, ...o });
+  const dstr = today.toLocaleDateString('fr-FR');
+  function sheet(name, title, cols) {
+    const ws = wb.addWorksheet(name, { views: [{ state: 'frozen', ySplit: 4 }] });
+    ws.columns = cols.map(c => ({ width: c[1] }));
+    ws.getCell('A1').value = title; ws.getCell('A1').font = font({ size: 14, bold: true });
+    ws.getCell('A2').value = `Réalisé = brassins datés avant le ${dstr} · données du planning du ${new Date(snap.updatedAt).toLocaleDateString('fr-FR')}`;
+    ws.getCell('A2').font = font({ italic: true, size: 9, color: { argb: 'FF7A6F5C' } });
+    const hr = ws.getRow(4); cols.forEach((c, i) => { const cell = hr.getCell(i + 1); cell.value = c[0];
+      cell.font = font({ bold: true, color: { argb: 'FFFFFFFF' } }); cell.fill = HDR; cell.border = BORD;
+      cell.alignment = { horizontal: i < 2 ? 'left' : 'center', vertical: 'middle', wrapText: true }; });
+    return ws;
+  }
+  function row(ws, vals, { fill, bold, italic, numFrom = 2, pctCol, litCol } = {}) {
+    const r = ws.addRow(vals);
+    r.eachCell({ includeEmpty: true }, (c, i) => {
+      c.font = font({ bold, italic }); c.border = BORD; if (fill) c.fill = fill;
+      if (i > numFrom) c.numFmt = NF; if (pctCol && i === pctCol) c.numFmt = '0.0%';
+      if (litCol && i === litCol) c.numFmt = NFL;
+    });
+    return r;
+  }
+  const sumk = (a, k) => a.reduce((s, b) => s + b[k], 0);
+  const r0 = n => Math.round(n); const h1 = l => Math.round(l) / 100;
+
+  // Synthèse
+  const ws0 = wb.addWorksheet('Synthèse');
+  ws0.columns = [{ width: 34 }, { width: 18 }];
+  ws0.getCell('A1').value = `Récap brassins ${snap.year || ''}`; ws0.getCell('A1').font = font({ size: 14, bold: true });
+  ws0.getCell('A2').value = `Édité le ${dstr}`; ws0.getCell('A2').font = font({ italic: true, size: 9 });
+  ws0.columns = [{ width: 30 }, { width: 14 }, { width: 14 }];
+  const h0 = ws0.getRow(4); ['', 'HL', 'Litres'].forEach((t, i) => { const c = h0.getCell(i + 1); c.value = t;
+    c.font = font({ bold: true, color: { argb: 'FFFFFFFF' } }); c.fill = HDR; c.border = BORD; c.alignment = { horizontal: 'center' }; });
+  [['Réalisé', totDone], ['Prévisionnel', totPrev], ['Total année', totYear],
+   ['Moyenne mensuelle', avg], ['Extrapolation annuelle', avg * 12]].forEach(([k, v], i) => {
+    const r = ws0.getRow(5 + i); r.getCell(1).value = k; r.getCell(2).value = h1(v); r.getCell(3).value = r0(v);
+    [1, 2, 3].forEach(c => { r.getCell(c).font = font({ bold: i === 4 }); r.getCell(c).border = BORD; if (i === 4) r.getCell(c).fill = TOT; });
+    r.getCell(2).numFmt = '#,##0.0'; r.getCell(3).numFmt = '#,##0';
+  });
+  [['Nombre de mois d\'activité', months, '0.0'], ['Brassins réalisés', done.length, '0'], ['Brassins prévisionnels', prev.length, '0']].forEach(([k, v, f], i) => {
+    const r = ws0.getRow(11 + i); r.getCell(1).value = k; r.getCell(2).value = v; r.getCell(2).numFmt = f;
+    [1, 2].forEach(c => { r.getCell(c).font = font(); r.getCell(c).border = BORD; });
+  });
+
+  // Par mois
+  const ws1 = sheet('Par mois', 'Brassins par mois', [['Mois', 12], ['Bière', 30], ['Semaine', 9], ['Fût (HL)', 11], ['33 cl (HL)', 11], ['75 cl (HL)', 11], ['Total (HL)', 12], ['Total (L)', 12], ['Statut', 13]]);
+  const byM = {}; brews.forEach(b => (byM[b.month] = byM[b.month] || []).push(b));
+  Object.keys(byM).map(Number).sort((a, b) => a - b).forEach(m => {
+    byM[m].forEach((b, i) => row(ws1, [i ? '' : MOIS[m], shortBeer(b.beer), 'S' + b.week, h1(b.keg), h1(b.b33), h1(b.b75), h1(b.tot), r0(b.tot), b.done ? 'Réalisé' : 'Prévisionnel'],
+      { fill: b.done ? null : PRV, italic: !b.done, numFrom: 3, litCol: 8 }));
+    const l = byM[m];
+    row(ws1, ['', 'Total ' + MOIS[m].toLowerCase(), '', h1(sumk(l, 'keg')), h1(sumk(l, 'b33')), h1(sumk(l, 'b75')), h1(sumk(l, 'tot')), r0(sumk(l, 'tot')), ''], { fill: SUB, bold: true, numFrom: 3, litCol: 8 });
+  });
+  [['Total réalisé', done, SUB], ['Total prévisionnel', prev, SUB], ['TOTAL ANNÉE', brews, TOT]].forEach(([lab, a, f]) =>
+    row(ws1, ['', lab, '', h1(sumk(a, 'keg')), h1(sumk(a, 'b33')), h1(sumk(a, 'b75')), h1(sumk(a, 'tot')), r0(sumk(a, 'tot')), ''], { fill: f, bold: true, numFrom: 3, litCol: 8 }));
+
+  // Par bière (réalisé)
+  const ws2 = sheet('Par bière', 'Récap par bière — réalisé', [['Bière', 30], ['Code', 10], ['Brassins', 10], ['Fût (HL)', 11], ['33 cl (HL)', 11], ['75 cl (HL)', 11], ['Total (HL)', 12], ['Total (L)', 12], ['% du total', 11]]);
+  const g = {}; done.forEach(b => { const k = b.beer; g[k] = g[k] || { beer: k, code: b.code, n: 0, keg: 0, b33: 0, b75: 0, tot: 0 };
+    g[k].n++; g[k].keg += b.keg; g[k].b33 += b.b33; g[k].b75 += b.b75; g[k].tot += b.tot; });
+  Object.values(g).sort((a, b) => b.tot - a.tot).forEach(r =>
+    row(ws2, [shortBeer(r.beer), r.code || '', r.n, h1(r.keg), h1(r.b33), h1(r.b75), h1(r.tot), r0(r.tot), totDone ? r.tot / totDone : 0], { numFrom: 3, litCol: 8, pctCol: 9 }));
+  row(ws2, ['TOTAL', '', done.length, h1(sumk(done, 'keg')), h1(sumk(done, 'b33')), h1(sumk(done, 'b75')), h1(totDone), r0(totDone), totDone ? 1 : 0], { fill: TOT, bold: true, numFrom: 3, litCol: 8, pctCol: 9 });
+
+  // Par contenant (réalisé)
+  const ws3 = sheet('Par contenant', 'Récap par contenant — réalisé', [['Contenant', 20], ['Brassins', 10], ['Volume (HL)', 13], ['Volume (L)', 13], ['% du total', 11]]);
+  [['Fût', 'keg'], ['Bouteille 33 cl', 'b33'], ['Bouteille 75 cl', 'b75']].forEach(([lab, k]) => {
+    const v = sumk(done, k);
+    row(ws3, [lab, done.filter(b => b[k] > 0).length, h1(v), r0(v), totDone ? v / totDone : 0], { numFrom: 2, litCol: 4, pctCol: 5 });
+  });
+  row(ws3, ['TOTAL', '', h1(totDone), r0(totDone), totDone ? 1 : 0], { fill: TOT, bold: true, numFrom: 2, litCol: 4, pctCol: 5 });
+
+  const buf = await wb.xlsx.writeBuffer();
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = `Recap_brassins_${snap.year || ''}_${today.toISOString().slice(0, 10)}.xlsx`;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
 
 function readMonths() { try { const v = parseFloat(localStorage.getItem(MONTHS_KEY)); return v > 0 ? v : 7.5; } catch (e) { return 7.5; } }
 function saveMonths(v) { try { localStorage.setItem(MONTHS_KEY, String(v)); } catch (e) {} }
@@ -125,21 +249,21 @@ function render() {
   const avg = totYear / months;
 
   let h = `<div class="kpis">
-    <div class="kpi"><div class="l">Réalisé</div><div class="v">${fmt(totDone)} <small>L</small></div><div class="s">${done.length} brassins</div></div>
-    <div class="kpi"><div class="l">Prévisionnel</div><div class="v">${fmt(totPrev)} <small>L</small></div><div class="s">${prev.length} brassins</div></div>
-    <div class="kpi"><div class="l">Total année</div><div class="v">${fmt(totYear)} <small>L</small></div><div class="s">réalisé + prévisionnel</div></div>
-    <div class="kpi"><div class="l">Moyenne mensuelle</div><div class="v">${fmt(avg)} <small>L/mois</small></div>
-      <div class="s">sur <input id="months" type="number" min="0.5" step="0.5" value="${months}" inputmode="decimal"> mois</div></div>
-    <div class="kpi accent"><div class="l">Extrapolation annuelle</div><div class="v">${fmt(avg * 12)} <small>L/an</small></div><div class="s">moyenne × 12</div></div>
+    <div class="kpi"><div class="l">Réalisé</div><div class="v">${fHL(totDone)} <small>HL</small></div><div class="lt">${fmt(totDone)} L</div><div class="s">${done.length} brassins</div></div>
+    <div class="kpi"><div class="l">Prévisionnel</div><div class="v">${fHL(totPrev)} <small>HL</small></div><div class="lt">${fmt(totPrev)} L</div><div class="s">${prev.length} brassins</div></div>
+    <div class="kpi"><div class="l">Total année</div><div class="v">${fHL(totYear)} <small>HL</small></div><div class="lt">${fmt(totYear)} L</div><div class="s">réalisé + prévisionnel</div></div>
+    <div class="kpi"><div class="l">Moyenne mensuelle</div><div class="v">${fHL(avg)} <small>HL/mois</small></div><div class="lt">${fmt(avg)} L/mois</div>
+      <div class="s">sur <input id="months" type="number" min="0.5" step="0.5" value="${months}" inputmode="decimal"><span class="print-only">${String(months).replace('.', ',')}</span> mois</div></div>
+    <div class="kpi accent"><div class="l">Extrapolation annuelle</div><div class="v">${fHL(avg * 12)} <small>HL/an</small></div><div class="lt">${fmt(avg * 12)} L/an</div><div class="s">moyenne × 12</div></div>
   </div>
-  <div class="tabs">
+  <div class="bar-top"><div class="tabs">
     <button data-t="mois" class="${tab === 'mois' ? 'on' : ''}">Par mois</button>
     <button data-t="biere" class="${tab === 'biere' ? 'on' : ''}">Par bière</button>
     <button data-t="cont" class="${tab === 'cont' ? 'on' : ''}">Par contenant</button>
-  </div>`;
+  </div><div class="exports"><button id="xPdf">PDF</button><button id="xXls">Excel</button></div></div>`;
 
-  if (tab === 'mois') {
-    h += `<div class="card"><h2>Brassins par mois</h2><p class="hint">Mois de la semaine de brassage. Lignes orange : prévisionnel.</p><div class="tw"><table>
+  {
+    h += `<div class="card sec" ${tab === 'mois' ? '' : 'hidden'}><h2>Brassins par mois</h2><p class="hint">Mois de la semaine de brassage. Lignes orange : prévisionnel.</p><div class="tw"><table>
       <tr><th class="t">Sem.</th><th class="t">Bière</th><th>Fût</th><th>33 cl</th><th>75 cl</th><th>Total</th><th class="t">Statut</th></tr>`;
     const byM = {};
     brews.forEach(b => (byM[b.month] = byM[b.month] || []).push(b));
@@ -148,18 +272,18 @@ function render() {
       h += `<tr class="month"><td colspan="7">${MOIS[m]}</td></tr>`;
       list.forEach(b => {
         h += `<tr class="${b.done ? '' : 'prev'}"><td class="t">S${b.week}</td><td class="t">${esc(shortBeer(b.beer))}${b.code ? `<span class="code">${esc(b.code)}</span>` : ''}</td>
-          <td>${fmt(b.keg)}</td><td>${fmt(b.b33)}</td><td>${fmt(b.b75)}</td><td><b>${fmt(b.tot)}</b></td>
+          <td>${q(b.keg)}</td><td>${q(b.b33)}</td><td>${q(b.b75)}</td><td><b>${q(b.tot)}</b></td>
           <td class="t"><span class="chip ${b.done ? 'r' : 'p'}">${b.done ? 'Réalisé' : 'Prév.'}</span></td></tr>`;
       });
-      h += `<tr class="subt"><td class="t" colspan="2">Total ${MOIS[m].toLowerCase()}</td><td>${fmt(sum(list, 'keg'))}</td><td>${fmt(sum(list, 'b33'))}</td><td>${fmt(sum(list, 'b75'))}</td><td>${fmt(sum(list, 'tot'))}</td><td></td></tr>`;
+      h += `<tr class="subt"><td class="t" colspan="2">Total ${MOIS[m].toLowerCase()}</td><td>${q(sum(list, 'keg'))}</td><td>${q(sum(list, 'b33'))}</td><td>${q(sum(list, 'b75'))}</td><td>${q(sum(list, 'tot'))}</td><td></td></tr>`;
     });
     [['Total réalisé', done, 'subt'], ['Total prévisionnel', prev, 'subt'], ['Total année', brews, 'tot']].forEach(([lab, arr, cls]) => {
-      h += `<tr class="${cls}"><td class="t" colspan="2">${lab}</td><td>${fmt(sum(arr, 'keg'))}</td><td>${fmt(sum(arr, 'b33'))}</td><td>${fmt(sum(arr, 'b75'))}</td><td>${fmt(sum(arr, 'tot'))}</td><td></td></tr>`;
+      h += `<tr class="${cls}"><td class="t" colspan="2">${lab}</td><td>${q(sum(arr, 'keg'))}</td><td>${q(sum(arr, 'b33'))}</td><td>${q(sum(arr, 'b75'))}</td><td>${q(sum(arr, 'tot'))}</td><td></td></tr>`;
     });
     h += `</table></div></div>`;
   }
 
-  if (tab === 'biere') {
+  {
     const g = {};
     done.forEach(b => {
       const k = b.beer; g[k] = g[k] || { beer: k, code: b.code, n: 0, keg: 0, b33: 0, b75: 0, tot: 0 };
@@ -167,31 +291,34 @@ function render() {
     });
     const rows = Object.values(g).sort((a, b) => b.tot - a.tot);
     const max = rows.length ? rows[0].tot : 1;
-    h += `<div class="card"><h2>Par bière — réalisé</h2><p class="hint">Brassins datés avant aujourd'hui, prévisionnel exclu. Volumes en litres.</p><div class="tw"><table>
+    h += `<div class="card sec" ${tab === 'biere' ? '' : 'hidden'}><h2>Par bière — réalisé</h2><p class="hint">Brassins datés avant aujourd'hui, prévisionnel exclu. Volumes en HL, litres en dessous.</p><div class="tw"><table>
       <tr><th class="t">Bière</th><th>Brassins</th><th>Fût</th><th>33 cl</th><th>75 cl</th><th>Total</th><th class="t">Part</th></tr>`;
     rows.forEach(r => {
       h += `<tr><td class="t">${esc(shortBeer(r.beer))}${r.code ? `<span class="code">${esc(r.code)}</span>` : ''}</td><td>${r.n}</td>
-        <td>${fmt(r.keg)}</td><td>${fmt(r.b33)}</td><td>${fmt(r.b75)}</td><td><b>${fmt(r.tot)}</b></td>
+        <td>${q(r.keg)}</td><td>${q(r.b33)}</td><td>${q(r.b75)}</td><td><b>${q(r.tot)}</b></td>
         <td class="t"><span class="bar" style="width:${Math.max(3, 60 * r.tot / max)}px"></span>${pct(r.tot / totDone)}</td></tr>`;
     });
-    h += `<tr class="tot"><td class="t">Total</td><td>${done.length}</td><td>${fmt(sum(done, 'keg'))}</td><td>${fmt(sum(done, 'b33'))}</td><td>${fmt(sum(done, 'b75'))}</td><td>${fmt(totDone)}</td><td class="t">${totDone ? '100,0 %' : ''}</td></tr>`;
+    h += `<tr class="tot"><td class="t">Total</td><td>${done.length}</td><td>${q(sum(done, 'keg'))}</td><td>${q(sum(done, 'b33'))}</td><td>${q(sum(done, 'b75'))}</td><td>${q(totDone)}</td><td class="t">${totDone ? '100,0 %' : ''}</td></tr>`;
     h += `</table></div></div>`;
   }
 
-  if (tab === 'cont') {
+  {
     const c = [['Fût', 'keg'], ['Bouteille 33 cl', 'b33'], ['Bouteille 75 cl', 'b75']].map(([lab, k]) => ({
       lab, n: done.filter(b => b[k] > 0).length, v: sum(done, k)
     }));
-    h += `<div class="card"><h2>Par contenant — réalisé</h2><p class="hint">Prévisionnel exclu. « Brassins » = brassins ayant du volume dans ce contenant.</p><div class="tw"><table>
-      <tr><th class="t">Contenant</th><th>Brassins</th><th>Volume (L)</th><th class="t">Part</th></tr>`;
+    h += `<div class="card sec" ${tab === 'cont' ? '' : 'hidden'}><h2>Par contenant — réalisé</h2><p class="hint">Prévisionnel exclu. « Brassins » = brassins ayant du volume dans ce contenant.</p><div class="tw"><table>
+      <tr><th class="t">Contenant</th><th>Brassins</th><th>Volume</th><th class="t">Part</th></tr>`;
     c.forEach(r => {
-      h += `<tr><td class="t">${r.lab}</td><td>${r.n}</td><td><b>${fmt(r.v)}</b></td>
+      h += `<tr><td class="t">${r.lab}</td><td>${r.n}</td><td><b>${q(r.v)}</b></td>
         <td class="t"><span class="bar" style="width:${Math.max(3, 80 * (r.v / (totDone || 1)))}px"></span>${pct(r.v / totDone)}</td></tr>`;
     });
-    h += `<tr class="tot"><td class="t">Total</td><td></td><td>${fmt(totDone)}</td><td class="t">${totDone ? '100,0 %' : ''}</td></tr></table></div></div>`;
+    h += `<tr class="tot"><td class="t">Total</td><td></td><td>${q(totDone)}</td><td class="t">${totDone ? '100,0 %' : ''}</td></tr></table></div></div>`;
   }
 
+  LAST = { snap, today, brews, done, prev, totDone, totPrev, totYear, months, avg };
   app.innerHTML = h;
+  document.getElementById('xPdf').onclick = () => window.print();
+  document.getElementById('xXls').onclick = exportXlsx;
   app.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
   const mi = document.getElementById('months');
   mi.onchange = () => { const v = parseFloat(String(mi.value).replace(',', '.')); if (v > 0) { saveMonths(v); render(); } };
