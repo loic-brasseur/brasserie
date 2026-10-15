@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Récap brassins">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="apple-touch-icon-180.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<title>Récap brassins</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Manrope:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FBF5EC;--bg2:#F4ECDC;--card:#FFFDF7;--ink:#1A1612;--ink-soft:#7A6F5C;
+    --amber:#B8842F;--copper:#A8541B;--gold:#CF982B;--green:#4F6B2F;
+    --prev:#F6E3D3;--sub:#EFE6D4;
+    --line:rgba(26,22,18,.12);--line-strong:rgba(26,22,18,.24);
+    --shadow:0 1px 2px rgba(26,22,18,.05),0 8px 24px rgba(26,22,18,.09);
+    --serif:'Fraunces',Georgia,serif;--sans:'Manrope',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);line-height:1.45;min-height:100vh;
+    background:radial-gradient(ellipse at top,#FBF5EC 0%,#F4ECDC 100%);background-attachment:fixed;
+    -webkit-font-smoothing:antialiased;
+    padding:max(1.4rem,env(safe-area-inset-top)) max(1rem,env(safe-area-inset-right)) max(3rem,env(safe-area-inset-bottom)) max(1rem,env(safe-area-inset-left));}
+  .wrap{max-width:1040px;margin:0 auto}
+  .back{display:inline-block;font-size:.85rem;font-weight:700;color:var(--copper);text-decoration:none;margin-bottom:1rem}
+  header{margin-bottom:1.4rem}
+  h1{font-family:var(--serif);font-weight:500;font-size:clamp(1.9rem,6vw,2.6rem);letter-spacing:-.02em;line-height:1;margin:0}
+  .sub{font-family:var(--serif);font-style:italic;font-size:1rem;color:var(--ink-soft);margin-top:.5rem}
+  h2{font-family:var(--serif);font-weight:600;font-size:1.3rem;margin:0 0 .2rem}
+  .hint{font-size:.82rem;color:var(--ink-soft);margin:0 0 .8rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);padding:1.1rem 1.2rem;margin-bottom:1.2rem}
+  .kpis{display:grid;gap:.8rem;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-bottom:1.2rem}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:.9rem 1rem}
+  .kpi .l{font-size:.75rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft)}
+  .kpi .v{font-family:var(--serif);font-size:1.7rem;font-weight:600;line-height:1.15;margin-top:.2rem;font-variant-numeric:tabular-nums}
+  .kpi .v small{font-family:var(--sans);font-size:.8rem;font-weight:600;color:var(--ink-soft)}
+  .kpi .s{font-size:.78rem;color:var(--ink-soft);margin-top:.15rem}
+  .kpi.accent{background:var(--ink);color:#FBF5EC;border-color:var(--ink)}
+  .kpi.accent .l,.kpi.accent .s,.kpi.accent .v small{color:#D8CBB4}
+  .kpi input{width:4.2rem;font:inherit;font-weight:700;padding:.1rem .3rem;border:1px solid var(--line-strong);border-radius:6px;background:#FFFDF7;color:var(--ink)}
+  .tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:1rem}
+  .tabs button{font:inherit;font-size:.88rem;font-weight:700;padding:.5rem .95rem;border-radius:999px;border:1px solid var(--line-strong);background:var(--card);color:var(--ink);cursor:pointer}
+  .tabs button.on{background:var(--copper);border-color:var(--copper);color:#fff}
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -.2rem}
+  table{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+  th,td{padding:.45rem .6rem;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th{font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);font-weight:700;border-bottom:1px solid var(--line-strong);background:var(--card);position:sticky;top:0}
+  td.t,th.t{text-align:left}
+  td.t .code{font-size:.72rem;color:var(--ink-soft);margin-left:.35rem}
+  tr.prev td{background:var(--prev);font-style:italic}
+  tr.subt td{background:var(--sub);font-weight:700}
+  tr.tot td{background:var(--gold);color:var(--ink);font-weight:800}
+  tr.month td{font-family:var(--serif);font-weight:600;font-size:1rem;text-align:left;padding-top:.9rem;border-bottom:1px solid var(--line-strong)}
+  .chip{display:inline-block;font-size:.7rem;font-weight:700;padding:.1rem .45rem;border-radius:999px;font-style:normal}
+  .chip.r{background:#E3EAD6;color:var(--green)}
+  .chip.p{background:#F1D3BE;color:var(--copper)}
+  .bar{height:6px;border-radius:3px;background:var(--copper);display:inline-block;vertical-align:middle;margin-right:.4rem}
+  .empty{text-align:center;padding:2.4rem 1rem}
+  .empty p{color:var(--ink-soft);max-width:30rem;margin:.6rem auto 1.2rem}
+  .btn{display:inline-block;font:inherit;font-weight:700;font-size:.9rem;padding:.6rem 1.1rem;border-radius:10px;background:var(--copper);color:#fff;text-decoration:none}
+  footer{text-align:center;margin-top:2rem;color:var(--ink-soft);font-size:.8rem}
+  @media (max-width:560px){ th,td{padding:.4rem .45rem} .kpi .v{font-size:1.45rem} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← Outils de la brasserie</a>
+  <header>
+    <h1>Récap brassins <span id="yr"></span></h1>
+    <div class="sub" id="meta">—</div>
+  </header>
+  <div id="app"></div>
+  <footer>Lecture seule — les brassins se modifient dans le Planning de brassage.</footer>
+</div>
+
+<script>
+const SNAP_KEY = 'brasserie_brassins_v1';
+const MONTHS_KEY = 'brasserie_recap_mois_v1';
+const MOIS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+const L = hl => hl * 100;                       // HL → litres
+const fmt = n => n ? new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) : '–';
+const pct = n => new Intl.NumberFormat('fr-FR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(n || 0);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const shortBeer = n => String(n).replace(/^bi[eèé]re\s+/i, '');
+let tab = 'mois';
+
+function readMonths() { try { const v = parseFloat(localStorage.getItem(MONTHS_KEY)); return v > 0 ? v : 7.5; } catch (e) { return 7.5; } }
+function saveMonths(v) { try { localStorage.setItem(MONTHS_KEY, String(v)); } catch (e) {} }
+
+function load() {
+  try { const s = JSON.parse(localStorage.getItem(SNAP_KEY)); return s && Array.isArray(s.brews) ? s : null; } catch (e) { return null; }
+}
+
+function render() {
+  const snap = load(), app = document.getElementById('app');
+  if (!snap) {
+    document.getElementById('meta').textContent = 'Aucune donnée';
+    app.innerHTML = `<div class="card empty"><h2>Pas encore de brassins</h2>
+      <p>Ouvre une fois le Planning de brassage sur cet appareil : il publie ses brassins ici automatiquement, puis ce récap se met à jour à chaque ouverture.</p>
+      <a class="btn" href="planning-brassage.html">Ouvrir le planning →</a></div>`;
+    return;
+  }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const brews = snap.brews.map(b => {
+    const d = new Date(b.date + 'T00:00:00');
+    const keg = L(b.kegHl || 0), b33 = L(b.b33Hl || 0), b75 = L(b.b75Hl || 0);
+    return { ...b, d, month: d.getMonth(), keg, b33, b75, tot: keg + b33 + b75, done: d < today };
+  }).sort((a, b) => a.d - b.d);
+
+  document.getElementById('yr').textContent = snap.year || '';
+  const upd = new Date(snap.updatedAt);
+  document.getElementById('meta').textContent =
+    `Planning lu le ${upd.toLocaleDateString('fr-FR')} à ${upd.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })} · réalisé = brassins datés avant le ${today.toLocaleDateString('fr-FR')}`;
+
+  const sum = (arr, k) => arr.reduce((s, b) => s + b[k], 0);
+  const done = brews.filter(b => b.done), prev = brews.filter(b => !b.done);
+  const totDone = sum(done, 'tot'), totPrev = sum(prev, 'tot'), totYear = totDone + totPrev;
+  const months = readMonths();
+  const avg = totYear / months;
+
+  let h = `<div class="kpis">
+    <div class="kpi"><div class="l">Réalisé</div><div class="v">${fmt(totDone)} <small>L</small></div><div class="s">${done.length} brassins</div></div>
+    <div class="kpi"><div class="l">Prévisionnel</div><div class="v">${fmt(totPrev)} <small>L</small></div><div class="s">${prev.length} brassins</div></div>
+    <div class="kpi"><div class="l">Total année</div><div class="v">${fmt(totYear)} <small>L</small></div><div class="s">réalisé + prévisionnel</div></div>
+    <div class="kpi"><div class="l">Moyenne mensuelle</div><div class="v">${fmt(avg)} <small>L/mois</small></div>
+      <div class="s">sur <input id="months" type="number" min="0.5" step="0.5" value="${months}" inputmode="decimal"> mois</div></div>
+    <div class="kpi accent"><div class="l">Extrapolation annuelle</div><div class="v">${fmt(avg * 12)} <small>L/an</small></div><div class="s">moyenne × 12</div></div>
+  </div>
+  <div class="tabs">
+    <button data-t="mois" class="${tab === 'mois' ? 'on' : ''}">Par mois</button>
+    <button data-t="biere" class="${tab === 'biere' ? 'on' : ''}">Par bière</button>
+    <button data-t="cont" class="${tab === 'cont' ? 'on' : ''}">Par contenant</button>
+  </div>`;
+
+  if (tab === 'mois') {
+    h += `<div class="card"><h2>Brassins par mois</h2><p class="hint">Mois de la semaine de brassage. Lignes orange : prévisionnel.</p><div class="tw"><table>
+      <tr><th class="t">Sem.</th><th class="t">Bière</th><th>Fût</th><th>33 cl</th><th>75 cl</th><th>Total</th><th class="t">Statut</th></tr>`;
+    const byM = {};
+    brews.forEach(b => (byM[b.month] = byM[b.month] || []).push(b));
+    Object.keys(byM).map(Number).sort((a, b) => a - b).forEach(m => {
+      const list = byM[m];
+      h += `<tr class="month"><td colspan="7">${MOIS[m]}</td></tr>`;
+      list.forEach(b => {
+        h += `<tr class="${b.done ? '' : 'prev'}"><td class="t">S${b.week}</td><td class="t">${esc(shortBeer(b.beer))}${b.code ? `<span class="code">${esc(b.code)}</span>` : ''}</td>
+          <td>${fmt(b.keg)}</td><td>${fmt(b.b33)}</td><td>${fmt(b.b75)}</td><td><b>${fmt(b.tot)}</b></td>
+          <td class="t"><span class="chip ${b.done ? 'r' : 'p'}">${b.done ? 'Réalisé' : 'Prév.'}</span></td></tr>`;
+      });
+      h += `<tr class="subt"><td class="t" colspan="2">Total ${MOIS[m].toLowerCase()}</td><td>${fmt(sum(list, 'keg'))}</td><td>${fmt(sum(list, 'b33'))}</td><td>${fmt(sum(list, 'b75'))}</td><td>${fmt(sum(list, 'tot'))}</td><td></td></tr>`;
+    });
+    [['Total réalisé', done, 'subt'], ['Total prévisionnel', prev, 'subt'], ['Total année', brews, 'tot']].forEach(([lab, arr, cls]) => {
+      h += `<tr class="${cls}"><td class="t" colspan="2">${lab}</td><td>${fmt(sum(arr, 'keg'))}</td><td>${fmt(sum(arr, 'b33'))}</td><td>${fmt(sum(arr, 'b75'))}</td><td>${fmt(sum(arr, 'tot'))}</td><td></td></tr>`;
+    });
+    h += `</table></div></div>`;
+  }
+
+  if (tab === 'biere') {
+    const g = {};
+    done.forEach(b => {
+      const k = b.beer; g[k] = g[k] || { beer: k, code: b.code, n: 0, keg: 0, b33: 0, b75: 0, tot: 0 };
+      g[k].n++; g[k].keg += b.keg; g[k].b33 += b.b33; g[k].b75 += b.b75; g[k].tot += b.tot;
+    });
+    const rows = Object.values(g).sort((a, b) => b.tot - a.tot);
+    const max = rows.length ? rows[0].tot : 1;
+    h += `<div class="card"><h2>Par bière — réalisé</h2><p class="hint">Brassins datés avant aujourd'hui, prévisionnel exclu. Volumes en litres.</p><div class="tw"><table>
+      <tr><th class="t">Bière</th><th>Brassins</th><th>Fût</th><th>33 cl</th><th>75 cl</th><th>Total</th><th class="t">Part</th></tr>`;
+    rows.forEach(r => {
+      h += `<tr><td class="t">${esc(shortBeer(r.beer))}${r.code ? `<span class="code">${esc(r.code)}</span>` : ''}</td><td>${r.n}</td>
+        <td>${fmt(r.keg)}</td><td>${fmt(r.b33)}</td><td>${fmt(r.b75)}</td><td><b>${fmt(r.tot)}</b></td>
+        <td class="t"><span class="bar" style="width:${Math.max(3, 60 * r.tot / max)}px"></span>${pct(r.tot / totDone)}</td></tr>`;
+    });
+    h += `<tr class="tot"><td class="t">Total</td><td>${done.length}</td><td>${fmt(sum(done, 'keg'))}</td><td>${fmt(sum(done, 'b33'))}</td><td>${fmt(sum(done, 'b75'))}</td><td>${fmt(totDone)}</td><td class="t">${totDone ? '100,0 %' : ''}</td></tr>`;
+    h += `</table></div></div>`;
+  }
+
+  if (tab === 'cont') {
+    const c = [['Fût', 'keg'], ['Bouteille 33 cl', 'b33'], ['Bouteille 75 cl', 'b75']].map(([lab, k]) => ({
+      lab, n: done.filter(b => b[k] > 0).length, v: sum(done, k)
+    }));
+    h += `<div class="card"><h2>Par contenant — réalisé</h2><p class="hint">Prévisionnel exclu. « Brassins » = brassins ayant du volume dans ce contenant.</p><div class="tw"><table>
+      <tr><th class="t">Contenant</th><th>Brassins</th><th>Volume (L)</th><th class="t">Part</th></tr>`;
+    c.forEach(r => {
+      h += `<tr><td class="t">${r.lab}</td><td>${r.n}</td><td><b>${fmt(r.v)}</b></td>
+        <td class="t"><span class="bar" style="width:${Math.max(3, 80 * (r.v / (totDone || 1)))}px"></span>${pct(r.v / totDone)}</td></tr>`;
+    });
+    h += `<tr class="tot"><td class="t">Total</td><td></td><td>${fmt(totDone)}</td><td class="t">${totDone ? '100,0 %' : ''}</td></tr></table></div></div>`;
+  }
+
+  app.innerHTML = h;
+  app.querySelectorAll('.tabs button').forEach(b => b.onclick = () => { tab = b.dataset.t; render(); });
+  const mi = document.getElementById('months');
+  mi.onchange = () => { const v = parseFloat(String(mi.value).replace(',', '.')); if (v > 0) { saveMonths(v); render(); } };
+}
+
+render();
+// Mise à jour automatique : retour sur l'onglet, ou planning modifié dans un autre onglet
+document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+window.addEventListener('pageshow', render);
+window.addEventListener('storage', e => { if (e.key === SNAP_KEY) render(); });
+</script>
+</body>
+</html>

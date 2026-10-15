@@ -2016,6 +2016,38 @@ function render() {
 
   // Summaries
   renderSummaries();
+  publishBrewSnapshot();
+}
+
+// Publie la liste des brassins (avec répartition de conditionnement) pour
+// l'app Récap brassins — clé localStorage partagée, réécrite à chaque rendu.
+const BREW_SNAPSHOT_KEY = 'brasserie_brassins_v1';
+function publishBrewSnapshot() {
+  try {
+    const out = [];
+    Object.keys(brewsByWeek).map(Number).sort((a, b) => a - b).forEach(w => {
+      const groups = {};
+      (brewsByWeek[w] || []).forEach(b => (groups[b.beer] = groups[b.beer] || []).push(b));
+      const [monday] = isoWeekDates(YEAR, w);
+      for (const beer in groups) {
+        const list = groups[beer];
+        const sp = condSplitFor(w, beer, list);
+        const totFini = list.reduce((s, b) => s + (b.fini || 0), 0) || 1;
+        list.forEach(b => {
+          const r = (b.fini || 0) / totFini;
+          out.push({
+            id: b.id, week: w,
+            date: `${monday.getFullYear()}-${String(monday.getMonth() + 1).padStart(2, '0')}-${String(monday.getDate()).padStart(2, '0')}`,
+            beer, code: beerCode(beer), source: b.source,
+            brutHl: b.brut, finiHl: b.fini,
+            kegHl: +(sp.kegHl * r).toFixed(2), b33Hl: +(sp.bottle33Hl * r).toFixed(2), b75Hl: +(sp.bottle75Hl * r).toFixed(2),
+            condWeek: sp.week
+          });
+        });
+      }
+    });
+    localStorage.setItem(BREW_SNAPSHOT_KEY, JSON.stringify({ year: YEAR, updatedAt: new Date().toISOString(), brews: out }));
+  } catch (e) {}
 }
 
 // ============ MATRIX VIEW ============
