@@ -82,8 +82,9 @@
     .back,.bar-top,footer,.kpi input{display:none!important}
     .print-only{display:inline}
     .sec,.sec[hidden]{display:block!important}
-    .sec + .sec{break-before:page}
-    .card,.kpi{box-shadow:none;break-inside:auto}
+    .sec.sec-mois{display:none!important}
+    .sec{break-inside:avoid;page-break-inside:avoid}
+    .card,.kpi{box-shadow:none}
     .kpis{grid-template-columns:repeat(5,1fr);gap:.4rem}
     .kpi{padding:.5rem .6rem}.kpi .v{font-size:1.15rem}
     .kpi.accent{background:#fff;color:var(--ink);border:2px solid var(--ink)}
@@ -263,7 +264,7 @@ function render() {
   </div><div class="exports"><button id="xPdf">PDF</button><button id="xXls">Excel</button></div></div>`;
 
   {
-    h += `<div class="card sec" ${tab === 'mois' ? '' : 'hidden'}><h2>Brassins par mois</h2><p class="hint">Mois de la semaine de brassage. Lignes orange : prévisionnel.</p><div class="tw"><table>
+    h += `<div class="card sec sec-mois" ${tab === 'mois' ? '' : 'hidden'}><h2>Brassins par mois</h2><p class="hint">Mois de la semaine de brassage. Lignes orange : prévisionnel.</p><div class="tw"><table>
       <tr><th class="t">Sem.</th><th class="t">Bière</th><th>Fût</th><th>33 cl</th><th>75 cl</th><th>Total</th><th class="t">Statut</th></tr>`;
     const byM = {};
     brews.forEach(b => (byM[b.month] = byM[b.month] || []).push(b));
