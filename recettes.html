@@ -206,6 +206,30 @@
   }
 
   /* ============ COÛT DE REVIENT ============ */
+  .proc-panel{margin-top:14px}
+  .proc-sub{font-size:12px;color:var(--ink-soft)}
+  .proc-grid{display:grid;grid-template-columns:1fr 1.35fr 1fr;gap:0}
+  .proc-col{padding:12px 16px 16px;border-right:1px solid var(--line)}
+  .proc-col:last-child{border-right:none}
+  .proc-col h3{font-family:var(--serif);font-size:15px;margin:0 0 10px;font-weight:600}
+  .proc-row{display:grid;gap:6px;align-items:center;margin-bottom:6px}
+  .proc-row.mash{grid-template-columns:1fr 64px 64px 26px}
+  .proc-row.ferm{grid-template-columns:52px 1fr 58px 26px}
+  .proc-row.ferm .note{grid-column:1/-1;margin-top:-2px}
+  .proc-row input,.proc-row select{padding:7px 8px;font-size:13px}
+  .proc-row .x{background:transparent;color:var(--ink-soft);padding:4px;font-size:16px}
+  .proc-row .x:hover{color:#a23}
+  .proc-head{display:grid;gap:6px;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:600;margin-bottom:4px}
+  .proc-head.mash{grid-template-columns:1fr 64px 64px 26px}
+  .proc-head.ferm{grid-template-columns:52px 1fr 58px 26px}
+  .proc-add{padding:6px 12px;font-size:12.5px}
+  .tgt{display:grid;grid-template-columns:1fr 74px 58px;gap:6px;align-items:center;margin-bottom:7px;font-size:13px}
+  .tgt input{padding:7px 8px;font-size:13px}
+  .tgt .lb{font-weight:600}.tgt .lb small{display:block;color:var(--ink-soft);font-weight:500;font-size:11px}
+  .tgt-h{display:grid;grid-template-columns:1fr 74px 58px;gap:6px;font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:600;margin-bottom:4px}
+  .ver-badge{font-size:10px;font-weight:700;padding:2px 6px;border-radius:5px;background:rgba(168,84,27,.12);color:var(--amber);margin-left:6px;vertical-align:middle}
+  .ver-list .saved-item small{display:block}
+  @media(max-width:980px){.proc-grid{grid-template-columns:1fr}.proc-col{border-right:none;border-bottom:1px solid var(--line)}}
   .cost-panel{margin-top:14px;animation:rise .6s ease .1s both}
   .cost-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
   .cost-actions button{padding:6px 12px;font-size:12.5px}
@@ -482,6 +506,28 @@
     </div>
   </div>
 
+  <!-- PROCESS & QUALITÉ -->
+  <div class="panel proc-panel" id="procPanel">
+    <div class="panel-h"><h2>Process &amp; qualité</h2><span class="proc-sub">Suit le brassin du Brew Log au conditionnement</span></div>
+    <div class="proc-grid">
+      <div class="proc-col" id="procMashCol">
+        <h3>Plan d'empâtage</h3>
+        <div id="procMash"></div>
+        <button class="btn-ghost proc-add" onclick="procAdd('mash')">+ Palier</button>
+        <div class="field" style="margin-top:12px"><label>Ébullition (min)</label><input id="procBoil" type="number" min="0" step="5" oninput="procSet('boil',this.value)"></div>
+      </div>
+      <div class="proc-col">
+        <h3>Protocole de fermentation</h3>
+        <div id="procFerm"></div>
+        <button class="btn-ghost proc-add" onclick="procAdd('ferm')">+ Étape</button>
+      </div>
+      <div class="proc-col">
+        <h3>Cibles qualité</h3>
+        <div id="procTargets"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- COÛT DE REVIENT -->
   <div class="panel cost-panel" id="costPanel">
     <div class="panel-h"><h2>Coût de revient</h2>
@@ -515,6 +561,15 @@
     Le bouton « + Ingrédient manuel » ajoute un ingrédient personnalisé selon le mode actif.
     Coût de revient : un prix HT conventionnel et bio par ingrédient, commun à toutes les recettes (bouton « Tarifs »).
   </p>
+</div>
+
+<!-- MODAL VERSIONS -->
+<div class="modal-bg" id="verModal">
+  <div class="modal">
+    <div class="panel-h"><h2 id="verTitle">Versions</h2><button class="btn-ghost" style="padding:6px 12px" onclick="document.getElementById('verModal').classList.remove('show')">Fermer</button></div>
+    <div class="panel-b"><div class="saved-list ver-list" id="verList"></div>
+      <p class="hint" style="margin-top:12px">Ouvrir une ancienne version la charge dans l'éditeur. L'enregistrer crée une nouvelle version : rien n'est écrasé.</p></div>
+  </div>
 </div>
 
 <!-- MODAL SAVED -->
@@ -899,7 +954,7 @@ function colorName(ebc){
 }
 
 /* ============================ STATE ============================ */
-let state={mode:'biere',malts:[],hops:[],yeast:null,soft:[]};
+let state={mode:'biere',malts:[],hops:[],yeast:null,soft:[],process:null};
 /* Ajout houblon : boil = ébullition (min), wp = whirlpool (min de contact), dh = dry hop (jours de contact) */
 const HOPUSE={boil:{l:'Ébullition',u:'min',def:60},wp:{l:'Whirlpool',u:'min',def:20},dh:{l:'Dry hop',u:'j',def:3}};
 const hopUse=h=>HOPUSE[h&&h.use]?h.use:'boil';
@@ -940,7 +995,7 @@ function switchMode(m){
   curTab=m==='biere'?'malt':'soft';
   curFilter=FILTERS[curTab][0][0];
   document.getElementById('searchBox').value="";
-  renderTabs();renderSubfilters();renderBrowser();applyLabels(m);renderRecipe();recalc();
+  renderTabs();renderSubfilters();renderBrowser();applyLabels(m);renderRecipe();recalc();renderProcess();
 }
 
 /* ============================ BROWSER ============================ */
@@ -1387,7 +1442,8 @@ function snapshot(){
   return {
     name:val('rName'),style:val('rStyle'),notes:val('rNotes'),
     vol:val('pVol'),eff:val('pEff'),mash:val('pMash'),
-    mode:state.mode,malts:state.malts,hops:state.hops,yeast:state.yeast,soft:state.soft,ts:Date.now()
+    mode:state.mode,malts:state.malts,hops:state.hops,yeast:state.yeast,soft:state.soft,
+    process:procGet(),calc:calcSnap(),rev:curRev,ts:Date.now()
   };
 }
 function val(id){return document.getElementById(id).value;}
@@ -1401,18 +1457,26 @@ function loadInto(r){
   document.getElementById('pMash').value=r.mash||67;
   state.mode=r.mode||'biere';
   state.malts=r.malts||[];state.hops=r.hops||[];state.yeast=r.yeast||null;state.soft=r.soft||[];
-  switchMode(state.mode);
+  state.process=r.process?JSON.parse(JSON.stringify(r.process)):null;
+  curRev=r.rev||null;
+  switchMode(state.mode);renderProcess();
 }
 function saveRecipe(){
   const name=val('rName').trim();
   if(!name){alert("Donne un nom à la recette avant d'enregistrer.");document.getElementById('rName').focus();return;}
   let all=getAll();const snap=snapshot();
   const idx=all.findIndex(r=>r.name===name);
-  if(idx>=0)all[idx]=snap;else all.push(snap);
+  if(idx>=0){
+    // versionnage : la version précédente est archivée, datée
+    const prev=all[idx];const vers=Array.isArray(prev.versions)?prev.versions:[];
+    const old={...prev};delete old.versions;old.rev=prev.rev||1;
+    snap.versions=[old,...vers].slice(0,40);snap.rev=(prev.rev||1)+1;all[idx]=snap;
+  }else{snap.rev=1;snap.versions=[];all.push(snap);}
+  curRev=snap.rev;
   try{
     localStorage.setItem(LSKEY,JSON.stringify(all));
     const added=bieresAdd(name); // la nouvelle bière devient dispo dans toutes les apps
-    alert("Recette « "+name+" » enregistrée."+(added?"\nBière ajoutée à la liste commune (carbo, cuves, qualité, inventaire, planning).":""));
+    alert("Recette « "+name+" » enregistrée — version "+snap.rev+" du "+new Date(snap.ts).toLocaleDateString('fr-FR')+"."+(added?"\nBière ajoutée à la liste commune (carbo, cuves, qualité, inventaire, planning).":""));
   }
   catch(e){alert("Stockage impossible.");}
 }
@@ -1432,8 +1496,9 @@ function renderSaved(){
   if(!all.length){L.innerHTML='<div class="empty">Aucune recette enregistrée.</div>';return;}
   if(!list.length){L.innerHTML='<div class="empty">Aucun résultat.</div>';return;}
   L.innerHTML=list.map(r=>`<div class="saved-item">
-    <span class="si-nm">${r.name||'(sans nom)'}<small>${r.style?r.style+' · ':''}${new Date(r.ts).toLocaleDateString('fr-FR')}</small></span>
+    <span class="si-nm">${r.name||'(sans nom)'}<span class="ver-badge">v${r.rev||1}</span><small>${r.style?r.style+' · ':''}${new Date(r.ts).toLocaleDateString('fr-FR')}</small></span>
     <button class="btn-ghost" onclick="loadSaved(${r.ts})">Ouvrir</button>
+    ${(r.versions&&r.versions.length)?`<button class="btn-ghost" onclick="openVersions(${r.ts})">Versions (${r.versions.length})</button>`:''}
     <button class="btn-ghost" style="color:#a23" onclick="delSaved(${r.ts})">Suppr.</button></div>`).join('');
 }
 function renderExamples(){
@@ -1452,10 +1517,10 @@ function delSaved(t){const r=getAll().find(x=>x.ts===t);if(!r)return;if(confirm(
   renderSaved();}}
 function newRecipe(){if(confirm("Nouvelle recette ? La composition actuelle non enregistrée sera perdue.")){
   const m=state.mode;
-  state={mode:m,malts:[],hops:[],yeast:null,soft:[]};
+  state={mode:m,malts:[],hops:[],yeast:null,soft:[],process:null};curRev=null;
   ['rName','rStyle','rNotes'].forEach(id=>document.getElementById(id).value="");
   document.getElementById('pVol').value=2000;document.getElementById('pEff').value=77.85;document.getElementById('pMash').value=67;
-  switchMode(m);}}
+  switchMode(m);renderProcess();}}
 
 /* ============================ BACKUP / IMPORT FICHIER ============================ */
 function backupData(){
@@ -1556,7 +1621,8 @@ function exportPDF(){
       <tbody>${yeastRow}</tbody></table></div>
     ${softSec}
     <div class="ps-sec"><h2>Paramètres</h2>
-      <div class="ps-params"><span>Rendement : ${val('pEff')} %</span><span>Empâtage : ${val('pMash')} °C</span><span>Volume : ${volL} L</span></div></div>
+      <div class="ps-params"><span>Rendement : ${val('pEff')} %</span><span>Empâtage : ${val('pMash')} °C</span><span>Volume : ${volL} L</span>${curRev?`<span>Version ${curRev}</span>`:''}</div></div>
+    ${procPrintHTML(CG)}
     ${val('rNotes')?`<div class="ps-sec"><h2>Notes</h2><div class="ps-notes">${val('rNotes').replace(/</g,'&lt;')}</div></div>`:''}
     <div class="ps-foot"><span>Carnet de Brassage — recette générée le ${new Date().toLocaleString('fr-FR')}</span><span>${val('rName')||''}</span></div>`;
   document.getElementById('printSheet').innerHTML=sheet;
@@ -1971,6 +2037,97 @@ function seedDemo(){
   document.getElementById('rStyle').value="Sweet / Chocolate Stout";
   document.getElementById('rNotes').value="Empâtage 68°C. Cold steep du Malt Choco (3-4 L/kg, 12-24h) ajouté en fin d'ébullition.";
   document.getElementById('pMash').value=68;
+}
+
+/* ============================ PROCESS & QUALITÉ ============================ */
+let curRev=null;
+const FERM_ACT={ens:'Ensemencement',dh:'Houblonnage à cru',purge:'Purge de levure',dia:'Repos diacétyle',cold:'Refroidissement',sout:'Soutirage',autre:'Autre'};
+function defaultProcess(){
+  const m=parseFloat((document.getElementById('pMash')||{}).value)||67;
+  return {mash:[{n:'Saccharification',t:m,min:60},{n:'Mash-out',t:78,min:10}],boil:60,
+    ferm:[{d:0,a:'ens',t:19,note:''},{d:5,a:'dia',t:21,note:''},{d:8,a:'cold',t:2,note:''},{d:14,a:'sout',t:2,note:''}],
+    targets:{fg:'',fgTol:0.3,att:'',attTol:3,abv:'',abvTol:0.3,co2:5.0,co2Tol:0.3,o2:50}};
+}
+function procGet(){if(!state.process)state.process=defaultProcess();return state.process;}
+function procSet(k,v){procGet()[k]=v;saveAuto();}
+function procAdd(kind){
+  const p=procGet();
+  if(kind==='mash')p.mash.push({n:'Palier',t:'',min:''});
+  else{const last=p.ferm[p.ferm.length-1];p.ferm.push({d:last?(+last.d||0)+1:0,a:'autre',t:'',note:''});}
+  renderProcess();saveAuto();
+}
+function procDel(kind,i){procGet()[kind].splice(i,1);renderProcess();saveAuto();}
+function procEdit(kind,i,k,v){procGet()[kind][i][k]=v;if(kind==='ferm'&&k==='d')procGet().ferm.sort((a,b)=>(+a.d||0)-(+b.d||0));saveAuto();}
+function procTgt(k,v){procGet().targets[k]=v;saveAuto();renderTargetHints();}
+function calcSnap(){
+  if(state.mode!=='biere')return null;
+  const og=parseFloat(document.getElementById('ogVal').textContent)||1, fg=parseFloat(document.getElementById('fgVal').textContent)||1;
+  const ogP=sgToPlato(og), fgP=sgToPlato(fg);
+  return {og:+og.toFixed(3),fg:+fg.toFixed(3),ogP:+ogP.toFixed(1),fgP:+fgP.toFixed(1),
+    att:ogP>0?+((ogP-fgP)/ogP*100).toFixed(0):0,
+    abv:parseFloat(document.getElementById('abvVal').textContent)||0,
+    ibu:parseFloat(document.getElementById('ibuVal').textContent)||0,
+    ebc:parseFloat(document.getElementById('ebcStat').textContent)||0};
+}
+/* cibles effectives : saisie manuelle sinon valeur calculée de la recette */
+function procTargets(){
+  const p=procGet(),t=p.targets||{},c=calcSnap()||{};
+  const num=(v,d)=>v===''||v==null||isNaN(parseFloat(v))?d:parseFloat(v);
+  return {fg:num(t.fg,c.fgP),fgTol:num(t.fgTol,0.3),att:num(t.att,c.att),attTol:num(t.attTol,3),
+    abv:num(t.abv,c.abv),abvTol:num(t.abvTol,0.3),co2:num(t.co2,5),co2Tol:num(t.co2Tol,0.3),o2:num(t.o2,50)};
+}
+function renderTargetHints(){
+  const c=calcSnap()||{};
+  [['fg',c.fgP],['att',c.att],['abv',c.abv]].forEach(([k,v])=>{const e=document.getElementById('tgt_'+k);if(e)e.placeholder=v!=null?String(v):'';});
+}
+function renderProcess(){
+  const p=procGet(), e=hEsc;
+  document.getElementById('procMashCol').style.display=state.mode==='biere'?'':'none';
+  document.getElementById('procMash').innerHTML=`<div class="proc-head mash"><span>Palier</span><span>°C</span><span>min</span><span></span></div>`+
+    p.mash.map((m,i)=>`<div class="proc-row mash">
+      <input value="${e(m.n)}" oninput="procEdit('mash',${i},'n',this.value)">
+      <input type="number" step="0.5" value="${e(m.t)}" oninput="procEdit('mash',${i},'t',this.value)">
+      <input type="number" step="5" value="${e(m.min)}" oninput="procEdit('mash',${i},'min',this.value)">
+      <button class="x" onclick="procDel('mash',${i})" title="Supprimer">×</button></div>`).join('');
+  document.getElementById('procBoil').value=p.boil;
+  document.getElementById('procFerm').innerHTML=`<div class="proc-head ferm"><span>Jour</span><span>Action</span><span>°C</span><span></span></div>`+
+    p.ferm.map((f,i)=>`<div class="proc-row ferm">
+      <input type="number" min="0" value="${e(f.d)}" title="Jour après mise en cuve" onchange="procEdit('ferm',${i},'d',this.value);renderProcess()">
+      <select onchange="procEdit('ferm',${i},'a',this.value)">${Object.entries(FERM_ACT).map(([k,l])=>`<option value="${k}"${f.a===k?' selected':''}>${l}</option>`).join('')}</select>
+      <input type="number" step="0.5" value="${e(f.t)}" oninput="procEdit('ferm',${i},'t',this.value)">
+      <button class="x" onclick="procDel('ferm',${i})" title="Supprimer">×</button>
+      <input class="note" placeholder="Consigne (houblon, dose, purge…)" value="${e(f.note)}" oninput="procEdit('ferm',${i},'note',this.value)"></div>`).join('');
+  const t=p.targets;
+  const row=(k,lb,sub,tolK,step)=>`<div class="tgt"><span class="lb">${lb}<small>${sub}</small></span>
+      <input id="tgt_${k}" type="number" step="${step}" value="${e(t[k])}" oninput="procTgt('${k}',this.value)">
+      ${tolK?`<input type="number" step="${step}" value="${e(t[tolK])}" title="Tolérance ±" oninput="procTgt('${tolK}',this.value)">`:'<span></span>'}</div>`;
+  document.getElementById('procTargets').innerHTML=`<div class="tgt-h"><span></span><span>Cible</span><span>± tol.</span></div>`+
+    (state.mode==='biere'?row('fg','Densité finale','°P · vide = calcul','fgTol',0.1)+row('att','Atténuation app.','% · vide = calcul','attTol',1)+row('abv','Degré d\'alcool','% vol · vide = calcul','abvTol',0.1):'')+
+    row('co2','CO₂','g/L au conditionnement','co2Tol',0.1)+row('o2','O₂ dissous max','ppb','',5);
+  renderTargetHints();
+}
+function procPrintHTML(CG){
+  const p=procGet(),T=procTargets();
+  const mash=p.mash.map(m=>`${hEsc(m.n)} ${m.t}°C · ${m.min} min`).join(' → ');
+  const ferm=p.ferm.map(f=>`<tr><td>J+${f.d}</td><td>${FERM_ACT[f.a]||f.a}</td><td class="num">${f.t!==''?f.t+' °C':''}</td><td colspan="2">${hEsc(f.note||'')}</td></tr>`).join('');
+  return `<div class="ps-sec"><h2>Process</h2><div class="ps-params"><span>Empâtage : ${mash||'—'}</span><span>Ébullition : ${p.boil} min</span></div></div>
+    <div class="ps-sec"><h2>Protocole de fermentation</h2><table class="ps-table">${CG}<thead><tr><th>Jour</th><th>Action</th><th class="num">T°</th><th colspan="2">Consigne</th></tr></thead><tbody>${ferm||'<tr><td colspan="5">—</td></tr>'}</tbody></table></div>
+    <div class="ps-sec"><h2>Cibles qualité</h2><div class="ps-params"><span>DF ${fmtN(T.fg,1)} ± ${T.fgTol} °P</span><span>Atténuation ${T.att} ± ${T.attTol} %</span><span>Alcool ${fmtN(T.abv,1)} ± ${T.abvTol} %</span><span>CO₂ ${T.co2} ± ${T.co2Tol} g/L</span><span>O₂ ≤ ${T.o2} ppb</span></div></div>`;
+}
+/* ---- historique des versions ---- */
+function openVersions(ts){
+  const r=getAll().find(x=>x.ts===ts);if(!r)return;
+  document.getElementById('verTitle').textContent='Versions — '+r.name;
+  const fmt=d=>new Date(d).toLocaleString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  const sum=v=>{const c=v.calc;return c?`DI ${c.ogP} °P · DF ${c.fgP} °P · ${c.abv} % · ${Math.round(c.ibu)} IBU`:'';};
+  document.getElementById('verList').innerHTML=`<div class="saved-item"><span class="si-nm">v${r.rev||1} — actuelle<small>${fmt(r.ts)} · ${sum(r)}</small></span><button class="btn-ghost" onclick="loadSaved(${r.ts});document.getElementById('verModal').classList.remove('show')">Ouvrir</button></div>`+
+    r.versions.map((v,i)=>`<div class="saved-item"><span class="si-nm">v${v.rev||'?'}<small>${fmt(v.ts)} · ${sum(v)}</small></span><button class="btn-ghost" onclick="loadVersion(${ts},${i})">Ouvrir</button></div>`).join('');
+  document.getElementById('verModal').classList.add('show');
+}
+function loadVersion(ts,i){
+  const r=getAll().find(x=>x.ts===ts);if(!r||!r.versions[i])return;
+  loadInto(JSON.parse(JSON.stringify(r.versions[i])));
+  document.getElementById('verModal').classList.remove('show');closeSaved();
 }
 window.addEventListener('DOMContentLoaded',()=>{
   loadCatalog();

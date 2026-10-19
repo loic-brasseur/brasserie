@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-180.png">
+<link rel="apple-touch-icon" href="apple-touch-icon-180.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rapports">
+<meta name="theme-color" content="#FBF5EC">
+<title>Rapports — Lots et périodes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FBF5EC;--bg2:#F4ECDC;--card:#FFFDF7;--ink:#1A1612;--ink-soft:#7A6F5C;
+    --amber:#B8842F;--copper:#A8541B;--gold:#CF982B;--green:#4F6B2F;--red:#A8392B;
+    --line:rgba(26,22,18,.12);--line-strong:rgba(26,22,18,.24);
+    --shadow:0 1px 2px rgba(26,22,18,.05),0 8px 24px rgba(26,22,18,.09);
+    --serif:'Fraunces',Georgia,serif;--sans:'Manrope',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);line-height:1.45;min-height:100vh;
+    background:radial-gradient(ellipse at top,#FBF5EC 0%,#F4ECDC 100%);background-attachment:fixed;-webkit-font-smoothing:antialiased;
+    padding:max(1rem,env(safe-area-inset-top)) max(.9rem,env(safe-area-inset-right)) max(4rem,env(safe-area-inset-bottom)) max(.9rem,env(safe-area-inset-left))}
+  .wrap{max-width:1240px;margin:0 auto}
+  header.app{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding-bottom:1rem;margin-bottom:1.1rem;border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:.85rem}
+  .mark{width:42px;height:42px;border-radius:11px;background:var(--copper);color:#FBF5EC;display:grid;place-items:center;font-family:var(--serif);font-size:1.35rem;font-weight:600}
+  h1{font-family:var(--serif);font-weight:500;font-size:clamp(1.7rem,5vw,2.3rem);letter-spacing:-.02em;line-height:1;margin:0}
+  .sub{font-family:var(--serif);font-style:italic;font-size:.92rem;color:var(--ink-soft);margin-top:.3rem}
+  .toolbar{display:flex;gap:.5rem;flex-wrap:wrap}
+  button{font-family:var(--sans);cursor:pointer;border:none;border-radius:10px;font-size:.85rem;font-weight:600;padding:.6rem .9rem;transition:transform .12s,box-shadow .2s,background .2s;color:var(--ink)}
+  button:active{transform:translateY(1px)}
+  .btn-ghost{background:transparent;border:1.5px solid var(--line-strong)}
+  .btn-ghost:hover{background:rgba(26,22,18,.05)}
+  .btn-primary{background:var(--ink);color:#FBF5EC}
+  .btn-copper{background:var(--copper);color:#fff}
+  .btn-copper:hover{box-shadow:0 6px 18px rgba(168,84,27,.32)}
+  .btn-sm{padding:.4rem .65rem;font-size:.76rem}
+  .hidden{display:none!important}
+
+  .layout{display:grid;grid-template-columns:260px 1fr;gap:1rem;align-items:start}
+  .side{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;position:sticky;top:1rem}
+  .side h3{font-family:var(--serif);font-weight:600;font-size:1rem;margin:0;padding:.8rem 1rem;border-bottom:1px solid var(--line)}
+  .side .list{max-height:70vh;overflow:auto}
+  .bd{padding:.65rem 1rem;border-bottom:1px solid var(--line);cursor:pointer}
+  .bd:hover{background:var(--bg)}
+  .bd.on{background:var(--bg2);box-shadow:inset 3px 0 0 var(--copper)}
+  .bd b{display:block;font-size:.88rem}
+  .bd small{color:var(--ink-soft);font-size:.74rem}
+  .pill{display:inline-block;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:.15rem .4rem;border-radius:999px;margin-left:.3rem;vertical-align:middle}
+  .pill.cours{background:rgba(184,132,47,.16);color:var(--amber)}
+  .pill.cave{background:rgba(79,107,47,.14);color:var(--green)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);margin-bottom:1rem;overflow:hidden}
+  .card-h{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.8rem 1rem;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .card-h h2{font-family:var(--serif);font-weight:600;font-size:1.1rem;margin:0;display:flex;align-items:center;gap:.5rem}
+  .card-h h2 .n{font-family:var(--mono);font-size:.75rem;color:var(--copper);font-weight:600}
+  .card-b{padding:.9rem 1rem 1rem}
+  .head-sheet{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:flex-start}
+  .head-sheet .ttl{font-family:var(--serif);font-size:1.5rem;font-weight:600;line-height:1.1}
+  .head-sheet .meta{color:var(--ink-soft);font-size:.82rem;margin-top:.25rem}
+  .tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:.2rem 0 1rem}
+  .tab{padding:.5rem .9rem;border-radius:999px;border:1.5px solid var(--line-strong);background:transparent;font-size:.82rem}
+  .tab.on{background:var(--ink);color:#FBF5EC;border-color:var(--ink)}
+
+  label.f{display:flex;flex-direction:column;gap:.25rem;font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:700}
+  .in{font-family:var(--mono);font-size:.95rem;padding:.5rem .6rem;background:#fff;border:1px solid #E0D4BE;border-radius:9px;color:var(--ink);width:100%;min-height:40px;-webkit-appearance:none;appearance:none}
+  .in:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(184,132,47,.12)}
+  select.in,textarea.in{font-family:var(--sans)}
+  textarea.in{min-height:56px;resize:vertical;font-size:.88rem}
+  .g{display:grid;gap:.6rem}
+  .g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:700px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+
+  .ts{display:flex;align-items:center;gap:.35rem;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:.35rem .4rem .35rem .65rem}
+  .ts span{flex:1;font-size:.8rem;font-weight:600}
+  .ts input{width:92px;min-height:34px;padding:.3rem .4rem;font-size:.85rem}
+  .ts button{padding:.35rem .55rem;font-size:.75rem;background:var(--copper);color:#fff}
+  .ts.done{border-color:rgba(79,107,47,.35);background:rgba(79,107,47,.06)}
+  .tsgrid{display:grid;gap:.45rem;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-bottom:.8rem}
+
+  table.t{width:100%;border-collapse:collapse;font-size:.84rem}
+  table.t th{text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);padding:.35rem .4rem;border-bottom:1px solid var(--line)}
+  table.t td{padding:.35rem .4rem;border-bottom:1px solid var(--line);vertical-align:middle}
+  table.t td.num,table.t th.num{text-align:right;font-family:var(--mono)}
+  table.t .in{min-height:34px;padding:.3rem .45rem;font-size:.85rem}
+
+  .kpis{display:flex;gap:.6rem;flex-wrap:wrap;margin:.8rem 0}
+  .kpi{flex:1;min-width:120px;background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:.55rem .7rem}
+  .kpi .v{font-family:var(--mono);font-size:1.25rem;font-weight:600;line-height:1}
+  .kpi .v small{font-size:.65rem;color:var(--ink-soft)}
+  .kpi .k{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-top:.3rem}
+  .kpi .d{font-size:.72rem;margin-top:.2rem;font-weight:600}
+  .ok{color:var(--green)}.warn{color:var(--amber)}.bad{color:var(--red)}
+
+  .note{display:flex;gap:.6rem;align-items:flex-start;margin-top:.8rem;padding-top:.8rem;border-top:1px dashed var(--line-strong);flex-wrap:wrap}
+  .stars{display:flex;gap:2px;align-items:center}
+  .stars button{background:transparent;padding:0 2px;font-size:1.25rem;line-height:1;color:#d8c7a8}
+  .stars button.on{color:var(--gold)}
+  .stars .auto{font-size:.68rem;color:var(--ink-soft);margin-left:.4rem;font-weight:600}
+  .note textarea{flex:1;min-width:220px}
+
+  .score-row{display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem}
+  .score{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:.6rem;text-align:center}
+  .score .s{font-family:var(--serif);font-size:1.5rem;font-weight:600}
+  .score .l{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft)}
+  .score.low{border-color:rgba(168,57,43,.45);background:rgba(168,57,43,.06)}
+  @media(max-width:700px){.score-row{grid-template-columns:repeat(3,1fr)}}
+  .advice{background:rgba(207,152,43,.10);border:1px solid rgba(207,152,43,.35);border-radius:11px;padding:.7rem .85rem;font-size:.85rem;margin-top:.8rem}
+  .empty{padding:3rem 1rem;text-align:center;color:var(--ink-soft);font-family:var(--serif);font-style:italic}
+
+  .overlay{position:fixed;inset:0;background:rgba(26,22,18,.42);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;padding:1.2rem;z-index:50;overflow:auto}
+  .overlay.show{display:flex}
+  .modal{background:var(--card);border-radius:18px;box-shadow:0 20px 60px rgba(26,22,18,.3);width:100%;max-width:480px;margin:auto;border:1px solid var(--line);overflow:hidden}
+  .modal h2{font-family:var(--serif);font-weight:500;font-size:1.35rem;margin:0;padding:1.1rem 1.2rem .2rem}
+  .modal .form{padding:1rem 1.2rem;display:flex;flex-direction:column;gap:.75rem}
+  .modal .acts{display:flex;gap:.5rem;padding:0 1.2rem 1.2rem}.modal .acts button{flex:1}
+  .mhint{padding:0 1.2rem;color:var(--ink-soft);font-size:.82rem;font-style:italic;font-family:var(--serif)}
+
+  @media(max-width:900px){.layout{grid-template-columns:1fr}.side{position:static}.side .list{max-height:220px}}
+
+  .print{display:none}
+  @media print{
+    @page{size:A4 portrait;margin:14mm}
+    body{background:#fff!important;padding:0}
+    .wrap,.overlay,#backHome{display:none!important}
+    .print{display:block;font-family:var(--sans);font-size:10.5px;color:#1c140d}
+    .print h1{font-family:var(--serif);font-size:22px;margin:0 0 2px}
+    .print h2{font-family:var(--serif);font-size:13px;margin:12px 0 4px;border-bottom:1.5px solid #cf982b;padding-bottom:2px}
+    .print table{width:100%;border-collapse:collapse}.print td,.print th{border-bottom:1px solid #e6d8bd;padding:3px 4px;text-align:left}
+    .print .r{text-align:right}
+  }
+</style>
+<style>
+  .mark{background:var(--ink)!important}
+  .layout{grid-template-columns:1fr}
+  .chain{display:flex;align-items:stretch;gap:0;overflow-x:auto;padding:.3rem 0 .6rem}
+  .ch{flex:1;min-width:112px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:.6rem .65rem;position:relative}
+  .ch .k{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700}
+  .ch .v{font-family:var(--mono);font-size:1.15rem;font-weight:600;margin-top:.25rem}
+  .ch .v small{font-size:.65rem;color:var(--ink-soft)}
+  .arrow{flex:0 0 74px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:.68rem;font-family:var(--mono);color:var(--ink-soft)}
+  .arrow .ln{width:100%;height:2px;background:var(--line-strong);position:relative;margin:.25rem 0}
+  .arrow .ln::after{content:"";position:absolute;right:-1px;top:-4px;border-left:7px solid var(--line-strong);border-top:5px solid transparent;border-bottom:5px solid transparent}
+  .arrow.bad{color:var(--red);font-weight:700}
+  .grade{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}
+  .gr{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:.7rem .8rem}
+  .gr .s{font-family:var(--serif);font-size:1.9rem;font-weight:600;line-height:1}
+  .gr .s small{font-size:.85rem;color:var(--ink-soft)}
+  .gr .l{font-size:.66rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700;margin-bottom:.3rem}
+  .gr ul{margin:.45rem 0 0;padding-left:1rem;font-size:.78rem;color:var(--ink-soft)}
+  .gr.low{border-color:rgba(168,57,43,.4);background:rgba(168,57,43,.05)}
+  @media(max-width:700px){.grade{grid-template-columns:1fr}}
+  tr.flag td{background:rgba(168,57,43,.06)}
+  td.flag{color:var(--red);font-weight:700}
+  tfoot td{font-weight:700;border-top:1.5px solid var(--line-strong)}
+  .seg{display:inline-flex;border:1.5px solid var(--line-strong);border-radius:999px;overflow:hidden}
+  .seg button{border-radius:0;background:transparent;padding:.45rem .8rem;font-size:.8rem}
+  .seg button.on{background:var(--ink);color:#FBF5EC}
+  .controls{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+  .controls .in{width:auto}
+  .sec-t{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700;margin:1.1rem 0 .3rem}
+  .tw{overflow-x:auto}
+  .banner{background:rgba(207,152,43,.12);border:1px solid rgba(207,152,43,.4);border-radius:12px;padding:.7rem .9rem;margin-bottom:1rem;display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;font-size:.86rem}
+  .banner span{flex:1}
+</style>
+</head>
+<body>
+<a href="index.html" id="backHome" style="position:fixed;left:14px;bottom:14px;z-index:99;display:inline-flex;align-items:center;gap:7px;background:#1A1612;color:#FBF5EC;font-family:'Manrope',system-ui,sans-serif;font-size:13px;font-weight:600;text-decoration:none;padding:10px 14px;border-radius:999px;box-shadow:0 4px 16px rgba(26,22,18,.28)"><span style="font-size:15px;line-height:1">←</span> Accueil</a>
+
+<div class="wrap">
+  <header class="app">
+    <div class="brand"><div class="mark">R</div>
+      <div><h1>Rapports</h1><div class="sub">À la clôture du lot, on fait les comptes</div></div></div>
+    <div class="toolbar">
+      <div class="seg"><button id="m_lot" class="on" onclick="setMode('lot')">Rapport de lot</button><button id="m_per" onclick="setMode('per')">Rapport de période</button></div>
+      <button class="btn-ghost" onclick="openSettings()">Seuils &amp; envoi</button>
+    </div>
+  </header>
+  <div id="due"></div>
+  <main id="main"></main>
+</div>
+<div class="print" id="printSheet"></div>
+
+<div class="overlay" id="setOv">
+  <div class="modal">
+    <h2>Seuils d'alerte &amp; envoi</h2>
+    <div class="mhint">Les lots hors seuil ressortent d'eux-mêmes dans les rapports.</div>
+    <div class="form">
+      <div class="g g3">
+        <label class="f">Rendement brassage min (%)<input class="in" id="s_eff" type="number" step="0.5"></label>
+        <label class="f">Pertes fermentation max (%)<input class="in" id="s_ferm" type="number" step="0.5"></label>
+        <label class="f">Rendement cond. min (%)<input class="in" id="s_pack" type="number" step="0.5"></label>
+      </div>
+      <label class="f">Destinataires (séparés par des virgules)<input class="in" id="s_to" style="font-family:var(--sans)" placeholder="direction@…, qualite@…"></label>
+      <label class="f">Rappel d'envoi du rapport de période
+        <select class="in" id="s_freq"><option value="">Aucun</option><option value="semaine">Chaque semaine</option><option value="mois">Chaque mois</option><option value="trimestre">Chaque trimestre</option><option value="annee">Chaque année</option></select></label>
+    </div>
+    <div class="acts"><button class="btn-ghost" onclick="closeOv('setOv')">Annuler</button><button class="btn-copper" onclick="saveSettings()">Enregistrer</button></div>
+  </div>
+</div>
+
+<script>
+const ld=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}};
+const SET_KEY='brasserie_rapports_v1';
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num=v=>{if(v==null||v==='')return null;const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?null:n;};
+const avg=a=>{a=a.filter(v=>v!=null&&!isNaN(v));return a.length?a.reduce((x,y)=>x+y,0)/a.length:null;};
+const sum=a=>{a=a.filter(v=>v!=null&&!isNaN(v));return a.length?a.reduce((x,y)=>x+y,0):null;};
+const f1=v=>v==null||isNaN(v)?'—':(+v).toFixed(1), f0=v=>v==null||isNaN(v)?'—':Math.round(v).toLocaleString('fr-FR');
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const fmtD=s=>s?new Date(s+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}):'—';
+function platoToSG(p){return 1+p/(258.6-(p/258.2)*227.1);}
+function abvP(og,fg){return og==null||fg==null?null:(platoToSG(og)-platoToSG(fg))*131.25;}
+function bNorm(n){return String(n||'').trim().toLowerCase().replace(/^bi[eèé]re\s+/,'');}
+function recipeTargets(r){
+  const t=(r.process&&r.process.targets)||{},c=r.calc||{};
+  const n=(v,d)=>v===''||v==null||isNaN(parseFloat(v))?d:parseFloat(v);
+  return {fg:n(t.fg,c.fgP),fgTol:n(t.fgTol,0.3),att:n(t.att,c.att),attTol:n(t.attTol,3),abv:n(t.abv,c.abv),abvTol:n(t.abvTol,0.3),co2:n(t.co2,5),co2Tol:n(t.co2Tol,0.3),o2:n(t.o2,50),ogP:c.ogP};
+}
+let SET=Object.assign({eff:70,ferm:5,pack:94,to:'',freq:'',lastSent:{}},ld(SET_KEY,{}));
+let mode='lot', curLot=null, per={kind:'mois',ref:today()};
+
+/* ===================== Rassemblement des données ===================== */
+function effFrom(recipe,volL,plato){
+  if(!recipe||!volL||plato==null)return null;
+  const pot=(recipe.malts||[]).reduce((s,m)=>s+(+m.kg||0)*((+m.ppg||37)/37)*(m.cs?0.35:1),0);
+  return pot?(platoToSG(plato)-1)*1000*volL/(308.8*pot)*100:null;
+}
+const BSTEPS=[['grain','Grain'],['mash','Empâtage'],['filt','Filtration'],['boil','Ébullition'],['cool','Refroidissement']];
+function brewScoreAuto(d,b,k){
+  // même logique que le Brew Log (simplifiée pour les notes manquantes)
+  if(b.notes&&b.notes[k]&&b.notes[k].s!=null)return b.notes[k].s;
+  const r=d.recipe,m=b.m||{},T=recipeTargets(r);
+  if(k==='filt'){const e=effFrom(r,num(m.vPre),num(m.pPre));if(e==null||!num(r.eff))return null;const dd=e-num(r.eff);return dd>=-1?5:dd>=-3?4:dd>=-5?3:2;}
+  if(k==='boil'){const p=num(m.pPost);if(p==null||T.ogP==null)return null;const dd=Math.abs(p-T.ogP);return dd<=.2?5:dd<=.5?4:dd<=1?3:2;}
+  if(k==='cool'){const v=num(m.vFerm),t=num(r.vol);if(v==null||!t)return null;const p=v/t*100;return p>=98?5:p>=95?4:p>=90?3:2;}
+  if(k==='mash'){const devs=((r.process&&r.process.mash)||[]).map((p,i)=>{const t=num(b.mash&&b.mash[i]&&b.mash[i].tReel);return t==null||num(p.t)==null?null:Math.abs(t-num(p.t));}).filter(x=>x!=null);if(!devs.length)return null;const mx=Math.max(...devs);return mx<=.5?5:mx<=1?4:mx<=2?3:2;}
+  return null;
+}
+function packCalc(s){
+  const F={'33cl':.33,'44cl':.44,'75cl':.75,'1.5L':1.5,'10L':10,'20L':20,'30L':30};
+  let units=0,outL=0;(s.formats||[]).forEach(f=>{const v=f.f==='autre'?(num(f.vu)||0):F[f.f];const u=num(f.units)||0;units+=u;outL+=u*v;});
+  const vol=num(s.a.vol),water=num(s.dil&&s.dil.water)||0,abv=num(s.a.abv);
+  const volAfter=vol!=null?vol+water:null;const yieldPct=volAfter?outL/volAfter*100:null;
+  let score=s.note&&s.note.s!=null?s.note.s:null;
+  if(score==null&&yieldPct!=null){const T=s.targets||{};score=yieldPct>=97?5:yieldPct>=94?4:yieldPct>=90?3:2;
+    const co2=num(s.a.co2),o2=num(s.a.o2);if(co2!=null&&T.co2!=null&&Math.abs(co2-T.co2)>T.co2Tol*2)score--;if(o2!=null&&T.o2!=null&&o2>T.o2*1.5)score--;score=Math.max(1,score);}
+  return {units,outL,water,volAfter,yieldPct,abvAfter:vol&&abv!=null?abv*vol/(vol+water):null,co2:num(s.a.co2),o2:num(s.a.o2),score};
+}
+function collect(){
+  const brews=ld('brasserie_brewlog_v1',[]), cv=ld('brasserie_cuves_v1',{tanks:[],archive:[]}), packs=ld('brasserie_packaging_v1',[]), recs=ld('brasserie_recettes_v1',[]);
+  const lots=new Map();
+  const L=lot=>{if(!lots.has(lot))lots.set(lot,{lot,brew:null,cellar:null,cellarActive:false,packs:[]});return lots.get(lot);};
+  brews.forEach(d=>{const x=L(d.lot);x.brew=d;x.recipe=d.recipe.name;x.date=d.date;});
+  (cv.archive||[]).forEach(a=>{if(!a.lot)return;const x=L(a.lot);x.cellar=a;x.recipe=x.recipe||a.recipe;x.date=x.date||a.start;});
+  (cv.tanks||[]).forEach(t=>{const b=t.batch;if(!b||!b.lot)return;const x=L(b.lot);if(!x.cellar){x.cellar={...b,tankName:t.name};x.cellarActive=true;}x.recipe=x.recipe||b.recipe;x.date=x.date||b.start;});
+  packs.forEach(s=>{const x=L(s.lot);x.packs.push(s);x.recipe=x.recipe||s.recipe;x.date=x.date||s.date;});
+  lots.forEach(x=>{x.recipeObj=x.brew?x.brew.recipe:recs.find(r=>bNorm(r.name)===bNorm(x.recipe))||null;
+    x.T=x.cellar&&x.cellar.targets?x.cellar.targets:x.recipeObj?recipeTargets(x.recipeObj):{};x.m=metrics(x);});
+  return [...lots.values()].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+}
+function metrics(x){
+  const m={};const d=x.brew;
+  if(d){
+    const bs=d.brassins;m.nBrassins=bs.length;
+    m.target=num(d.recipe.vol)!=null?num(d.recipe.vol)*bs.length:null;
+    m.vPre=sum(bs.map(b=>num(b.m.vPre)));m.vPost=sum(bs.map(b=>num(b.m.vPost)));m.vFerm=sum(bs.map(b=>num(b.m.vFerm)));
+    m.eff=avg(bs.map(b=>effFrom(d.recipe,num(b.m.vPre),num(b.m.pPre))));
+    const w=bs.filter(b=>num(b.m.vFerm)!=null&&num(b.m.pPost)!=null);m.og=w.length?sum(w.map(b=>num(b.m.vFerm)*num(b.m.pPost)))/sum(w.map(b=>num(b.m.vFerm))):avg(bs.map(b=>num(b.m.pPost)));
+    m.brewScores={};BSTEPS.forEach(([k])=>m.brewScores[k]=avg(bs.map(b=>brewScoreAuto(d,b,k))));
+    m.brewScore=avg(Object.values(m.brewScores));
+    m.brewIssues=[];BSTEPS.forEach(([k,l])=>{const s=m.brewScores[k];if(s!=null&&s<=3)m.brewIssues.push(l+' '+s.toFixed(1)+'/5');bs.forEach(b=>{if(b.notes&&b.notes[k]&&b.notes[k].c)m.brewIssues.push(l+' (B'+b.n+') : '+b.notes[k].c);});});
+  }
+  const c=x.cellar;
+  if(c){
+    m.vIn=c.volume!=null?c.volume*100:m.vFerm;
+    if(m.vFerm==null&&c.volume!=null)m.vFerm=c.volume*100;
+    if(m.og==null&&c.og!=null)m.og=+c.og;
+    const rs=(c.readings||[]).filter(r=>r.plato!=null).sort((a,b)=>a.date<b.date?-1:1);
+    m.fg=c.closed&&c.closed.fg!=null?c.closed.fg:(rs.length>1?rs[rs.length-1].plato:null);
+    m.vOut=c.closed&&c.closed.volHL!=null?c.closed.volHL*100:null;
+    m.fermLoss=m.vIn&&m.vOut!=null?(m.vIn-m.vOut)/m.vIn*100:null;
+    m.att=m.og&&m.fg!=null?(m.og-m.fg)/m.og*100:null;m.abv=abvP(m.og,m.fg);
+    m.fermDays=c.closed?Math.round((new Date(c.closed.date)-new Date(c.start))/864e5):null;
+    m.tank=c.tankName;
+    const T=x.T;let s=c.fermScore!=null?c.fermScore:(c.note&&c.note.s!=null?c.note.s:null);
+    if(s==null&&m.fg!=null&&T.fg!=null){const dd=Math.abs(m.fg-T.fg);s=dd<=T.fgTol?5:dd<=T.fgTol*2?4:dd<=T.fgTol*4?3:2;}
+    m.fermScore=s;
+    m.fermIssues=[];if(m.fg!=null&&T.fg!=null&&Math.abs(m.fg-T.fg)>T.fgTol)m.fermIssues.push('DF '+m.fg.toFixed(1)+' °P pour '+(+T.fg).toFixed(1)+' ± '+T.fgTol);
+    if(m.att!=null&&T.att!=null&&Math.abs(m.att-T.att)>T.attTol)m.fermIssues.push('Atténuation '+m.att.toFixed(0)+' % pour '+Math.round(T.att)+' ± '+T.attTol);
+    const late=(c.protocol||[]).filter(p=>p.done&&p.done>p.date);if(late.length)m.fermIssues.push(late.length+' étape(s) du protocole faite(s) en retard');
+    const miss=(c.protocol||[]).filter(p=>!p.done);if(x.cellarActive===false&&miss.length)m.fermIssues.push(miss.length+' étape(s) non cochée(s)');
+    if(m.fermLoss!=null&&m.fermLoss>SET.ferm)m.fermIssues.push('Pertes '+m.fermLoss.toFixed(1)+' %');
+    if(c.note&&c.note.c)m.fermIssues.push(c.note.c);
+  }
+  if(x.packs.length){
+    const P=x.packs.map(packCalc);
+    m.packed=sum(P.map(p=>p.outL));m.units=sum(P.map(p=>p.units));m.water=sum(P.map(p=>p.water))||0;
+    m.packIn=sum(P.map(p=>p.volAfter));m.packYield=m.packIn?m.packed/m.packIn*100:null;
+    m.co2=avg(P.map(p=>p.co2));m.o2=avg(P.map(p=>p.o2));m.abvPack=avg(P.map(p=>p.abvAfter));
+    m.packScore=avg(P.map(p=>p.score));m.packDate=x.packs.map(s=>s.date).sort().slice(-1)[0];
+    const T=x.T;m.packIssues=[];
+    if(m.co2!=null&&T.co2!=null&&Math.abs(m.co2-T.co2)>T.co2Tol)m.packIssues.push('CO₂ '+m.co2.toFixed(2)+' g/L pour '+T.co2+' ± '+T.co2Tol);
+    if(m.o2!=null&&T.o2!=null&&m.o2>T.o2)m.packIssues.push('O₂ '+Math.round(m.o2)+' ppb (max '+T.o2+')');
+    if(m.packYield!=null&&m.packYield<SET.pack)m.packIssues.push('Rendement '+m.packYield.toFixed(1)+' %');
+    x.packs.forEach(s=>{if(s.note&&s.note.c)m.packIssues.push(s.note.c);});
+  }
+  const base=m.vPost||m.vFerm;
+  m.globalYield=base&&m.packed!=null?(m.packed-(m.water||0))/base*100:null;
+  m.flags=[];
+  if(m.eff!=null&&m.eff<SET.eff)m.flags.push('eff');
+  if(m.fermLoss!=null&&m.fermLoss>SET.ferm)m.flags.push('ferm');
+  if(m.packYield!=null&&m.packYield<SET.pack)m.flags.push('pack');
+  return m;
+}
+
+/* ===================== Rendu ===================== */
+function setMode(m){mode=m;document.getElementById('m_lot').classList.toggle('on',m==='lot');document.getElementById('m_per').classList.toggle('on',m==='per');render();}
+function render(){renderDue();if(mode==='lot')renderLot();else renderPeriod();}
+function scoreBox(label,s,issues){
+  return `<div class="gr${s!=null&&s<=3?' low':''}"><div class="l">${label}</div><div class="s">${s!=null?s.toFixed(1):'—'}<small>/5</small></div>
+    ${issues&&issues.length?`<ul>${issues.slice(0,6).map(i=>`<li>${esc(i)}</li>`).join('')}</ul>`:'<ul><li>Aucun écart signalé</li></ul>'}</div>`;
+}
+function chainHTML(m){
+  const steps=[['Recette',m.target],['Avant ébullition',m.vPre],['Fin d\'ébullition',m.vPost],['Mise en cuve',m.vIn??m.vFerm],['Soutirage',m.vOut],['Conditionné',m.packed!=null?m.packed-(m.water||0):null]];
+  const vis=steps.filter((s,i)=>i===0||s[1]!=null);
+  let h='';vis.forEach((s,i)=>{
+    if(i>0){const prev=vis[i-1][1],curv=s[1];const loss=prev!=null&&curv!=null?prev-curv:null;const pct=loss!=null&&prev?loss/prev*100:null;
+      const bad=(s[0]==='Soutirage'&&pct!=null&&pct>SET.ferm);
+      h+=`<div class="arrow${bad?' bad':''}"><span>${i===1?'':loss!=null?'−'+f0(loss)+' L':''}</span><div class="ln"></div><span>${i===1?'':pct!=null?pct.toFixed(1)+' %':''}</span></div>`;}
+    h+=`<div class="ch"><div class="k">${s[0]}</div><div class="v">${f0(s[1])}<small> L</small></div></div>`;});
+  return `<div class="chain">${h}</div>${m.water?`<div class="meta" style="font-size:.78rem;color:var(--ink-soft)">Volume conditionné hors eau de dilution (${f0(m.water)} L d'eau ajoutés, ${f0(m.packed)} L conditionnés au total).</div>`:''}`;
+}
+function renderLot(){
+  const all=collect();const M=document.getElementById('main');
+  if(!all.length){M.innerHTML=`<div class="card"><div class="empty">Pas encore de lot. Les rapports se construisent à partir du Brew Log, du Suivi des cuves et du Packaging Log.</div></div>`;return;}
+  if(!curLot||!all.some(x=>x.lot===curLot))curLot=(all.find(x=>x.packs.length)||all[0]).lot;
+  const x=all.find(l=>l.lot===curLot),m=x.m,T=x.T;
+  const closed=x.packs.length&&x.cellar&&!x.cellarActive;
+  const kv=(k,v,ok)=>`<div class="kpi"><div class="v ${ok||''}">${v}</div><div class="k">${k}</div></div>`;
+  const cls=(v,t,tol)=>v==null||t==null?'':Math.abs(v-t)<=tol?'ok':'bad';
+  M.innerHTML=`
+  <div class="card"><div class="card-b">
+    <div class="head-sheet"><div class="controls"><select class="in" onchange="curLot=this.value;render()">${all.map(l=>`<option value="${esc(l.lot)}"${l.lot===curLot?' selected':''}>${esc(l.lot)} — ${esc(l.recipe||'')}</option>`).join('')}</select>
+      ${closed?'<span class="pill cave">Lot clôturé</span>':'<span class="pill cours">Lot en cours</span>'}</div>
+      <div class="toolbar"><button class="btn-ghost btn-sm" onclick="rawLot()">Données brutes (IA)</button><button class="btn-ghost btn-sm" onclick="mailLot()">Email</button><button class="btn-copper btn-sm" onclick="window.print()">PDF</button></div></div>
+    <div style="margin-top:.8rem"><div class="ttl" style="font-family:var(--serif);font-size:1.5rem;font-weight:600">${esc(x.recipe||'')} · lot ${esc(x.lot)}</div>
+      <div class="meta" style="color:var(--ink-soft);font-size:.82rem">${x.brew?'Brassé le '+fmtD(x.brew.date)+' · '+m.nBrassins+' brassin(s) · recette v'+(x.brew.recipe.rev||1):''}${m.tank?' · '+esc(m.tank):''}${m.fermDays!=null?' · '+m.fermDays+' j en cuve':''}${m.packDate?' · conditionné le '+fmtD(m.packDate):''}</div></div>
+  </div></div>
+  <div class="card"><div class="card-h"><h2>Chaîne des volumes</h2><span class="sub" style="margin:0">Rendement global du lot : <b>${m.globalYield!=null?m.globalYield.toFixed(1)+' %':'—'}</b> du moût chaud</span></div>
+    <div class="card-b">${chainHTML(m)}
+      <div class="kpis">
+        ${kv('Rendement brassage',m.eff!=null?f1(m.eff)+'<small> %</small>':'—',m.eff==null?'':m.eff>=SET.eff?'ok':'bad')}
+        ${kv('Pertes fermentation',m.fermLoss!=null?f1(m.fermLoss)+'<small> %</small>':'—',m.fermLoss==null?'':m.fermLoss<=SET.ferm?'ok':'bad')}
+        ${kv('Rendement cond.',m.packYield!=null?f1(m.packYield)+'<small> %</small>':'—',m.packYield==null?'':m.packYield>=SET.pack?'ok':'bad')}
+        ${kv('Unités',m.units!=null?f0(m.units):'—')}
+      </div></div></div>
+  <div class="card"><div class="card-h"><h2>Notes par grande étape</h2></div><div class="card-b"><div class="grade">
+    ${scoreBox('Brassage',m.brewScore,m.brewIssues)}${scoreBox('Fermentation',m.fermScore,m.fermIssues)}${scoreBox('Conditionnement',m.packScore,m.packIssues)}</div></div></div>
+  <div class="card"><div class="card-h"><h2>Mesures vs cibles</h2></div><div class="card-b tw"><table class="t">
+    <thead><tr><th>Indicateur</th><th class="num">Cible</th><th class="num">Mesuré</th></tr></thead><tbody>
+    <tr><td>Densité initiale</td><td class="num">${T.ogP!=null?T.ogP+' °P':'—'}</td><td class="num ${cls(m.og,T.ogP,.3)}">${m.og!=null?m.og.toFixed(1)+' °P':'—'}</td></tr>
+    <tr><td>Densité finale</td><td class="num">${T.fg!=null?(+T.fg).toFixed(1)+' ± '+T.fgTol+' °P':'—'}</td><td class="num ${cls(m.fg,T.fg,T.fgTol)}">${m.fg!=null?(+m.fg).toFixed(1)+' °P':'—'}</td></tr>
+    <tr><td>Atténuation apparente</td><td class="num">${T.att!=null?Math.round(T.att)+' ± '+T.attTol+' %':'—'}</td><td class="num ${cls(m.att,T.att,T.attTol)}">${m.att!=null?m.att.toFixed(0)+' %':'—'}</td></tr>
+    <tr><td>Degré d'alcool (conditionné)</td><td class="num">${T.abv!=null?(+T.abv).toFixed(1)+' ± '+T.abvTol+' %':'—'}</td><td class="num ${cls(m.abvPack??m.abv,T.abv,T.abvTol)}">${(m.abvPack??m.abv)!=null?(m.abvPack??m.abv).toFixed(2)+' %':'—'}</td></tr>
+    <tr><td>CO₂</td><td class="num">${T.co2!=null?T.co2+' ± '+T.co2Tol+' g/L':'—'}</td><td class="num ${cls(m.co2,T.co2,T.co2Tol)}">${m.co2!=null?m.co2.toFixed(2)+' g/L':'—'}</td></tr>
+    <tr><td>O₂ dissous</td><td class="num">${T.o2!=null?'≤ '+T.o2+' ppb':'—'}</td><td class="num ${m.o2==null||T.o2==null?'':m.o2<=T.o2?'ok':'bad'}">${m.o2!=null?Math.round(m.o2)+' ppb':'—'}</td></tr>
+    </tbody></table></div></div>`;
+  buildPrint(document.getElementById('main').innerHTML);
+}
+
+/* ---- période ---- */
+function periodRange(kind,ref){
+  const d=new Date(ref+'T00:00:00');let a,b,label;
+  if(kind==='semaine'){const wd=(d.getDay()+6)%7;a=new Date(d);a.setDate(d.getDate()-wd);b=new Date(a);b.setDate(a.getDate()+6);label='Semaine du '+fmtD(iso(a));}
+  else if(kind==='mois'){a=new Date(d.getFullYear(),d.getMonth(),1);b=new Date(d.getFullYear(),d.getMonth()+1,0);label=a.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});}
+  else if(kind==='trimestre'){const q=Math.floor(d.getMonth()/3);a=new Date(d.getFullYear(),q*3,1);b=new Date(d.getFullYear(),q*3+3,0);label='T'+(q+1)+' '+d.getFullYear();}
+  else{a=new Date(d.getFullYear(),0,1);b=new Date(d.getFullYear(),11,31);label='Année '+d.getFullYear();}
+  return {a:iso(a),b:iso(b),label};
+}
+function shiftPeriod(n){const d=new Date(per.ref+'T00:00:00');
+  if(per.kind==='semaine')d.setDate(d.getDate()+7*n);else if(per.kind==='mois')d.setMonth(d.getMonth()+n);else if(per.kind==='trimestre')d.setMonth(d.getMonth()+3*n);else d.setFullYear(d.getFullYear()+n);
+  per.ref=iso(d);render();}
+function periodData(kind,ref){
+  const R=periodRange(kind,ref),all=collect(),inR=s=>s&&s>=R.a&&s<=R.b;
+  return {R,
+    brew:all.filter(x=>x.brew&&inR(x.brew.date)),
+    ferm:all.filter(x=>x.cellar&&x.cellar.closed&&inR(x.cellar.closed.date)),
+    pack:all.filter(x=>x.packs.some(s=>inR(s.date)))};
+}
+function periodTables(P,forMail){
+  const fl=(x,k)=>x.m.flags.includes(k);
+  const tB=P.brew.length?`<table class="t"><thead><tr><th>Lot</th><th>Date</th><th>Bière</th><th class="num">Brassins</th><th class="num">Rendement</th><th class="num">DI</th><th class="num">Vol. fermenteur</th><th class="num">Note</th></tr></thead><tbody>
+    ${P.brew.map(x=>`<tr class="${fl(x,'eff')?'flag':''}"><td>${esc(x.lot)}</td><td>${fmtD(x.brew.date)}</td><td>${esc(x.recipe)}</td><td class="num">${x.m.nBrassins}</td><td class="num ${fl(x,'eff')?'flag':''}">${f1(x.m.eff)} %</td><td class="num">${f1(x.m.og)}</td><td class="num">${f0(x.m.vFerm)} L</td><td class="num">${f1(x.m.brewScore)}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="3">${P.brew.length} lot(s)</td><td class="num">${sum(P.brew.map(x=>x.m.nBrassins))}</td><td class="num">${f1(avg(P.brew.map(x=>x.m.eff)))} %</td><td class="num">${f1(avg(P.brew.map(x=>x.m.og)))}</td><td class="num">${f0(sum(P.brew.map(x=>x.m.vFerm)))} L</td><td class="num">${f1(avg(P.brew.map(x=>x.m.brewScore)))}</td></tr></tfoot></table>`:'<p class="meta">Aucun brassage sur la période.</p>';
+  const tF=P.ferm.length?`<table class="t"><thead><tr><th>Lot</th><th>Bière</th><th>Cuve</th><th class="num">Jours</th><th class="num">DI</th><th class="num">DF</th><th class="num">Att.</th><th class="num">Pertes</th><th class="num">Note</th></tr></thead><tbody>
+    ${P.ferm.map(x=>`<tr class="${fl(x,'ferm')?'flag':''}"><td>${esc(x.lot)}</td><td>${esc(x.recipe)}</td><td>${esc(x.m.tank||'')}</td><td class="num">${x.m.fermDays??'—'}</td><td class="num">${f1(x.m.og)}</td><td class="num">${f1(x.m.fg)}</td><td class="num">${x.m.att!=null?x.m.att.toFixed(0)+' %':'—'}</td><td class="num ${fl(x,'ferm')?'flag':''}">${f1(x.m.fermLoss)} %</td><td class="num">${f1(x.m.fermScore)}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="3">${P.ferm.length} lot(s)</td><td class="num">${f1(avg(P.ferm.map(x=>x.m.fermDays)))}</td><td class="num">${f1(avg(P.ferm.map(x=>x.m.og)))}</td><td class="num">${f1(avg(P.ferm.map(x=>x.m.fg)))}</td><td class="num">${f1(avg(P.ferm.map(x=>x.m.att)))} %</td><td class="num">${f1(avg(P.ferm.map(x=>x.m.fermLoss)))} %</td><td class="num">${f1(avg(P.ferm.map(x=>x.m.fermScore)))}</td></tr></tfoot></table>`:'<p class="meta">Aucun lot soutiré sur la période.</p>';
+  const tP=P.pack.length?`<table class="t"><thead><tr><th>Lot</th><th>Date</th><th>Bière</th><th class="num">Volume</th><th class="num">Unités</th><th class="num">Rendement</th><th class="num">CO₂</th><th class="num">O₂</th><th class="num">Note</th></tr></thead><tbody>
+    ${P.pack.map(x=>`<tr class="${fl(x,'pack')?'flag':''}"><td>${esc(x.lot)}</td><td>${fmtD(x.m.packDate)}</td><td>${esc(x.recipe)}</td><td class="num">${f0(x.m.packed)} L</td><td class="num">${f0(x.m.units)}</td><td class="num ${fl(x,'pack')?'flag':''}">${f1(x.m.packYield)} %</td><td class="num">${x.m.co2!=null?x.m.co2.toFixed(2):'—'}</td><td class="num">${f0(x.m.o2)}</td><td class="num">${f1(x.m.packScore)}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="3">${P.pack.length} lot(s)</td><td class="num">${f0(sum(P.pack.map(x=>x.m.packed)))} L</td><td class="num">${f0(sum(P.pack.map(x=>x.m.units)))}</td><td class="num">${f1(avg(P.pack.map(x=>x.m.packYield)))} %</td><td class="num">${(()=>{const v=avg(P.pack.map(x=>x.m.co2));return v!=null?v.toFixed(2):'—';})()}</td><td class="num">${f0(avg(P.pack.map(x=>x.m.o2)))}</td><td class="num">${f1(avg(P.pack.map(x=>x.m.packScore)))}</td></tr></tfoot></table>`:'<p class="meta">Aucun conditionnement sur la période.</p>';
+  return {tB,tF,tP};
+}
+function renderPeriod(){
+  const P=periodData(per.kind,per.ref);const {tB,tF,tP}=periodTables(P);
+  const flagged=new Set();[...P.brew,...P.ferm,...P.pack].forEach(x=>{if(x.m.flags.length)flagged.add(x.lot);});
+  document.getElementById('main').innerHTML=`
+  <div class="card"><div class="card-b"><div class="head-sheet">
+    <div class="controls"><div class="seg">${['semaine','mois','trimestre','annee'].map(k=>`<button class="${per.kind===k?'on':''}" onclick="per.kind='${k}';render()">${{semaine:'Semaine',mois:'Mois',trimestre:'Trimestre',annee:'Année'}[k]}</button>`).join('')}</div>
+      <button class="btn-ghost btn-sm" onclick="shiftPeriod(-1)">‹</button><b style="font-family:var(--serif);font-size:1.1rem;text-transform:capitalize">${P.R.label}</b><button class="btn-ghost btn-sm" onclick="shiftPeriod(1)">›</button></div>
+    <div class="toolbar"><button class="btn-ghost btn-sm" onclick="csvPeriod()">CSV</button><button class="btn-ghost btn-sm" onclick="mailPeriod()">Email</button><button class="btn-copper btn-sm" onclick="window.print()">PDF</button></div></div>
+    ${flagged.size?`<div class="advice"><b>Hors seuil :</b> ${[...flagged].map(esc).join(', ')} — seuils : rendement brassage ≥ ${SET.eff} %, pertes fermentation ≤ ${SET.ferm} %, rendement conditionnement ≥ ${SET.pack} %.</div>`:''}
+  </div></div>
+  <div class="card"><div class="card-h"><h2><span class="n">01</span>Brassage</h2></div><div class="card-b tw">${tB}</div></div>
+  <div class="card"><div class="card-h"><h2><span class="n">02</span>Fermentation</h2></div><div class="card-b tw">${tF}</div></div>
+  <div class="card"><div class="card-h"><h2><span class="n">03</span>Conditionnement</h2></div><div class="card-b tw">${tP}</div></div>`;
+  buildPrint(document.getElementById('main').innerHTML);
+}
+function buildPrint(html){document.getElementById('printSheet').innerHTML=`<h1>Rapport — Brasserie</h1>`+html.replace(/<button[^>]*>.*?<\/button>/g,'').replace(/<select[\s\S]*?<\/select>/g,'')+`<p style="color:#8a7a64">Généré le ${new Date().toLocaleString('fr-FR')}</p>`;}
+
+/* ---- exports ---- */
+function download(name,text,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();}
+function rawLot(){
+  const x=collect().find(l=>l.lot===curLot);if(!x)return;
+  const raw={lot:x.lot,biere:x.recipe,genere:new Date().toISOString(),
+    lisezMoi:"Données brutes d'un lot de bière. Densités en °Plato, volumes en litres, CO2 en g/L, O2 en ppb. 'recette' = recette versionnée utilisée ; 'brassage' = fiche Brew Log (mesures par brassin, horodatages, notes 1-5 par étape) ; 'cave' = fiche de cuve (relevés, protocole, cibles) ; 'conditionnement' = sessions Packaging Log ; 'indicateurs' = calculs de l'app.",
+    recette:x.recipeObj,brassage:x.brew,cave:x.cellar,conditionnement:x.packs,cibles:x.T,indicateurs:x.m,seuils:{rendementBrassageMin:SET.eff,pertesFermentationMax:SET.ferm,rendementConditionnementMin:SET.pack}};
+  download('lot_'+x.lot+'_donnees.json',JSON.stringify(raw,null,2),'application/json');
+}
+function csvPeriod(){
+  const P=periodData(per.kind,per.ref);const lots=new Map();[...P.brew,...P.ferm,...P.pack].forEach(x=>lots.set(x.lot,x));
+  const cols=['lot','biere','date_brassage','brassins','rendement_brassage_%','DI_P','vol_fermenteur_L','note_brassage','cuve','jours_cuve','DF_P','attenuation_%','pertes_fermentation_%','note_fermentation','vol_conditionne_L','unites','rendement_cond_%','CO2_gL','O2_ppb','note_cond','rendement_global_%','alertes'];
+  const r=v=>v==null||isNaN(v)?'':(typeof v==='number'?String(+v.toFixed(2)).replace('.',','):'"'+String(v).replace(/"/g,'""')+'"');
+  const rows=[...lots.values()].map(x=>{const m=x.m;return [x.lot,x.recipe,x.brew?x.brew.date:'',m.nBrassins,m.eff,m.og,m.vFerm,m.brewScore,m.tank,m.fermDays,m.fg,m.att,m.fermLoss,m.fermScore,m.packed,m.units,m.packYield,m.co2,m.o2,m.packScore,m.globalYield,m.flags.join(' ')].map(r).join(';');});
+  download('rapport_'+per.kind+'_'+periodRange(per.kind,per.ref).a+'.csv','﻿'+cols.join(';')+'\n'+rows.join('\n'),'text/csv');
+}
+function mailto(subject,body){
+  location.href='mailto:'+encodeURIComponent(SET.to||'')+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+}
+function mailLot(){
+  const x=collect().find(l=>l.lot===curLot);const m=x.m;
+  mailto('Rapport de lot '+x.lot+' — '+x.recipe,
+`Lot ${x.lot} — ${x.recipe}
+Rendement brassage : ${f1(m.eff)} %
+DI ${f1(m.og)} °P · DF ${f1(m.fg)} °P · atténuation ${m.att!=null?m.att.toFixed(0):'—'} %
+Pertes fermentation : ${f1(m.fermLoss)} %
+Conditionné : ${f0(m.packed)} L (${f0(m.units)} unités) · rendement ${f1(m.packYield)} %
+CO₂ ${m.co2!=null?m.co2.toFixed(2):'—'} g/L · O₂ ${f0(m.o2)} ppb
+Rendement global : ${f1(m.globalYield)} %
+Notes : brassage ${f1(m.brewScore)}/5 · fermentation ${f1(m.fermScore)}/5 · conditionnement ${f1(m.packScore)}/5
+${m.flags.length?'⚠ Hors seuil : '+m.flags.join(', '):''}
+
+Le PDF complet est à joindre depuis l'app Rapports.`);
+}
+function mailPeriod(){
+  const P=periodData(per.kind,per.ref);
+  const line=(t,a)=>t+' : '+a.length+' lot(s)';
+  const fl=[...P.brew,...P.ferm,...P.pack].filter(x=>x.m.flags.length).map(x=>x.lot);
+  mailto('Rapport de production — '+P.R.label,
+`${P.R.label}
+${line('Brassages',P.brew)} · rendement moyen ${f1(avg(P.brew.map(x=>x.m.eff)))} % · ${f0(sum(P.brew.map(x=>x.m.vFerm)))} L en fermenteur
+${line('Soutirages',P.ferm)} · pertes moyennes ${f1(avg(P.ferm.map(x=>x.m.fermLoss)))} %
+${line('Conditionnements',P.pack)} · ${f0(sum(P.pack.map(x=>x.m.packed)))} L · rendement moyen ${f1(avg(P.pack.map(x=>x.m.packYield)))} %
+${fl.length?'⚠ Lots hors seuil : '+[...new Set(fl)].join(', '):'Aucun lot hors seuil.'}
+
+Détail en PDF / CSV depuis l'app Rapports.`);
+  SET.lastSent[per.kind]=periodRange(per.kind,per.ref).a;localStorage.setItem(SET_KEY,JSON.stringify(SET));renderDue();
+}
+/* rappel : le dernier rapport de période échu n'a pas encore été envoyé */
+function renderDue(){
+  const el=document.getElementById('due');if(!SET.freq){el.innerHTML='';return;}
+  const k=SET.freq;const curR=periodRange(k,today());const prevRef=new Date(curR.a+'T00:00:00');prevRef.setDate(prevRef.getDate()-1);const prev=periodRange(k,iso(prevRef));
+  if(SET.lastSent[k]===prev.a){el.innerHTML='';return;}
+  el.innerHTML=`<div class="banner"><span>Rapport à envoyer : <b style="text-transform:capitalize">${prev.label}</b>${SET.to?' → '+esc(SET.to):''}</span><button class="btn-copper btn-sm" onclick="per={kind:'${k}',ref:'${prev.a}'};setMode('per')">Ouvrir</button></div>`;
+}
+/* ---- réglages ---- */
+function openSettings(){document.getElementById('s_eff').value=SET.eff;document.getElementById('s_ferm').value=SET.ferm;document.getElementById('s_pack').value=SET.pack;document.getElementById('s_to').value=SET.to;document.getElementById('s_freq').value=SET.freq;document.getElementById('setOv').classList.add('show');}
+function closeOv(id){document.getElementById(id).classList.remove('show');}
+function saveSettings(){SET.eff=num(document.getElementById('s_eff').value)??70;SET.ferm=num(document.getElementById('s_ferm').value)??5;SET.pack=num(document.getElementById('s_pack').value)??94;
+  SET.to=document.getElementById('s_to').value.trim();SET.freq=document.getElementById('s_freq').value;localStorage.setItem(SET_KEY,JSON.stringify(SET));closeOv('setOv');render();}
+
+render();
+</script>
+</body>
+</html>
