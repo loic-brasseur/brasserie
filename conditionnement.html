@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-180.png">
+<link rel="apple-touch-icon" href="apple-touch-icon-180.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Packaging Log">
+<meta name="theme-color" content="#FBF5EC">
+<title>Packaging Log — Conditionnement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FBF5EC;--bg2:#F4ECDC;--card:#FFFDF7;--ink:#1A1612;--ink-soft:#7A6F5C;
+    --amber:#B8842F;--copper:#A8541B;--gold:#CF982B;--green:#4F6B2F;--red:#A8392B;
+    --line:rgba(26,22,18,.12);--line-strong:rgba(26,22,18,.24);
+    --shadow:0 1px 2px rgba(26,22,18,.05),0 8px 24px rgba(26,22,18,.09);
+    --serif:'Fraunces',Georgia,serif;--sans:'Manrope',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);line-height:1.45;min-height:100vh;
+    background:radial-gradient(ellipse at top,#FBF5EC 0%,#F4ECDC 100%);background-attachment:fixed;-webkit-font-smoothing:antialiased;
+    padding:max(1rem,env(safe-area-inset-top)) max(.9rem,env(safe-area-inset-right)) max(4rem,env(safe-area-inset-bottom)) max(.9rem,env(safe-area-inset-left))}
+  .wrap{max-width:1240px;margin:0 auto}
+  header.app{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding-bottom:1rem;margin-bottom:1.1rem;border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:.85rem}
+  .mark{width:42px;height:42px;border-radius:11px;background:var(--copper);color:#FBF5EC;display:grid;place-items:center;font-family:var(--serif);font-size:1.35rem;font-weight:600}
+  h1{font-family:var(--serif);font-weight:500;font-size:clamp(1.7rem,5vw,2.3rem);letter-spacing:-.02em;line-height:1;margin:0}
+  .sub{font-family:var(--serif);font-style:italic;font-size:.92rem;color:var(--ink-soft);margin-top:.3rem}
+  .toolbar{display:flex;gap:.5rem;flex-wrap:wrap}
+  button{font-family:var(--sans);cursor:pointer;border:none;border-radius:10px;font-size:.85rem;font-weight:600;padding:.6rem .9rem;transition:transform .12s,box-shadow .2s,background .2s;color:var(--ink)}
+  button:active{transform:translateY(1px)}
+  .btn-ghost{background:transparent;border:1.5px solid var(--line-strong)}
+  .btn-ghost:hover{background:rgba(26,22,18,.05)}
+  .btn-primary{background:var(--ink);color:#FBF5EC}
+  .btn-copper{background:var(--copper);color:#fff}
+  .btn-copper:hover{box-shadow:0 6px 18px rgba(168,84,27,.32)}
+  .btn-sm{padding:.4rem .65rem;font-size:.76rem}
+  .hidden{display:none!important}
+
+  .layout{display:grid;grid-template-columns:260px 1fr;gap:1rem;align-items:start}
+  .side{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;position:sticky;top:1rem}
+  .side h3{font-family:var(--serif);font-weight:600;font-size:1rem;margin:0;padding:.8rem 1rem;border-bottom:1px solid var(--line)}
+  .side .list{max-height:70vh;overflow:auto}
+  .bd{padding:.65rem 1rem;border-bottom:1px solid var(--line);cursor:pointer}
+  .bd:hover{background:var(--bg)}
+  .bd.on{background:var(--bg2);box-shadow:inset 3px 0 0 var(--copper)}
+  .bd b{display:block;font-size:.88rem}
+  .bd small{color:var(--ink-soft);font-size:.74rem}
+  .pill{display:inline-block;font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:.15rem .4rem;border-radius:999px;margin-left:.3rem;vertical-align:middle}
+  .pill.cours{background:rgba(184,132,47,.16);color:var(--amber)}
+  .pill.cave{background:rgba(79,107,47,.14);color:var(--green)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);margin-bottom:1rem;overflow:hidden}
+  .card-h{display:flex;align-items:center;justify-content:space-between;gap:.6rem;padding:.8rem 1rem;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .card-h h2{font-family:var(--serif);font-weight:600;font-size:1.1rem;margin:0;display:flex;align-items:center;gap:.5rem}
+  .card-h h2 .n{font-family:var(--mono);font-size:.75rem;color:var(--copper);font-weight:600}
+  .card-b{padding:.9rem 1rem 1rem}
+  .head-sheet{display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;align-items:flex-start}
+  .head-sheet .ttl{font-family:var(--serif);font-size:1.5rem;font-weight:600;line-height:1.1}
+  .head-sheet .meta{color:var(--ink-soft);font-size:.82rem;margin-top:.25rem}
+  .tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin:.2rem 0 1rem}
+  .tab{padding:.5rem .9rem;border-radius:999px;border:1.5px solid var(--line-strong);background:transparent;font-size:.82rem}
+  .tab.on{background:var(--ink);color:#FBF5EC;border-color:var(--ink)}
+
+  label.f{display:flex;flex-direction:column;gap:.25rem;font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:700}
+  .in{font-family:var(--mono);font-size:.95rem;padding:.5rem .6rem;background:#fff;border:1px solid #E0D4BE;border-radius:9px;color:var(--ink);width:100%;min-height:40px;-webkit-appearance:none;appearance:none}
+  .in:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px rgba(184,132,47,.12)}
+  select.in,textarea.in{font-family:var(--sans)}
+  textarea.in{min-height:56px;resize:vertical;font-size:.88rem}
+  .g{display:grid;gap:.6rem}
+  .g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:700px){.g3,.g4{grid-template-columns:repeat(2,1fr)}}
+
+  .ts{display:flex;align-items:center;gap:.35rem;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:.35rem .4rem .35rem .65rem}
+  .ts span{flex:1;font-size:.8rem;font-weight:600}
+  .ts input{width:92px;min-height:34px;padding:.3rem .4rem;font-size:.85rem}
+  .ts button{padding:.35rem .55rem;font-size:.75rem;background:var(--copper);color:#fff}
+  .ts.done{border-color:rgba(79,107,47,.35);background:rgba(79,107,47,.06)}
+  .tsgrid{display:grid;gap:.45rem;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));margin-bottom:.8rem}
+
+  table.t{width:100%;border-collapse:collapse;font-size:.84rem}
+  table.t th{text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);padding:.35rem .4rem;border-bottom:1px solid var(--line)}
+  table.t td{padding:.35rem .4rem;border-bottom:1px solid var(--line);vertical-align:middle}
+  table.t td.num,table.t th.num{text-align:right;font-family:var(--mono)}
+  table.t .in{min-height:34px;padding:.3rem .45rem;font-size:.85rem}
+
+  .kpis{display:flex;gap:.6rem;flex-wrap:wrap;margin:.8rem 0}
+  .kpi{flex:1;min-width:120px;background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:.55rem .7rem}
+  .kpi .v{font-family:var(--mono);font-size:1.25rem;font-weight:600;line-height:1}
+  .kpi .v small{font-size:.65rem;color:var(--ink-soft)}
+  .kpi .k{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);margin-top:.3rem}
+  .kpi .d{font-size:.72rem;margin-top:.2rem;font-weight:600}
+  .ok{color:var(--green)}.warn{color:var(--amber)}.bad{color:var(--red)}
+
+  .note{display:flex;gap:.6rem;align-items:flex-start;margin-top:.8rem;padding-top:.8rem;border-top:1px dashed var(--line-strong);flex-wrap:wrap}
+  .stars{display:flex;gap:2px;align-items:center}
+  .stars button{background:transparent;padding:0 2px;font-size:1.25rem;line-height:1;color:#d8c7a8}
+  .stars button.on{color:var(--gold)}
+  .stars .auto{font-size:.68rem;color:var(--ink-soft);margin-left:.4rem;font-weight:600}
+  .note textarea{flex:1;min-width:220px}
+
+  .score-row{display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem}
+  .score{background:var(--bg);border:1px solid var(--line);border-radius:11px;padding:.6rem;text-align:center}
+  .score .s{font-family:var(--serif);font-size:1.5rem;font-weight:600}
+  .score .l{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft)}
+  .score.low{border-color:rgba(168,57,43,.45);background:rgba(168,57,43,.06)}
+  @media(max-width:700px){.score-row{grid-template-columns:repeat(3,1fr)}}
+  .advice{background:rgba(207,152,43,.10);border:1px solid rgba(207,152,43,.35);border-radius:11px;padding:.7rem .85rem;font-size:.85rem;margin-top:.8rem}
+  .empty{padding:3rem 1rem;text-align:center;color:var(--ink-soft);font-family:var(--serif);font-style:italic}
+
+  .overlay{position:fixed;inset:0;background:rgba(26,22,18,.42);backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;padding:1.2rem;z-index:50;overflow:auto}
+  .overlay.show{display:flex}
+  .modal{background:var(--card);border-radius:18px;box-shadow:0 20px 60px rgba(26,22,18,.3);width:100%;max-width:480px;margin:auto;border:1px solid var(--line);overflow:hidden}
+  .modal h2{font-family:var(--serif);font-weight:500;font-size:1.35rem;margin:0;padding:1.1rem 1.2rem .2rem}
+  .modal .form{padding:1rem 1.2rem;display:flex;flex-direction:column;gap:.75rem}
+  .modal .acts{display:flex;gap:.5rem;padding:0 1.2rem 1.2rem}.modal .acts button{flex:1}
+  .mhint{padding:0 1.2rem;color:var(--ink-soft);font-size:.82rem;font-style:italic;font-family:var(--serif)}
+
+  @media(max-width:900px){.layout{grid-template-columns:1fr}.side{position:static}.side .list{max-height:220px}}
+
+  .print{display:none}
+  @media print{
+    @page{size:A4 portrait;margin:14mm}
+    body{background:#fff!important;padding:0}
+    .wrap,.overlay,#backHome{display:none!important}
+    .print{display:block;font-family:var(--sans);font-size:10.5px;color:#1c140d}
+    .print h1{font-family:var(--serif);font-size:22px;margin:0 0 2px}
+    .print h2{font-family:var(--serif);font-size:13px;margin:12px 0 4px;border-bottom:1.5px solid #cf982b;padding-bottom:2px}
+    .print table{width:100%;border-collapse:collapse}.print td,.print th{border-bottom:1px solid #e6d8bd;padding:3px 4px;text-align:left}
+    .print .r{text-align:right}
+  }
+</style>
+<style>
+  .mark{background:var(--green)!important}
+  .fmt-row{display:grid;grid-template-columns:1.3fr .8fr .8fr .8fr 30px;gap:.45rem;align-items:center;margin-bottom:.4rem}
+  .fmt-row .tot{font-family:var(--mono);font-size:.85rem;text-align:right}
+  .fmt-head{display:grid;grid-template-columns:1.3fr .8fr .8fr .8fr 30px;gap:.45rem;font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:700;margin-bottom:.3rem}
+  .x{background:transparent;color:var(--ink-soft);padding:.2rem;font-size:1.1rem}.x:hover{color:var(--red)}
+  .chips{display:flex;flex-wrap:wrap;gap:.35rem;margin:.4rem 0}
+  .chip{font-family:var(--mono);font-size:.78rem;padding:.25rem .5rem;border-radius:999px;background:var(--bg);border:1px solid var(--line);cursor:pointer}
+  .chip.out{background:rgba(168,57,43,.10);border-color:rgba(168,57,43,.35);color:var(--red)}
+  @media(max-width:700px){.fmt-row,.fmt-head{grid-template-columns:1.2fr .8fr .8fr 30px}.fmt-row .u,.fmt-head .u{display:none}}
+</style>
+</head>
+<body>
+<a href="index.html" id="backHome" style="position:fixed;left:14px;bottom:14px;z-index:99;display:inline-flex;align-items:center;gap:7px;background:#1A1612;color:#FBF5EC;font-family:'Manrope',system-ui,sans-serif;font-size:13px;font-weight:600;text-decoration:none;padding:10px 14px;border-radius:999px;box-shadow:0 4px 16px rgba(26,22,18,.28)"><span style="font-size:15px;line-height:1">←</span> Accueil</a>
+
+<div class="wrap">
+  <header class="app">
+    <div class="brand"><div class="mark">P</div>
+      <div><h1>Packaging Log</h1><div class="sub">Chaque session de conditionnement, tracée de la cuve au contenant</div></div></div>
+    <div class="toolbar">
+      <button class="btn-ghost" onclick="exportJSON()">Exporter</button>
+      <button class="btn-ghost" onclick="document.getElementById('fileIn').click()">Importer</button>
+      <input type="file" id="fileIn" accept="application/json" class="hidden" onchange="importJSON(event)">
+      <button class="btn-copper" onclick="openNew()">+ Nouvelle session</button>
+    </div>
+  </header>
+  <div class="layout">
+    <aside class="side"><h3>Sessions</h3><div class="list" id="list"></div></aside>
+    <main id="sheet"></main>
+  </div>
+</div>
+<div class="print" id="printSheet"></div>
+
+<div class="overlay" id="newOv">
+  <div class="modal">
+    <h2>Nouvelle session</h2>
+    <div class="mhint">Choisis le lot : la session est reliée à son brassin, à sa cuve et à ses cibles.</div>
+    <div class="form">
+      <label class="f">Lot<select class="in" id="n_lot"></select></label>
+      <div class="g g2">
+        <label class="f">Date<input class="in" id="n_date" type="date"></label>
+        <label class="f">Opérateur<input class="in" id="n_op" style="font-family:var(--sans)"></label>
+      </div>
+    </div>
+    <div class="acts"><button class="btn-ghost" onclick="closeOv('newOv')">Annuler</button><button class="btn-copper" onclick="createSession()">Créer</button></div>
+  </div>
+</div>
+
+<script>
+const KEY='brasserie_packaging_v1',CUVES_KEY='brasserie_cuves_v1',BREW_KEY='brasserie_brewlog_v1',REC_KEY='brasserie_recettes_v1';
+const ld=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}};
+const sv=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch(e){alert('Stockage impossible');}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?null:n;};
+const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+const fmtD=s=>s?new Date(s+'T00:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}):'—';
+const f1=v=>v==null||isNaN(v)?'—':(+v).toFixed(1);
+function bNorm(n){return String(n||'').trim().toLowerCase().replace(/^bi[eèé]re\s+/,'');}
+function recipeTargets(r){
+  const t=(r.process&&r.process.targets)||{},c=r.calc||{};
+  const n=(v,d)=>v===''||v==null||isNaN(parseFloat(v))?d:parseFloat(v);
+  return {fg:n(t.fg,c.fgP),fgTol:n(t.fgTol,0.3),att:n(t.att,c.att),attTol:n(t.attTol,3),abv:n(t.abv,c.abv),abvTol:n(t.abvTol,0.3),co2:n(t.co2,5),co2Tol:n(t.co2Tol,0.3),o2:n(t.o2,50),ogP:c.ogP};
+}
+const FORMATS={'33cl':{l:'Bouteille 33 cl',v:.33},'44cl':{l:'Canette 44 cl',v:.44},'75cl':{l:'Bouteille 75 cl',v:.75},'1.5L':{l:'Magnum 1,5 L',v:1.5},
+  '10L':{l:'Fût 10 L',v:10},'20L':{l:'Fût 20 L',v:20},'30L':{l:'Fût 30 L',v:30},'autre':{l:'Autre',v:1}};
+let S=ld(KEY,[]);let curId=null;
+function save(){sv(KEY,S);}
+function cur(){return S.find(x=>x.id===curId);}
+function closeOv(id){document.getElementById(id).classList.remove('show');}
+
+/* ---- lots disponibles : cuves (en cours + archivées) et Brew Log ---- */
+function lotSources(){
+  const out=new Map();const cv=ld(CUVES_KEY,{tanks:[],archive:[]});
+  const recs=ld(REC_KEY,[]);
+  const add=(lot,o)=>{if(!lot)return;const k=lot;out.set(k,{...(out.get(k)||{}),...o,lot});};
+  ld(BREW_KEY,[]).forEach(d=>add(d.lot,{recipe:d.recipe.name,targets:recipeTargets(d.recipe),brewId:d.id}));
+  (cv.archive||[]).forEach(a=>add(a.lot,{recipe:a.recipe,tank:a.tankName,volHL:a.closed&&a.closed.volHL,targets:a.targets||(out.get(a.lot)||{}).targets,fg:a.closed&&a.closed.fg,og:a.og}));
+  (cv.tanks||[]).forEach(t=>{if(t.batch)add(t.batch.lot,{recipe:t.batch.recipe,tank:t.name,volHL:t.batch.volume,targets:t.batch.targets||(out.get(t.batch.lot)||{}).targets,og:t.batch.og,active:true});});
+  out.forEach(v=>{if(!v.targets){const r=recs.find(x=>bNorm(x.name)===bNorm(v.recipe));if(r)v.targets=recipeTargets(r);}});
+  return [...out.values()];
+}
+function openNew(){
+  const L=lotSources();
+  if(!L.length){alert("Aucun lot trouvé. Les lots viennent du Brew Log et du Suivi des cuves.");return;}
+  document.getElementById('n_lot').innerHTML=L.sort((a,b)=>(b.active?1:0)-(a.active?1:0)||String(b.lot).localeCompare(a.lot)).map(l=>`<option value="${esc(l.lot)}">${esc(l.lot)} — ${esc(l.recipe)}${l.tank?' · '+esc(l.tank):''}</option>`).join('');
+  document.getElementById('n_date').value=today();
+  document.getElementById('newOv').classList.add('show');
+}
+function createSession(){
+  const lot=document.getElementById('n_lot').value;const src=lotSources().find(l=>l.lot===lot);if(!src)return;
+  const s={id:'k'+Date.now(),date:document.getElementById('n_date').value||today(),op:document.getElementById('n_op').value.trim(),
+    lot,recipe:src.recipe,tank:src.tank||'',brewId:src.brewId||null,targets:src.targets||null,
+    a:{vol:src.volHL!=null?String(Math.round(src.volHL*100)):'',co2:'',o2:'',abv:'',temp:'',ph:''},
+    dil:{target:src.targets&&src.targets.abv!=null?String(src.targets.abv):'',water:''},
+    formats:[{f:'33cl',units:'',rej:''}],w:{f:'33cl',target:'',tol:'5',samples:[]},
+    note:{s:null,c:''}};
+  S.push(s);save();closeOv('newOv');open_(s.id);
+}
+function open_(id){curId=id;renderList();render();window.scrollTo(0,0);}
+function renderList(){
+  const L=document.getElementById('list');
+  if(!S.length){L.innerHTML='<div class="empty" style="padding:1.5rem 1rem">Aucune session.</div>';return;}
+  L.innerHTML=[...S].sort((a,b)=>b.date.localeCompare(a.date)).map(s=>{const c=calc(s);
+    return `<div class="bd${s.id===curId?' on':''}" onclick="open_('${s.id}')"><b>${esc(s.recipe)}</b><small>Lot ${esc(s.lot)} · ${fmtD(s.date)} · ${c.outL?Math.round(c.outL)+' L':'—'}</small></div>`;}).join('');
+}
+
+/* ---- calculs ---- */
+function calc(s){
+  const T=s.targets||{};const a=s.a;
+  const vol=num(a.vol),abv=num(a.abv),co2=num(a.co2),o2=num(a.o2);
+  const tAbv=num(s.dil.target);
+  const waterAdvice=vol!=null&&abv!=null&&tAbv&&abv>tAbv?vol*(abv/tAbv-1):0;
+  const water=num(s.dil.water)||0;
+  const volAfter=vol!=null?vol+water:null;
+  const abvAfter=vol!=null&&abv!=null?abv*vol/(vol+water):null;
+  let units=0,outL=0,rejL=0;const byF={};
+  s.formats.forEach(f=>{const v=f.f==='autre'?(num(f.vu)||0):FORMATS[f.f].v;const u=num(f.units)||0,r=num(f.rej)||0;units+=u;outL+=u*v;rejL+=r*v;
+    byF[f.f]=byF[f.f]||{units:0,l:0};byF[f.f].units+=u;byF[f.f].l+=u*v;});
+  const yieldPct=volAfter?outL/volAfter*100:null;
+  const lossL=volAfter!=null?volAfter-outL:null;
+  const ws=s.w.samples.map(num).filter(v=>v!=null),wt=num(s.w.target),wtol=num(s.w.tol)||0;
+  const wMean=ws.length?ws.reduce((x,y)=>x+y,0)/ws.length:null;
+  const wOut=ws.filter(v=>wt!=null&&Math.abs(v-wt)>wtol).length;
+  const chk={co2:co2!=null&&T.co2!=null?(Math.abs(co2-T.co2)<=T.co2Tol?'ok':Math.abs(co2-T.co2)<=T.co2Tol*2?'warn':'bad'):'',
+    o2:o2!=null&&T.o2!=null?(o2<=T.o2?'ok':o2<=T.o2*1.5?'warn':'bad'):'',
+    abv:abvAfter!=null&&T.abv!=null?(Math.abs(abvAfter-T.abv)<=T.abvTol?'ok':Math.abs(abvAfter-T.abv)<=T.abvTol*2?'warn':'bad'):''};
+  let auto=null;
+  if(yieldPct!=null){auto=yieldPct>=97?5:yieldPct>=94?4:yieldPct>=90?3:2;
+    const bad=Object.values(chk).filter(v=>v==='bad').length+(ws.length&&wOut/ws.length>.1?1:0);auto=Math.max(1,auto-bad);}
+  return {vol,water,waterAdvice,volAfter,abvAfter,units,outL,rejL,byF,yieldPct,lossL,ws,wMean,wOut,wMin:ws.length?Math.min(...ws):null,wMax:ws.length?Math.max(...ws):null,chk,auto,score:s.note.s!=null?s.note.s:auto};
+}
+
+/* ---- saisie ---- */
+function setA(k,v){cur().a[k]=v;save();refresh();}
+function setD(k,v){cur().dil[k]=v;save();refresh();}
+function setF(i,k,v){cur().formats[i][k]=v;save();if(k==='f')render();else refresh();}
+function addF(){cur().formats.push({f:'75cl',units:'',rej:''});save();render();}
+function delF(i){cur().formats.splice(i,1);save();render();}
+function setW(k,v){cur().w[k]=v;save();refresh();}
+function addSample(){const e=document.getElementById('wIn');const v=num(e.value);if(v==null)return;cur().w.samples.push(v);e.value='';save();render();document.getElementById('wIn').focus();}
+function delSample(i){cur().w.samples.splice(i,1);save();render();}
+function setNote(s,c){const n=cur().note;if(s!=null){n.s=n.s===s?null:s;save();render();}else{n.c=c;save();}}
+function applyWater(){const c=calc(cur());cur().dil.water=c.waterAdvice?c.waterAdvice.toFixed(0):'';save();render();}
+function delSession(){if(!confirm('Supprimer cette session ?'))return;S=S.filter(x=>x.id!==curId);curId=null;save();renderList();render();}
+
+function inA(k,label,unit,step){return `<label class="f">${label}${unit?' ('+unit+')':''}<input class="in" type="number" step="${step}" inputmode="decimal" value="${esc(cur().a[k])}" oninput="setA('${k}',this.value)"></label>`;}
+function kpi(id,label){return `<div class="kpi"><div class="v" id="k_${id}">—</div><div class="k">${label}</div><div class="d" id="d_${id}"></div></div>`;}
+function render(){
+  const M=document.getElementById('sheet');const s=cur();
+  if(!s){M.innerHTML=`<div class="card"><div class="empty">Crée une session de conditionnement : elle se relie au lot, à sa cuve et à ses cibles qualité.</div></div>`;return;}
+  const T=s.targets||{};
+  M.innerHTML=`
+  <div class="card"><div class="card-b"><div class="head-sheet">
+    <div><div class="ttl">${esc(s.recipe)}</div><div class="meta">Lot <b>${esc(s.lot)}</b> · ${fmtD(s.date)}${s.tank?' · depuis '+esc(s.tank):''}${s.op?' · '+esc(s.op):''}</div></div>
+    <div class="toolbar"><button class="btn-ghost btn-sm" onclick="printS()">PDF</button><button class="btn-ghost btn-sm" style="color:var(--red)" onclick="delSession()">Supprimer</button></div></div></div></div>
+
+  <div class="card"><div class="card-h"><h2><span class="n">01</span>Analyses de la cuve de garde</h2>
+    <span class="sub" style="margin:0">Cibles : CO₂ ${T.co2??'—'} ± ${T.co2Tol??'—'} g/L · O₂ ≤ ${T.o2??'—'} ppb · ${T.abv!=null?(+T.abv).toFixed(1):'—'} ± ${T.abvTol??'—'} % vol</span></div>
+    <div class="card-b"><div class="g g3">${inA('vol','Volume en cuve','L',1)}${inA('co2','CO₂','g/L',0.01)}${inA('o2','O₂ dissous','ppb',1)}${inA('abv','Degré d\'alcool','% vol',0.01)}${inA('temp','Température','°C',0.1)}${inA('ph','pH','',0.01)}</div>
+    <div class="kpis">${kpi('co2','CO₂ vs cible')}${kpi('o2','O₂ vs max')}${kpi('abv','Alcool après dilution')}</div></div></div>
+
+  <div class="card"><div class="card-h"><h2><span class="n">02</span>Dilution</h2></div>
+    <div class="card-b"><div class="g g3">
+      <label class="f">Degré visé (% vol)<input class="in" type="number" step="0.01" value="${esc(s.dil.target)}" oninput="setD('target',this.value)"></label>
+      <label class="f">Eau ajoutée (L)<input class="in" type="number" step="1" value="${esc(s.dil.water)}" oninput="setD('water',this.value)"></label>
+      <div class="kpi" style="align-self:end"><div class="v" id="k_wadv">—</div><div class="k">Eau calculée</div><div class="d"><button class="btn-ghost btn-sm" style="margin-top:.3rem" onclick="applyWater()">Appliquer</button></div></div>
+    </div></div></div>
+
+  <div class="card"><div class="card-h"><h2><span class="n">03</span>Formats conditionnés</h2><span class="sub" style="margin:0">Bouteilles, canettes et fûts dans la même session</span></div>
+    <div class="card-b"><div class="fmt-head"><span>Format</span><span>Unités</span><span>Rebuts</span><span class="u" style="text-align:right">Litres</span><span></span></div>
+      ${s.formats.map((f,i)=>`<div class="fmt-row"><select class="in" onchange="setF(${i},'f',this.value)">${Object.entries(FORMATS).map(([k,o])=>`<option value="${k}"${f.f===k?' selected':''}>${o.l}</option>`).join('')}</select>
+        <input class="in" type="number" min="0" value="${esc(f.units)}" oninput="setF(${i},'units',this.value)" placeholder="${f.f==='autre'?'unités':''}">
+        <input class="in" type="number" min="0" value="${esc(f.rej)}" oninput="setF(${i},'rej',this.value)">
+        <span class="tot u" id="fl_${i}">—</span><button class="x" onclick="delF(${i})">×</button>
+        ${f.f==='autre'?`<label class="f" style="grid-column:1/-1">Volume unitaire (L)<input class="in" type="number" step="0.01" value="${esc(f.vu||'')}" oninput="setF(${i},'vu',this.value)"></label>`:''}</div>`).join('')}
+      <button class="btn-ghost btn-sm" onclick="addF()">+ Format</button>
+      <div class="kpis">${kpi('out','Volume conditionné')}${kpi('yield','Rendement de conditionnement')}${kpi('loss','Pertes')}</div></div></div>
+
+  <div class="card"><div class="card-h"><h2><span class="n">04</span>Contrôle du poids de remplissage</h2></div>
+    <div class="card-b"><div class="g g3">
+      <label class="f">Format<select class="in" onchange="setW('f',this.value)">${Object.entries(FORMATS).map(([k,o])=>`<option value="${k}"${s.w.f===k?' selected':''}>${o.l}</option>`).join('')}</select></label>
+      <label class="f">Poids cible (g)<input class="in" type="number" step="0.1" value="${esc(s.w.target)}" oninput="setW('target',this.value)"></label>
+      <label class="f">Tolérance ± (g)<input class="in" type="number" step="0.1" value="${esc(s.w.tol)}" oninput="setW('tol',this.value)"></label></div>
+      <div style="display:flex;gap:.5rem;margin-top:.7rem"><input class="in" id="wIn" type="number" step="0.1" inputmode="decimal" placeholder="Pesée (g)" onkeydown="if(event.key==='Enter')addSample()" style="max-width:180px"><button class="btn-copper" onclick="addSample()">+ Pesée</button></div>
+      <div class="chips">${s.w.samples.map((v,i)=>{const t=num(s.w.target),tol=num(s.w.tol)||0;const out=t!=null&&Math.abs(v-t)>tol;return `<span class="chip${out?' out':''}" onclick="delSample(${i})" title="Supprimer">${v} ×</span>`;}).join('')}</div>
+      <div class="kpis">${kpi('wmean','Moyenne')}${kpi('wrange','Min – max')}${kpi('wout','Hors tolérance')}</div></div></div>
+
+  <div class="card"><div class="card-h"><h2>Note conditionnement</h2></div><div class="card-b">
+    <div style="display:flex;gap:.6rem;align-items:flex-start;flex-wrap:wrap"><div class="stars" id="stars"></div>
+    <textarea class="in" style="flex:1;min-width:220px" placeholder="Incidents, réglages, écarts…" oninput="setNote(null,this.value)">${esc(s.note.c)}</textarea></div>
+    <div id="alerts"></div></div></div>`;
+  refresh();
+}
+function setK(id,v,dt,cls){const e=document.getElementById('k_'+id);if(e)e.innerHTML=v;const d=document.getElementById('d_'+id);if(d){d.textContent=dt||'';d.className='d '+(cls||'');}}
+function refresh(){
+  const s=cur();if(!s)return;const c=calc(s),T=s.targets||{},a=s.a;
+  setK('co2',a.co2!==''?f1(num(a.co2))+'<small> g/L</small>':'—',T.co2!=null&&a.co2!==''?'cible '+T.co2+' ± '+T.co2Tol:'',c.chk.co2);
+  setK('o2',a.o2!==''?Math.round(num(a.o2))+'<small> ppb</small>':'—',T.o2!=null?'max '+T.o2+' ppb':'',c.chk.o2);
+  setK('abv',c.abvAfter!=null?c.abvAfter.toFixed(2)+'<small> %</small>':'—',T.abv!=null?'cible '+(+T.abv).toFixed(1)+' ± '+T.abvTol:'',c.chk.abv);
+  setK('wadv',c.waterAdvice?Math.round(c.waterAdvice)+'<small> L</small>':'0<small> L</small>');
+  s.formats.forEach((f,i)=>{const e=document.getElementById('fl_'+i);if(e){const v=f.f==='autre'?(num(f.vu)||0):FORMATS[f.f].v;e.textContent=((num(f.units)||0)*v).toFixed(1)+' L';}});
+  setK('out',c.outL?c.outL.toFixed(0)+'<small> L</small>':'—',c.units?c.units+' unités':'');
+  setK('yield',c.yieldPct!=null?c.yieldPct.toFixed(1)+'<small> %</small>':'—',c.volAfter?'sur '+Math.round(c.volAfter)+' L prévus':'',c.yieldPct==null?'':c.yieldPct>=97?'ok':c.yieldPct>=94?'warn':'bad');
+  setK('loss',c.lossL!=null?Math.round(c.lossL)+'<small> L</small>':'—',c.rejL?'dont rebuts '+c.rejL.toFixed(1)+' L':'');
+  setK('wmean',c.wMean!=null?c.wMean.toFixed(1)+'<small> g</small>':'—',c.ws.length+' pesée'+(c.ws.length>1?'s':''));
+  setK('wrange',c.wMin!=null?c.wMin+' – '+c.wMax:'—');
+  setK('wout',c.ws.length?c.wOut+'<small> / '+c.ws.length+'</small>':'—','',c.ws.length?(c.wOut===0?'ok':c.wOut/c.ws.length<=.1?'warn':'bad'):'');
+  const st=document.getElementById('stars');
+  st.innerHTML=[1,2,3,4,5].map(i=>`<button class="${c.score!=null&&i<=c.score?'on':''}" onclick="setNote(${i})">★</button>`).join('')+`<span class="auto">${s.note.s!=null?'note manuelle':c.auto!=null?'note auto':'—'}</span>`;
+  const al=[];if(c.chk.co2==='bad')al.push('CO₂ hors cible');if(c.chk.o2==='bad')al.push('O₂ trop élevé');if(c.chk.abv==='bad')al.push('degré hors tolérance');
+  if(c.yieldPct!=null&&c.yieldPct<94)al.push('rendement de conditionnement faible ('+c.yieldPct.toFixed(1)+' %)');
+  if(c.ws.length&&c.wOut/c.ws.length>.1)al.push(c.wOut+' pesée(s) hors tolérance');
+  document.getElementById('alerts').innerHTML=al.length?`<div class="advice"><b>Écarts signalés :</b> ${al.join(' · ')}.</div>`:'';
+  renderList();
+}
+function printS(){
+  const s=cur(),c=calc(s),T=s.targets||{};
+  document.getElementById('printSheet').innerHTML=`<h1>${esc(s.recipe)} — lot ${esc(s.lot)}</h1><div>Conditionnement du ${fmtD(s.date)}${s.tank?' · '+esc(s.tank):''}${s.op?' · '+esc(s.op):''}</div>
+  <h2>Analyses</h2><table><tr><th>Volume</th><td>${s.a.vol||'—'} L</td><th>CO₂</th><td>${s.a.co2||'—'} g/L (cible ${T.co2??'—'})</td><th>O₂</th><td>${s.a.o2||'—'} ppb (max ${T.o2??'—'})</td></tr>
+  <tr><th>Alcool</th><td>${s.a.abv||'—'} %</td><th>Eau ajoutée</th><td>${c.water} L</td><th>Alcool final</th><td>${c.abvAfter!=null?c.abvAfter.toFixed(2):'—'} %</td></tr></table>
+  <h2>Formats</h2><table><tr><th>Format</th><th class="r">Unités</th><th class="r">Rebuts</th><th class="r">Litres</th></tr>${s.formats.map(f=>{const v=f.f==='autre'?(num(f.vu)||0):FORMATS[f.f].v;return `<tr><td>${FORMATS[f.f].l}</td><td class="r">${f.units||0}</td><td class="r">${f.rej||0}</td><td class="r">${((num(f.units)||0)*v).toFixed(1)}</td></tr>`;}).join('')}
+  <tr><th>Total</th><th class="r">${c.units}</th><th></th><th class="r">${c.outL.toFixed(1)}</th></tr></table>
+  <p>Rendement de conditionnement : <b>${c.yieldPct!=null?c.yieldPct.toFixed(1)+' %':'—'}</b> · pertes ${c.lossL!=null?Math.round(c.lossL)+' L':'—'}</p>
+  <h2>Poids de remplissage</h2><p>${c.ws.length} pesées · moyenne ${c.wMean!=null?c.wMean.toFixed(1):'—'} g · cible ${s.w.target||'—'} ± ${s.w.tol} g · hors tolérance ${c.wOut}</p>
+  <h2>Note</h2><p>${c.score??'—'}/5 ${esc(s.note.c)}</p>`;
+  window.print();
+}
+function exportJSON(){const blob=new Blob([JSON.stringify({app:'Packaging Log',version:1,exportDate:new Date().toISOString(),sessions:S},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='conditionnement_'+today()+'.json';document.body.appendChild(a);a.click();a.remove();}
+function importJSON(e){const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const o=JSON.parse(rd.result);const arr=Array.isArray(o)?o:o.sessions;if(!Array.isArray(arr))throw 0;
+  const ids=new Set(S.map(x=>x.id));let n=0;arr.forEach(x=>{if(!ids.has(x.id)){S.push(x);n++;}});save();renderList();alert(n+' session(s) importée(s).');}catch(err){alert('Fichier invalide');}};rd.readAsText(f);e.target.value='';}
+
+renderList();
+if(S.length)open_([...S].sort((a,b)=>b.date.localeCompare(a.date))[0].id);else render();
+</script>
+</body>
+</html>
