@@ -133,6 +133,16 @@
   table.ing small.tag{font-size:.62rem;color:var(--green);font-weight:700;text-transform:uppercase}
   .xb{background:transparent;color:var(--ink-soft);padding:.2rem .35rem;font-size:1rem}.xb:hover{color:var(--red)}
   @media(max-width:700px){table.ing th:first-child,table.ing td:first-child{display:none}}
+  table.st{width:100%;border-collapse:collapse;font-size:.84rem}
+  table.st th{text-align:left;font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);padding:.3rem .35rem;border-bottom:1px solid var(--line)}
+  table.st td{padding:.35rem;border-bottom:1px solid var(--line);vertical-align:middle}
+  table.st td.n{text-align:right;font-family:var(--mono);white-space:nowrap}
+  table.st select.in{min-height:34px;padding:.3rem;font-size:.82rem}
+  table.st select.unmapped{border-color:var(--red)}
+  table.st input.in{width:90px;min-height:34px;padding:.3rem;font-size:.85rem;text-align:right}
+  table.st tr.over td{background:rgba(168,57,43,.06)}
+  table.st small{display:block;color:var(--ink-soft);font-size:.7rem}
+  @media(max-width:600px){table.st .hm{display:none}}
   .print{display:none}
   @media print{
     @page{size:A4 portrait;margin:14mm}
@@ -185,6 +195,17 @@
       <div class="mhint" style="padding:0">Chaque brassin a sa propre date : tu peux aussi en ajouter un plus tard depuis la fiche.</div>
     </div>
     <div class="acts"><button class="btn-ghost" onclick="closeOv('newOv')">Annuler</button><button class="btn-copper" onclick="createDay()">Charger la recette</button></div>
+  </div>
+</div>
+
+<!-- Modal déduction stock -->
+<div class="overlay" id="stockOv">
+  <div class="modal" style="max-width:760px">
+    <h2>Déduire du stock</h2>
+    <div class="mhint" id="stHint"></div>
+    <div class="form" id="stBody" style="overflow-x:auto"></div>
+    <div class="mhint" id="stSum" style="padding:0 1.2rem .8rem;font-style:normal"></div>
+    <div class="acts"><button class="btn-ghost" onclick="closeOv('stockOv')">Annuler</button><button class="btn-copper" id="stGo" onclick="applyStock()">Déduire</button></div>
   </div>
 </div>
 
@@ -487,6 +508,8 @@ function renderSheet(){
       <div id="compare"></div>
       <div class="toolbar" style="margin-top:1rem">
         <button class="btn-copper" onclick="openCave()">${d.sent?'Renvoyer en cave':'Envoyer en cave →'}</button>
+        <button class="btn-ghost" onclick="openStock()" id="btnStock">${d.stock?'Mettre à jour la sortie de stock':'Déduire du stock'}</button>
+        ${d.stock?`<span class="pill cave" id="stockPill">Stock déduit le ${fmtD(d.stock.at.slice(0,10))}</span>`:''}
         <a class="btn-ghost" style="text-decoration:none;padding:.6rem .9rem;border-radius:10px;font-weight:600;font-size:.85rem;color:var(--ink)" href="cuves.html">Ouvrir le suivi des cuves</a>
       </div>
     </div></div>`;
@@ -597,6 +620,97 @@ function sendToCave(){
   alert('Lot '+d.lot+' envoyé en '+t.name+'. Le protocole de fermentation y est installé.');
 }
 
+
+/* ===================== Déduction du stock (app Stock : brasserie_stock_v2) ===================== */
+const STOCK_KEY='brasserie_stock_v2';
+const stNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+const ST_STOP=new Set(['malt','malts','levure','levures','conv','bio','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
+const stTok=t=>stNorm(t).split(' ').filter(w=>w&&!ST_STOP.has(w));
+const SU={g:['m',1],kg:['m',1000],ml:['v',1],l:['v',1000]};
+function stConv(q,from,to){const a=SU[String(from||'').toLowerCase()],b=SU[String(to||'').toLowerCase()];if(!a||!b||a[0]!==b[0])return q;return q*a[1]/b[1];}
+function stRound(q,u){u=String(u||'').toLowerCase();return (u==='g'||u==='ml')?Math.round(q):Math.round(q*1000)/1000;}
+let stRows=[],stState=null;
+/* ingrédients réellement utilisés sur tout le lot (quantités × nb de brassins), regroupés comme dans l'app Stock */
+function lotIngredients(d){
+  const A=actualRecipe(d),k=d.brassins.length,out=[];const base=n=>String(n||'').split(' · ')[0];
+  (A.malts||[]).forEach(m=>out.push({type:'malt',cat:'malt',n:base(m.n),q:(+m.kg||0)*k,u:'kg'}));
+  (A.hops||[]).forEach(h=>out.push({type:'houblon',cat:'houblon',n:h.n,q:(+h.g||0)*k,u:'g'}));
+  if(A.yeast&&A.yeast.n)out.push({type:'levure',cat:'levure',n:A.yeast.n,q:(+A.yeast.g||0)*k,u:'g'});
+  (A.soft||[]).forEach(x=>{if(x.c==='eau'||stNorm(x.n)==='eau')return;out.push({type:'soft',cat:'conso',n:x.n,q:(+x.qty||0)*k,u:x.u||'kg'});});
+  const TY={hop:['houblon','houblon'],yeast:['levure','levure'],other:['soft','conso']};
+  (d.extra||[]).forEach(x=>{if(x.typ==='malt'||!x.n||num(x.qty)==null)return;const t=TY[x.typ]||TY.other;out.push({type:t[0],cat:t[1],n:x.n,q:num(x.qty)*k,u:x.u||'g'});});
+  const g={};out.forEach(i=>{const key=i.type+'|'+stNorm(i.n);if(g[key])g[key].q+=stConv(i.q,i.u,g[key].u);else g[key]={...i,key};});
+  return Object.values(g).filter(i=>i.q>0);
+}
+function stGuess(ing){
+  const saved=(stState.recipeMap||{})[ing.key];
+  if(saved&&(saved==='__skip'||stState.items.some(i=>i.id===saved)))return saved;
+  const t=stTok(ing.n);if(!t.length)return '';let best='',bs=0;
+  stState.items.forEach(it=>{const t2=stTok(it.name);const hit=t.filter(w=>t2.includes(w)).length;if(!hit||hit<t.length)return;
+    const sc=10-(t2.length-hit)+(it.cat===ing.cat?5:0);if(sc>bs){bs=sc;best=it.id;}});
+  return best;
+}
+const stItem=id=>stState.items.find(i=>i.id===id);
+function openStock(){
+  stState=ld(STOCK_KEY,null);
+  if(!stState||!Array.isArray(stState.items)){alert("Le stock n'est pas encore initialisé : ouvre une fois l'app Stock (même site), puis reviens ici.");return;}
+  stState.moves=stState.moves||[];
+  const d=day();const prev=d.stock&&stState.moves.find(m=>m.id===d.stock.moveId);
+  const prevQ={};if(prev)prev.lines.forEach(l=>prevQ[l.id]=(prevQ[l.id]||0)+(parseFloat(l.qty)||0));
+  stRows=lotIngredients(d).map(i=>({...i,sel:stGuess(i),ov:null}));
+  stRows.prevQ=prevQ;stRows.prev=prev;
+  document.getElementById('stHint').textContent=`Lot ${d.lot} · ${d.recipe.name} · ${d.brassins.length} brassin${d.brassins.length>1?'s':''} — quantités réelles de la fiche.`+(prev?' Une sortie existe déjà : elle sera corrigée, pas doublée.':'');
+  document.getElementById('stGo').textContent=prev?'Mettre à jour la sortie':'Déduire';
+  stRender();document.getElementById('stockOv').classList.add('show');
+}
+function stCalc(r){
+  const it=stItem(r.sel);if(!it)return {unit:r.u,q:r.sel==='__skip'?0:stRound(r.q,r.u),stock:null};
+  const unit=it.unit||r.u;const q=r.ov!=null?r.ov:stRound(stConv(r.q,r.u,unit),unit);
+  const avail=(Number(it.qty)||0)+((stRows.prevQ||{})[it.id]||0); // stock + ce que l'ancienne sortie avait déjà retiré
+  return {unit,q,stock:avail,over:q>avail+1e-9};
+}
+function stOptions(r){
+  const cats={malt:'Malts',houblon:'Houblons',levure:'Levures',conso:'Consommables'};
+  const items=[...stState.items].sort((a,b)=>(a.cat===r.cat?0:1)-(b.cat===r.cat?0:1)||String(a.cat).localeCompare(b.cat)||a.name.localeCompare(b.name,'fr'));
+  let h=`<option value="">— Choisir un article —</option><option value="__skip"${r.sel==='__skip'?' selected':''}>Ne pas déduire</option>`,last=null;
+  items.forEach(it=>{if(it.cat!==last){if(last!==null)h+='</optgroup>';h+=`<optgroup label="${cats[it.cat]||it.cat}">`;last=it.cat;}h+=`<option value="${it.id}"${it.id===r.sel?' selected':''}>${esc(it.name)}</option>`;});
+  return h+(last!==null?'</optgroup>':'');
+}
+function stRender(){
+  let miss=0,over=0,n=0;
+  document.getElementById('stBody').innerHTML=stRows.length?`<table class="st"><thead><tr><th>Ingrédient</th><th>Article du stock</th><th class="hm" style="text-align:right">En stock</th><th style="text-align:right">À déduire</th></tr></thead><tbody>
+    ${stRows.map((r,i)=>{const c=stCalc(r);if(!r.sel)miss++;else if(r.sel!=='__skip'&&c.q>0)n++;if(c.over)over++;
+      return `<tr class="${c.over?'over':''}"><td><b>${esc(r.n)}</b><small>${stRound(r.q,r.u)} ${esc(r.u)}</small></td>
+      <td><select class="in${r.sel?'':' unmapped'}" onchange="stRows[${i}].sel=this.value;stRows[${i}].ov=null;stRender()">${stOptions(r)}</select></td>
+      <td class="n hm">${c.stock!=null?stRound(c.stock,c.unit)+' '+esc(c.unit):'—'}</td>
+      <td class="n">${r.sel==='__skip'?'—':`<input class="in" type="number" min="0" step="any" inputmode="decimal" value="${c.q}" oninput="stRows[${i}].ov=Math.max(0,parseFloat(this.value)||0);stSum()"> ${esc(c.unit)}`}</td></tr>`;}).join('')}</tbody></table>`
+    :'<p>Aucun ingrédient sur la fiche.</p>';
+  stSum(miss,over,n);
+}
+function stSum(){
+  let miss=0,over=0,n=0;stRows.forEach(r=>{const c=stCalc(r);if(!r.sel)miss++;else if(r.sel!=='__skip'&&c.q>0)n++;if(c.over)over++;});
+  document.getElementById('stSum').innerHTML=(miss?`<span class="bad">${miss} ingrédient(s) à associer</span> · `:'')+(over?`<span class="bad">${over} au-delà du stock</span> · `:'')+`<b>${n}</b> article(s) à sortir du stock`;
+}
+function applyStock(){
+  if(stRows.some(r=>!r.sel)&&!confirm('Certains ingrédients ne sont associés à aucun article et seront ignorés. Continuer ?'))return;
+  const fresh=ld(STOCK_KEY,null);if(!fresh||!Array.isArray(fresh.items)){alert('Stock introuvable.');return;}
+  stState=fresh;stState.moves=stState.moves||[];stState.recipeMap=stState.recipeMap||{};
+  const d=day();const lines=[];
+  stRows.forEach(r=>{if(!r.sel)return;stState.recipeMap[r.key]=r.sel;if(r.sel==='__skip')return;const c=stCalc(r);if(!(c.q>0))return;
+    const ex=lines.find(l=>l.id===r.sel);if(ex)ex.qty=String((parseFloat(ex.qty)||0)+c.q);else lines.push({id:r.sel,qty:String(c.q)});});
+  const prev=d.stock&&stState.moves.find(m=>m.id===d.stock.moveId);
+  // applique le delta net (même logique que l'app Stock) : nouvelle sortie - ancienne
+  const delta={};(prev?prev.lines:[]).forEach(l=>delta[l.id]=(delta[l.id]||0)+(parseFloat(l.qty)||0));
+  lines.forEach(l=>delta[l.id]=(delta[l.id]||0)-(parseFloat(l.qty)||0));
+  Object.keys(delta).forEach(id=>{const it=stState.items.find(i=>i.id===id);if(it)it.qty=Math.max(0,(Number(it.qty)||0)+delta[id]);});
+  const party=`Brassin lot ${d.lot} — ${d.recipe.name} (${d.brassins.length} brassin${d.brassins.length>1?'s':''})`;
+  if(prev){prev.lines=lines;prev.party=party;prev.date=d.date;}
+  else{const m={id:'m'+Math.random().toString(36).slice(2,9),type:'usage',date:d.date,party,lines,lot:d.lot,brewId:d.id,createdAt:Date.now()};stState.moves.push(m);d.stock={moveId:m.id};}
+  d.stock.at=new Date().toISOString();d.stock.n=lines.length;
+  try{localStorage.setItem(STOCK_KEY,JSON.stringify(stState));}catch(e){alert('Stockage impossible');return;}
+  save();closeOv('stockOv');renderSheet();
+  alert((prev?'Sortie de stock mise à jour':'Stock déduit')+' : '+lines.length+' article(s). Visible dans l\'historique de l\'app Stock.');
+}
 /* ===================== PDF ===================== */
 function printSheet(){
   const d=day();const r=d.recipe;const T=recipeTargets(r);
