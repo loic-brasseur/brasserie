@@ -364,6 +364,18 @@ function setTime(path,val){
 function setNote(step,k,v){const n=day().brassins[curB].notes[step];n[k]=k==='s'?(n.s===v?null:v):v;save();if(k==='s')renderSheet();else refreshCalc();}
 
 /* ===================== Calculs ===================== */
+/* Couleur (Morey) et amertume (Tinseth), mêmes formules que le Carnet de brassage */
+function colorBitter(R,volL,og){
+  if(!volL)return {ebc:null,ibu:null};
+  const LB=2.2046226,GAL=3.7854118,volGal=volL/GAL;let mcu=0;
+  (R.malts||[]).forEach(m=>{mcu+=(+m.kg||0)*LB*((+m.ebc||0)/1.97);});
+  const ebc=(R.malts||[]).length?1.4922*Math.pow(mcu/volGal,0.6859)*1.97:null;
+  let ibu=null;
+  if(og){ibu=0;const big=1.65*Math.pow(0.000125,og-1);
+    (R.hops||[]).forEach(h=>{const u=hopUse(h);if(u==='dh')return;const btf=(1-Math.exp(-0.04*(+h.time||0)))/4.15;
+      let ut=big*btf*(u==='wp'?0.5:1);if(h.form==='pellets')ut*=1.10;ibu+=((+h.a||0)/100)*(+h.g||0)*1000*ut/volL;});}
+  return {ebc,ibu};
+}
 function calc(d,b){
   const r=d.recipe, m=b.m, T=recipeTargets(r), A=actualRecipe(d,b);
   const vPre=num(m.vPre),pPre=num(m.pPre),vPost=num(m.vPost),pPost=num(m.pPost),vFerm=num(m.vFerm);
@@ -373,7 +385,9 @@ function calc(d,b){
   const tBoil=(b.ev.boilStart&&b.ev.boilEnd)?(new Date(b.ev.boilEnd)-new Date(b.ev.boilStart))/3.6e6:((r.process&&+r.process.boil)||60)/60;
   const evapPct=evapL!=null&&vPre?evapL/vPre*100/(tBoil||1):null;
   const lossL=vPost!=null&&vFerm!=null?vPost-vFerm:null;
-  return {T,effPre,effFerm,evapL,evapPct,lossL,vFerm,pPost,vPre,pPre,targetVol:num(r.vol),recipeEff:num(r.eff)};
+    // couleur et amertume du brassin réel : quantités réelles, volume et densité mesurés en fin d'ébullition (sinon ceux de la recette)
+  const cb=colorBitter(A,vPost||num(r.vol),pPost!=null?platoToSG(pPost):(r.calc&&r.calc.og)||null);
+  return {T,effPre,effFerm,evapL,evapPct,lossL,vFerm,pPost,vPre,pPre,targetVol:num(r.vol),recipeEff:num(r.eff),ebc:cb.ebc,ibu:cb.ibu,ebcPlan:r.calc&&r.calc.ebc,ibuPlan:r.calc&&r.calc.ibu};
 }
 /* notes automatiques (1–5) — la note manuelle prime */
 function autoScores(d,b){
@@ -400,7 +414,7 @@ function ingredientRows(d,b){
   const mk=(k,t,typ,n,qty,u,extra)=>{const sb=S[k]||{};const an=sb.n!=null&&sb.n!==''?sb.n:n, aq=sb.qty!=null&&sb.qty!==''?sb.qty:qty;
     return {k,t,typ,pn:n,pq:qty,u,n:an,qty:aq,q:aq+' '+u,changed:!extra&&(an!==n||String(aq)!==String(qty)),extra:!!extra};};
   (r.malts||[]).forEach((m,i)=>rows.push(mk('m'+i,'Malt','malt',m.n,m.kg,'kg'+(m.cs?' (cold steep)':''))));
-  (r.hops||[]).forEach((h,i)=>rows.push(mk('h'+i,'Houblon','hop',h.n,h.g,'g')));
+  (r.hops||[]).forEach((h,i)=>{const row=mk('h'+i,'Houblon','hop',h.n,h.g,'g'),sb=S['h'+i]||{};row.pa=h.a;row.a=sb.a!=null&&sb.a!==''?sb.a:h.a;if(String(row.a)!==String(h.a))row.changed=true;rows.push(row);});
   if(r.yeast)rows.push(mk('y','Levure','yeast',r.yeast.n,r.yeast.g||'','g'));
   (r.soft||[]).forEach((x,i)=>rows.push(mk('s'+i,'Autre','other',x.n,x.qty,x.u)));
   (b.extra||[]).forEach(x=>rows.push({...mk('x'+x.id,ITYPES[x.typ]||'Autre',x.typ,x.n,x.qty,x.u,true),n:x.n,qty:x.qty,q:x.qty+' '+x.u}));
@@ -409,12 +423,12 @@ function ingredientRows(d,b){
 /* recette telle que brassée : quantités / noms modifiés + ingrédients ajoutés (pour les calculs) */
 function actualRecipe(d,b){
   b=b||curBr(d);const r=JSON.parse(JSON.stringify(d.recipe)),S=b.subs||{};
-  const ap=(o,k,qk)=>{const sb=S[k];if(!sb||!o)return;if(sb.n)o.n=sb.n;if(sb.ppg)o.ppg=sb.ppg;if(sb.a!=null&&qk==='g')o.a=sb.a;if(sb.qty!==''&&sb.qty!=null&&!isNaN(parseFloat(sb.qty)))o[qk]=parseFloat(sb.qty);};
+  const ap=(o,k,qk)=>{const sb=S[k];if(!sb||!o)return;if(sb.n)o.n=sb.n;if(sb.ppg)o.ppg=sb.ppg;if(sb.ebc!=null&&qk==='kg')o.ebc=sb.ebc;if(sb.a!==''&&sb.a!=null&&qk==='g'&&!isNaN(parseFloat(sb.a)))o.a=parseFloat(sb.a);if(sb.qty!==''&&sb.qty!=null&&!isNaN(parseFloat(sb.qty)))o[qk]=parseFloat(sb.qty);};
   (r.malts||[]).forEach((m,i)=>ap(m,'m'+i,'kg'));(r.hops||[]).forEach((h,i)=>ap(h,'h'+i,'g'));ap(r.yeast,'y','g');(r.soft||[]).forEach((x,i)=>ap(x,'s'+i,'qty'));
-  (b.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:x.ppg||37,ebc:0,cs:false});});
+  (b.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:x.ppg||37,ebc:x.ebc||0,cs:false});});
   return r;
 }
-function setSub(k,f,v){const b=curBr();b.subs=b.subs||{};b.subs[k]=b.subs[k]||{};b.subs[k][f]=v;if(f==='n'){delete b.subs[k].ppg;delete b.subs[k].a;}save();refreshCalc();markChanged(k);}
+function setSub(k,f,v){const b=curBr();b.subs=b.subs||{};b.subs[k]=b.subs[k]||{};b.subs[k][f]=v;if(f==='n'){delete b.subs[k].ppg;delete b.subs[k].ebc;}save();refreshCalc();markChanged(k);}
 function resetSub(k){const b=curBr();if(b.subs)delete b.subs[k];save();renderSheet();}
 function markChanged(k){const row=ingredientRows(day()).find(x=>x.k===k);const e=document.getElementById('ing_'+k);if(e&&row)e.classList.toggle('chg',row.changed);
   const p=document.getElementById('plan_'+k);if(p&&row)p.style.visibility=row.changed?'visible':'hidden';}
@@ -432,8 +446,8 @@ function ingTable(d){
         <td><input class="in" value="${esc(L[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur"></td>
         <td><button class="xb" onclick="delExtra('${x.k.slice(1)}')" title="Retirer">×</button></td></tr>`
       :`<tr id="ing_${x.k}" class="${x.changed?'chg':''}"><td>${x.t}</td>
-        <td><div class="ta"><input class="in" value="${esc(x.n)}" autocomplete="off" data-typ="${x.typ}" data-k="${x.k}" oninput="setSub('${x.k}','n',this.value);taShow(this)" onfocus="this.select();taShow(this)" onkeydown="taKey(event,this)" onblur="taHide(this)"></div><small class="plan" id="plan_${x.k}" style="visibility:${x.changed?'visible':'hidden'}">prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)}</small></td>
-        <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" value="${esc(x.qty)}" oninput="setSub('${x.k}','qty',this.value)"><span class="u">${esc(x.u.replace(' (cold steep)',''))}</span></div></td>
+        <td><div class="ta"><input class="in" value="${esc(x.n)}" autocomplete="off" data-typ="${x.typ}" data-k="${x.k}" oninput="setSub('${x.k}','n',this.value);taShow(this)" onfocus="this.select();taShow(this)" onkeydown="taKey(event,this)" onblur="taHide(this)"></div><small class="plan" id="plan_${x.k}" style="visibility:${x.changed?'visible':'hidden'}">prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)}${x.typ==='hop'?' · '+esc(x.pa)+' % α':''}</small></td>
+        <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" value="${esc(x.qty)}" oninput="setSub('${x.k}','qty',this.value)"><span class="u">${esc(x.u.replace(' (cold steep)',''))}</span></div>${x.typ==='hop'?`<div class="qty" style="margin-top:.25rem"><input class="in" id="alpha_${x.k}" type="number" step="0.1" inputmode="decimal" value="${esc(x.a)}" title="Acides alpha du lot" oninput="setSub('${x.k}','a',this.value)"><span class="u">% α</span></div>`:''}</td>
         <td><input class="in" value="${esc(L[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur"></td>
         <td><button class="xb" onclick="resetSub('${x.k}')" title="Revenir à la recette">↺</button></td></tr>`).join('')}
     </tbody></table>
@@ -510,7 +524,7 @@ function renderSheet(){
       ${boilHops.length?`<table class="t"><thead><tr><th>Houblon</th><th class="num">Quantité</th><th>Ajout prévu</th><th style="width:250px">Ajouté à</th></tr></thead><tbody>
         ${boilHops.map(({h,i,u})=>`<tr><td>${esc(h.n)}</td><td class="num">${h.g} g</td><td>${u==='wp'?'Whirlpool '+h.time+' min':h.time+' min avant la fin'}</td><td>${tsBox('','hops.h'+i,b.hops['h'+i])}</td></tr>`).join('')}</tbody></table>`:''}
       <div class="g g2" style="margin-top:.8rem">${inp('vPost','Volume fin d\'ébullition','L',1)}${inp('pPost','Densité fin d\'ébullition (DI)','°P',0.1)}</div>
-      <div class="kpis">${kpi('di','DI vs cible')}${kpi('evap','Évaporation')}</div>
+      <div class="kpis">${kpi('di','DI vs cible')}${kpi('evap','Évaporation')}${kpi('ebc','Couleur')}${kpi('ibu','Amertume')}</div>
       ${noteBox('boil')}</div></div>
 
   <div class="card"><div class="card-h"><h2><span class="n">05</span>Refroidissement</h2></div>
@@ -548,6 +562,9 @@ function refreshCalc(){
   const H=history(d).map(dayEff).filter(v=>v!=null);
   setK('effAvg',H.length?f1(H.reduce((a,b)=>a+b,0)/H.length)+'<small> %</small>':'—',H.length?H.length+' brassage'+(H.length>1?'s':'')+' précédent'+(H.length>1?'s':''):'pas d\'historique');
   if(c.pPost!=null){const dv=c.T.ogP!=null?c.pPost-c.T.ogP:null;setK('di',f1(c.pPost)+'<small> °P</small>',dv!=null?(dv>=0?'+':'')+dv.toFixed(1)+' °P vs '+c.T.ogP:'',cls(dv,.3));}else setK('di','—','');
+  const dv=(v,p,u,dg)=>v==null?'':p!=null?'recette '+(+p).toFixed(dg)+' '+u+' ('+(v-p>=0?'+':'')+(v-p).toFixed(dg)+')':'';
+  setK('ebc',c.ebc!=null?f0(c.ebc)+'<small> EBC</small>':'—',dv(c.ebc,c.ebcPlan,'EBC',0),c.ebc==null||c.ebcPlan==null?'':Math.abs(c.ebc-c.ebcPlan)<=Math.max(2,c.ebcPlan*.1)?'ok':'warn');
+  setK('ibu',c.ibu!=null?f0(c.ibu)+'<small> IBU</small>':'—',dv(c.ibu,c.ibuPlan,'IBU',0),c.ibu==null||c.ibuPlan==null?'':Math.abs(c.ibu-c.ibuPlan)<=Math.max(2,c.ibuPlan*.1)?'ok':'warn');
   setK('evap',c.evapL!=null?f0(c.evapL)+'<small> L</small>':'—',c.evapPct!=null?c.evapPct.toFixed(1)+' %/h':'');
   setK('effFerm',c.effFerm!=null?f1(c.effFerm)+'<small> %</small>':'—','au volume fermenteur');
   if(c.vFerm!=null&&c.targetVol){const p=c.vFerm/c.targetVol*100;setK('vol',f0(c.vFerm)+'<small> L</small>',p.toFixed(1)+' % de '+c.targetVol+' L',p>=98?'ok':p>=95?'warn':'bad');}else setK('vol','—','');
@@ -649,11 +666,11 @@ function taSource(){
   const L={malt:new Map(),hop:new Map(),yeast:new Map(),other:new Map()};
   const add=(t,n,meta)=>{n=String(n||'').trim();if(!n)return;const k=n.toLowerCase();if(!L[t].has(k))L[t].set(k,{n,...meta});else Object.assign(L[t].get(k),Object.fromEntries(Object.entries(meta||{}).filter(([a,v])=>v!=null&&L[t].get(k)[a]==null)));};
   const cat=ld('brasserie_catalogue_pub_v1',null)||ld('brasserie_catalogue_v1',null)||{};
-  (cat.malts||[]).forEach(m=>add('malt',m.n,{ppg:m.ppg,src:'catalogue'}));
+  (cat.malts||[]).forEach(m=>add('malt',m.n,{ppg:m.ppg,ebc:m.ebc,src:'catalogue'}));
   (cat.hops||[]).forEach(h=>add('hop',h.n,{a:h.a,src:'catalogue'}));
   (cat.yeasts||[]).forEach(y=>add('yeast',y.n,{src:'catalogue'}));
   (cat.softs||[]).forEach(x=>add('other',x.n,{u:x.u,src:'catalogue'}));
-  ld(REC_KEY,[]).forEach(r=>{(r.malts||[]).forEach(m=>add('malt',m.n,{ppg:m.ppg,src:'recette'}));(r.hops||[]).forEach(h=>add('hop',h.n,{a:h.a,src:'recette'}));
+  ld(REC_KEY,[]).forEach(r=>{(r.malts||[]).forEach(m=>add('malt',m.n,{ppg:m.ppg,ebc:m.ebc,src:'recette'}));(r.hops||[]).forEach(h=>add('hop',h.n,{a:h.a,src:'recette'}));
     if(r.yeast)add('yeast',r.yeast.n,{src:'recette'});(r.soft||[]).forEach(x=>add('other',x.n,{u:x.u,src:'recette'}));});
   const st=ld('brasserie_stock_v2',null);const SC={malt:'malt',houblon:'hop',levure:'yeast',conso:'other'};
   ((st&&st.items)||[]).forEach(it=>add(SC[it.cat]||'other',it.name,{src:'stock',stock:it.qty+' '+(it.unit||'')}));
@@ -688,8 +705,8 @@ function taPick(it){
   const el=it.parentNode,x=el._res[+it.dataset.i],inp=el._inp,k=inp.dataset.k,d=day();
   inp.value=x.n;el.remove();
   const bb=curBr(d);
-  if(k.startsWith('x')){const e=(bb.extra||[]).find(z=>'x'+z.id===k);if(e){e.n=x.n;if(x.ppg)e.ppg=x.ppg;if(x.u&&!e.qty)e.u=x.u;}save();refreshCalc();}
-  else{bb.subs=bb.subs||{};const sb=bb.subs[k]=bb.subs[k]||{};sb.n=x.n;if(x.ppg)sb.ppg=x.ppg;else delete sb.ppg;if(x.a!=null)sb.a=x.a;save();refreshCalc();markChanged(k);}
+  if(k.startsWith('x')){const e=(bb.extra||[]).find(z=>'x'+z.id===k);if(e){e.n=x.n;if(x.ppg)e.ppg=x.ppg;if(x.ebc!=null)e.ebc=x.ebc;if(x.u&&!e.qty)e.u=x.u;}save();refreshCalc();}
+  else{bb.subs=bb.subs||{};const sb=bb.subs[k]=bb.subs[k]||{};sb.n=x.n;if(x.ppg)sb.ppg=x.ppg;else delete sb.ppg;if(x.ebc!=null)sb.ebc=x.ebc;else delete sb.ebc;if(x.a!=null){sb.a=x.a;const ai=document.getElementById('alpha_'+k);if(ai)ai.value=x.a;}save();refreshCalc();markChanged(k);}
   inp.blur();
 }
 /* ===================== Déduction du stock (app Stock : brasserie_stock_v2) ===================== */
@@ -796,6 +813,7 @@ function printSheet(){
     <table><tr><th>Eau</th><td>${m.eau||'—'} L</td><th>pH emp.</th><td>${m.ph||'—'}</td><th>1er moût</th><td>${m.fw||'—'} °P</td></tr>
     <tr><th>V pré-éb.</th><td>${m.vPre||'—'} L</td><th>°P pré-éb.</th><td>${m.pPre||'—'}</td><th>Rendement</th><td>${f1(c.effPre)} %</td></tr>
     <tr><th>V fin éb.</th><td>${m.vPost||'—'} L</td><th>DI</th><td>${m.pPost||'—'} °P (cible ${T.ogP??'—'})</td><th>Évap.</th><td>${f0(c.evapL)} L</td></tr>
+    <tr><th>Couleur</th><td>${f0(c.ebc)} EBC (recette ${c.ebcPlan!=null?Math.round(c.ebcPlan):'—'})</td><th>Amertume</th><td>${f0(c.ibu)} IBU (recette ${c.ibuPlan!=null?Math.round(c.ibuPlan):'—'})</td><th></th><td></td></tr>
     <tr><th>V fermenteur</th><td>${m.vFerm||'—'} L</td><th>T° ens.</th><td>${m.tFerm||'—'} °C</td><th>pH moût</th><td>${m.phFerm||'—'}</td></tr></table>
     <table><tr>${STEPS.map(([k,l])=>`<th>${l}</th>`).join('')}</tr><tr>${STEPS.map(([k])=>`<td>${score(d,b,k)??'—'}/5 ${esc(b.notes[k].c||'')}</td>`).join('')}</tr></table>`;}).join('');
   document.getElementById('printSheet').innerHTML=`<h1>${esc(r.name)} — lot ${esc(d.lot)}</h1><div>${fmtD(d.date)} · recette v${r.rev||1} · ${esc(r.style||'')}</div>
