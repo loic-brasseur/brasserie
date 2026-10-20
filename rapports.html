@@ -233,12 +233,19 @@ function effFrom(recipe,volL,plato){
   const pot=(recipe.malts||[]).reduce((s,m)=>s+(+m.kg||0)*((+m.ppg||37)/37)*(m.cs?0.35:1),0);
   return pot?(platoToSG(plato)-1)*1000*volL/(308.8*pot)*100:null;
 }
+function actualRecipe(d){
+  const r=JSON.parse(JSON.stringify(d.recipe)),S=d.subs||{};
+  const ap=(o,k,qk)=>{const sb=S[k];if(!sb||!o)return;if(sb.n)o.n=sb.n;if(sb.qty!==''&&sb.qty!=null&&!isNaN(parseFloat(sb.qty)))o[qk]=parseFloat(sb.qty);};
+  (r.malts||[]).forEach((m,i)=>ap(m,'m'+i,'kg'));(r.hops||[]).forEach((h,i)=>ap(h,'h'+i,'g'));ap(r.yeast,'y','g');(r.soft||[]).forEach((x,i)=>ap(x,'s'+i,'qty'));
+  (d.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:37,ebc:0,cs:false});});
+  return r;
+}
 const BSTEPS=[['grain','Grain'],['mash','Empâtage'],['filt','Filtration'],['boil','Ébullition'],['cool','Refroidissement']];
 function brewScoreAuto(d,b,k){
   // même logique que le Brew Log (simplifiée pour les notes manquantes)
   if(b.notes&&b.notes[k]&&b.notes[k].s!=null)return b.notes[k].s;
   const r=d.recipe,m=b.m||{},T=recipeTargets(r);
-  if(k==='filt'){const e=effFrom(r,num(m.vPre),num(m.pPre));if(e==null||!num(r.eff))return null;const dd=e-num(r.eff);return dd>=-1?5:dd>=-3?4:dd>=-5?3:2;}
+  if(k==='filt'){const e=effFrom(actualRecipe(d),num(m.vPre),num(m.pPre));if(e==null||!num(r.eff))return null;const dd=e-num(r.eff);return dd>=-1?5:dd>=-3?4:dd>=-5?3:2;}
   if(k==='boil'){const p=num(m.pPost);if(p==null||T.ogP==null)return null;const dd=Math.abs(p-T.ogP);return dd<=.2?5:dd<=.5?4:dd<=1?3:2;}
   if(k==='cool'){const v=num(m.vFerm),t=num(r.vol);if(v==null||!t)return null;const p=v/t*100;return p>=98?5:p>=95?4:p>=90?3:2;}
   if(k==='mash'){const devs=((r.process&&r.process.mash)||[]).map((p,i)=>{const t=num(b.mash&&b.mash[i]&&b.mash[i].tReel);return t==null||num(p.t)==null?null:Math.abs(t-num(p.t));}).filter(x=>x!=null);if(!devs.length)return null;const mx=Math.max(...devs);return mx<=.5?5:mx<=1?4:mx<=2?3:2;}
@@ -272,7 +279,7 @@ function metrics(x){
     const bs=d.brassins;m.nBrassins=bs.length;
     m.target=num(d.recipe.vol)!=null?num(d.recipe.vol)*bs.length:null;
     m.vPre=sum(bs.map(b=>num(b.m.vPre)));m.vPost=sum(bs.map(b=>num(b.m.vPost)));m.vFerm=sum(bs.map(b=>num(b.m.vFerm)));
-    m.eff=avg(bs.map(b=>effFrom(d.recipe,num(b.m.vPre),num(b.m.pPre))));
+    m.eff=avg(bs.map(b=>effFrom(actualRecipe(d),num(b.m.vPre),num(b.m.pPre))));
     const w=bs.filter(b=>num(b.m.vFerm)!=null&&num(b.m.pPost)!=null);m.og=w.length?sum(w.map(b=>num(b.m.vFerm)*num(b.m.pPost)))/sum(w.map(b=>num(b.m.vFerm))):avg(bs.map(b=>num(b.m.pPost)));
     m.brewScores={};BSTEPS.forEach(([k])=>m.brewScores[k]=avg(bs.map(b=>brewScoreAuto(d,b,k))));
     m.brewScore=avg(Object.values(m.brewScores));
@@ -431,7 +438,7 @@ function rawLot(){
   const x=collect().find(l=>l.lot===curLot);if(!x)return;
   const raw={lot:x.lot,biere:x.recipe,genere:new Date().toISOString(),
     lisezMoi:"Données brutes d'un lot de bière. Densités en °Plato, volumes en litres, CO2 en g/L, O2 en ppb. 'recette' = recette versionnée utilisée ; 'brassage' = fiche Brew Log (mesures par brassin, horodatages, notes 1-5 par étape) ; 'cave' = fiche de cuve (relevés, protocole, cibles) ; 'conditionnement' = sessions Packaging Log ; 'indicateurs' = calculs de l'app.",
-    recette:x.recipeObj,brassage:x.brew,cave:x.cellar,conditionnement:x.packs,cibles:x.T,indicateurs:x.m,seuils:{rendementBrassageMin:SET.eff,pertesFermentationMax:SET.ferm,rendementConditionnementMin:SET.pack}};
+    recette:x.recipeObj,recetteBrassee:x.brew?actualRecipe(x.brew):null,brassage:x.brew,cave:x.cellar,conditionnement:x.packs,cibles:x.T,indicateurs:x.m,seuils:{rendementBrassageMin:SET.eff,pertesFermentationMax:SET.ferm,rendementConditionnementMin:SET.pack}};
   download('lot_'+x.lot+'_donnees.json',JSON.stringify(raw,null,2),'application/json');
 }
 function csvPeriod(){
