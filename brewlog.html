@@ -162,7 +162,7 @@
   </header>
 
   <div class="layout">
-    <aside class="side"><h3>Journées de brassage</h3><div class="list" id="dayList"></div></aside>
+    <aside class="side"><h3>Lots (1 lot = 1 cuve)</h3><div class="list" id="dayList"></div></aside>
     <main id="sheet"></main>
   </div>
 </div>
@@ -180,8 +180,9 @@
         <label class="f">Date<input class="in" id="n_date" type="date"></label>
         <label class="f">N° de lot<input class="in" id="n_lot"></label>
       </div>
-      <label class="f">Brassins dans la journée
-        <select class="in" id="n_count"><option value="1">1 brassin</option><option value="2">2 brassins</option></select></label>
+      <label class="f">Brassins dans la cuve
+        <select class="in" id="n_count"><option value="1">1 brassin</option><option value="2">2 brassins</option><option value="3">3 brassins</option></select></label>
+      <div class="mhint" style="padding:0">Chaque brassin a sa propre date : tu peux aussi en ajouter un plus tard depuis la fiche.</div>
     </div>
     <div class="acts"><button class="btn-ghost" onclick="closeOv('newOv')">Annuler</button><button class="btn-copper" onclick="createDay()">Charger la recette</button></div>
   </div>
@@ -193,9 +194,9 @@
     <h2>Envoyer en cave</h2>
     <div class="mhint" id="caveHint"></div>
     <div class="form">
-      <label class="f">Cuve<select class="in" id="c_tank"></select></label>
+      <label class="f">Cuve<select class="in" id="c_tank" onchange="caveWarn()"></select></label>
       <div class="g g2">
-        <label class="f">Volume (HL)<input class="in" id="c_vol" type="number" step="0.1"></label>
+        <label class="f">Volume (HL)<input class="in" id="c_vol" type="number" step="0.1" oninput="caveWarn()"></label>
         <label class="f">DI (°P)<input class="in" id="c_og" type="number" step="0.1"></label>
       </div>
       <div class="g g2">
@@ -203,6 +204,7 @@
         <label class="f">T° (°C)<input class="in" id="c_temp" type="number" step="0.5"></label>
       </div>
     </div>
+    <div class="mhint" id="c_warn" style="padding:0 1.2rem .8rem;font-style:normal"></div>
     <div class="acts"><button class="btn-ghost" onclick="closeOv('caveOv')">Annuler</button><button class="btn-copper" onclick="sendToCave()">Envoyer</button></div>
   </div>
 </div>
@@ -249,7 +251,7 @@ function renderList(){
   if(!days.length){L.innerHTML='<div class="empty" style="padding:1.5rem 1rem">Aucun brassage.<br>Commence par « Nouveau brassage ».</div>';return;}
   L.innerHTML=[...days].sort((a,b)=>b.date.localeCompare(a.date)||b.created-a.created).map(d=>`<div class="bd${d.id===curId?' on':''}" onclick="openDay('${d.id}')">
     <b>${esc(d.recipe.name)}${d.sent?'<span class="pill cave">En cave</span>':'<span class="pill cours">En cours</span>'}</b>
-    <small>Lot ${esc(d.lot)} · ${fmtD(d.date)} · ${d.brassins.length} brassin${d.brassins.length>1?'s':''}</small></div>`).join('');
+    <small>Lot ${esc(d.lot)} · ${fmtD(d.date)}${d.brassins.length>1&&lastDate(d)!==d.date?' → '+fmtD(lastDate(d)):''} · ${d.brassins.length} brassin${d.brassins.length>1?'s':''}</small></div>`).join('');
 }
 function openDay(id){curId=id;curB=0;renderList();renderSheet();window.scrollTo(0,0);}
 
@@ -271,8 +273,9 @@ function openNew(){
   document.getElementById('newOv').classList.add('show');
 }
 function closeOv(id){document.getElementById(id).classList.remove('show');}
-function newBrassin(r,n){
-  return {n, ev:{}, mash:(r.process&&r.process.mash||[]).map(m=>({tReel:'',ts:''})), hops:{},
+function lastDate(d){return d.brassins.map(b=>b.date||d.date).sort().slice(-1)[0];}
+function newBrassin(r,n,date){
+  return {n, date, ev:{}, mash:(r.process&&r.process.mash||[]).map(m=>({tReel:'',ts:''})), hops:{},
     m:{eau:'',ph:'',fw:'',vPre:'',pPre:'',vPost:'',pPost:'',vFerm:'',tFerm:'',phFerm:'',o2:''},
     notes:{grain:{s:null,c:''},mash:{s:null,c:''},filt:{s:null,c:''},boil:{s:null,c:''},cool:{s:null,c:''}}};
 }
@@ -286,10 +289,14 @@ function createDay(){
   const n=+document.getElementById('n_count').value;
   const d={id:'b'+Date.now(),created:Date.now(),lot,date:document.getElementById('n_date').value||today(),recipe:snap,
     lots:{},brassins:[],sent:null};
-  for(let i=1;i<=n;i++)d.brassins.push(newBrassin(snap,i));
+  for(let i=1;i<=n;i++)d.brassins.push(newBrassin(snap,i,d.date));
   days.push(d);save();closeOv('newOv');openDay(d.id);
 }
-function addBrassin(){const d=day();if(d.brassins.length>=2)return;d.brassins.push(newBrassin(d.recipe,2));save();curB=1;renderSheet();}
+const MAXB=3;
+function addBrassin(){const d=day();if(d.brassins.length>=MAXB)return;d.brassins.push(newBrassin(d.recipe,d.brassins.length+1,today()));save();curB=d.brassins.length-1;renderSheet();}
+function delBrassin(){const d=day();if(d.brassins.length<2)return;const b=d.brassins[curB];
+  if(!confirm('Retirer le brassin '+b.n+' et ses saisies ?'))return;d.brassins.splice(curB,1);d.brassins.forEach((x,i)=>x.n=i+1);curB=Math.max(0,curB-1);save();renderSheet();renderList();}
+function setBDate(v){const d=day();d.brassins[curB].date=v||d.date;if(curB===0&&v)d.date=v;save();renderList();}
 function delDay(){const d=day();if(!confirm('Supprimer la fiche du lot '+d.lot+' ?'))return;days=days.filter(x=>x.id!==d.id);save();curId=null;renderList();renderSheet();}
 
 /* ===================== Saisie ===================== */
@@ -305,7 +312,7 @@ function stamp(path,btn){
 }
 function setTime(path,val){
   const d=day(),b=d.brassins[curB];const [a,k]=path.split('.');
-  let iso='';if(val){const dt=new Date(d.date+'T'+val+':00');iso=dt.toISOString();}
+  let iso='';if(val){const dt=new Date((b.date||d.date)+'T'+val+':00');iso=dt.toISOString();}
   if(a==='ev')b.ev[k]=iso;else if(a==='mash')b.mash[+k].ts=iso;else b.hops[k]=iso;
   save();refreshCalc();
 }
@@ -405,7 +412,7 @@ function kpi(id,label){return `<div class="kpi"><div class="v" id="k_${id}">—<
 
 function renderSheet(){
   const S=document.getElementById('sheet');const d=day();
-  if(!d){S.innerHTML=`<div class="card"><div class="empty">Choisis une journée à gauche, ou lance un « Nouveau brassage » :<br>la recette se charge avec toutes ses consignes, plus rien à recopier.</div></div>`;return;}
+  if(!d){S.innerHTML=`<div class="card"><div class="empty">Choisis un lot à gauche, ou lance un « Nouveau brassage » :<br>la recette se charge avec toutes ses consignes, plus rien à recopier.</div></div>`;return;}
   const r=d.recipe,b=d.brassins[curB],P=r.process||{mash:[],ferm:[],boil:60},T=recipeTargets(r);
   const A=actualRecipe(d);
   const boilHops=(A.hops||[]).map((h,i)=>({h,i,u:hopUse(h)})).filter(x=>x.u!=='dh').sort((a,b)=>(a.u==='wp')-(b.u==='wp')||(b.h.time-a.h.time));
@@ -422,11 +429,16 @@ function renderSheet(){
     ${r.notes?`<div class="advice" style="margin-top:.7rem"><b>Consignes recette :</b> ${esc(r.notes)}</div>`:''}
     <div class="tabs" style="margin-top:.9rem">
       ${d.brassins.map((x,i)=>`<button class="tab${i===curB?' on':''}" onclick="curB=${i};renderSheet()">Brassin ${x.n}</button>`).join('')}
-      ${d.brassins.length<2?`<button class="tab" onclick="addBrassin()">+ 2ᵉ brassin</button>`:''}
+      ${d.brassins.length<MAXB?`<button class="tab" onclick="addBrassin()">+ Brassin ${d.brassins.length+1}</button>`:''}
+    </div>
+    <div style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap">
+      <label class="f" style="max-width:200px">Date du brassin ${b.n}<input class="in" type="date" value="${esc(b.date||d.date)}" onchange="setBDate(this.value)"></label>
+      ${d.brassins.length>1?`<button class="btn-ghost btn-sm" style="color:var(--red)" onclick="delBrassin()">Retirer ce brassin</button>`:''}
+      <span style="font-size:.78rem;color:var(--ink-soft);margin-left:auto">${d.brassins.length}/${MAXB} brassins · ${Math.round(d.brassins.reduce((a,x)=>a+(num(x.m.vFerm)||0),0))} L en fermenteur</span>
     </div>
   </div></div>
 
-  <div class="card"><div class="card-h"><h2><span class="n">01</span>Grain</h2><span class="sub" style="margin:0">Lots des matières premières (communs à la journée)</span></div>
+  <div class="card"><div class="card-h"><h2><span class="n">01</span>Grain</h2><span class="sub" style="margin:0">Lots des matières premières (communs au lot)</span></div>
     <div class="card-b">${ingTable(d)}${noteBox('grain')}</div></div>
 
   <div class="card"><div class="card-h"><h2><span class="n">02</span>Empâtage</h2></div>
@@ -463,7 +475,7 @@ function renderSheet(){
       <div class="kpis">${kpi('effFerm','Rendement au fermenteur')}${kpi('vol','Volume vs cible')}${kpi('loss','Pertes trub / whirlpool')}</div>
       ${noteBox('cool')}</div></div>
 
-  <div class="card"><div class="card-h"><h2>Bilan de la journée</h2>
+  <div class="card"><div class="card-h"><h2>Bilan du lot</h2>
       ${d.sent?`<span class="pill cave">Envoyé en ${esc(d.sent.tankName)} le ${fmtD(d.sent.at.slice(0,10))}</span>`:''}</div>
     <div class="card-b">
       <div id="scoreRows"></div>
@@ -497,7 +509,7 @@ function refreshCalc(){
     const stars=a.parentNode.querySelectorAll('button');stars.forEach((s,i)=>s.classList.toggle('on',v!=null&&i<v));}});
   // bilan
   const sr=document.getElementById('scoreRows');
-  sr.innerHTML=d.brassins.map(bb=>`<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700;margin:.4rem 0">Brassin ${bb.n}</div>
+  sr.innerHTML=d.brassins.map(bb=>`<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700;margin:.4rem 0">Brassin ${bb.n} · ${fmtD(bb.date||d.date)}</div>
     <div class="score-row">${STEPS.map(([k,l])=>{const s=score(d,bb,k);return `<div class="score${s!=null&&s<=2?' low':''}"><div class="s">${s!=null?s+'<span style="font-size:.8rem;color:var(--ink-soft)">/5</span>':'—'}</div><div class="l">${l}</div></div>`;}).join('')}</div>`).join('');
   const low=[];d.brassins.forEach(bb=>STEPS.forEach(([k,l])=>{const s=score(d,bb,k);if(s!=null&&s<=3)low.push(l+' (B'+bb.n+')');}));
   const hist=history(d);
@@ -535,7 +547,15 @@ function openCave(){
   document.getElementById('c_ph').value=t.ph!=null?t.ph.toFixed(2):'';
   document.getElementById('c_temp').value=t.temp!=null?t.temp.toFixed(1):'';
   document.getElementById('caveHint').textContent=`Lot ${d.lot} · ${d.recipe.name} — densité, volume, pH et température arrivent dans la fiche de cuve, avec le protocole de fermentation de la recette.`;
-  document.getElementById('caveOv').classList.add('show');
+  document.getElementById('caveOv').classList.add('show');caveWarn();
+}
+function caveWarn(){
+  const cv=ld(CUVES_KEY,null);const id=document.getElementById('c_tank').value;
+  const t=((cv&&cv.tanks)||[]).find(x=>x.id===id);const cap=t?t.cap:({c1:60,c2:60,c3:60,c4:60,c5:20,c6:16,c7:16}[id]||null);
+  const v=num(document.getElementById('c_vol').value);const d=day();const left=MAXB-d.brassins.length;
+  const e=document.getElementById('c_warn');if(!cap||v==null){e.textContent='';return;}
+  e.innerHTML=v>cap?`<b style="color:var(--red)">${v} HL dépasse la capacité de la cuve (${cap} HL).</b>`
+    :`Remplissage ${Math.round(v/cap*100)} % (${v} / ${cap} HL)${left>0?` · encore ${left} brassin${left>1?'s':''} possible${left>1?'s':''} : renvoie en cave après chaque brassin, les volumes se cumulent.`:''}`;
 }
 function addDays(s,n){const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function sendToCave(){
@@ -578,7 +598,7 @@ function printSheet(){
   const rows=ingredientRows(d).map(x=>`<tr><td>${x.t}${x.extra?' (ajouté)':''}</td><td>${esc(x.n)}${x.changed?` <i>(prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)})</i>`:''}</td><td class="r">${esc(x.q)}</td><td>${esc(d.lots[x.k]||'')}</td></tr>`).join('');
   const per=d.brassins.map(b=>{const c=calc(d,b);const m=b.m;
     const ev=[['Début empâtage',b.ev.mashIn],['Début filtration',b.ev.lautStart],['Fin filtration',b.ev.lautEnd],['Début ébullition',b.ev.boilStart],['Fin ébullition',b.ev.boilEnd],['Whirlpool',b.ev.wp],['Début refroid.',b.ev.coolStart],['Fin refroid.',b.ev.coolEnd]].filter(x=>x[1]).map(x=>x[0]+' '+hhmm(x[1])).join(' · ');
-    return `<h2>Brassin ${b.n}</h2><div>${ev||'—'}</div>
+    return `<h2>Brassin ${b.n} — ${fmtD(b.date||d.date)}</h2><div>${ev||'—'}</div>
     <table><tr><th>Paliers</th>${(r.process.mash||[]).map((p,i)=>`<td>${esc(p.n)} ${p.t}°C → ${esc((b.mash[i]||{}).tReel)||'—'}°C ${hhmm((b.mash[i]||{}).ts)}</td>`).join('')}</tr></table>
     <table><tr><th>Eau</th><td>${m.eau||'—'} L</td><th>pH emp.</th><td>${m.ph||'—'}</td><th>1er moût</th><td>${m.fw||'—'} °P</td></tr>
     <tr><th>V pré-éb.</th><td>${m.vPre||'—'} L</td><th>°P pré-éb.</th><td>${m.pPre||'—'}</td><th>Rendement</th><td>${f1(c.effPre)} %</td></tr>
