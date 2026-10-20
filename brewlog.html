@@ -177,8 +177,8 @@
     <div class="form">
       <label class="f">Recette<select class="in" id="n_recipe"></select></label>
       <div class="g g2">
-        <label class="f">Date<input class="in" id="n_date" type="date"></label>
-        <label class="f">N° de lot<input class="in" id="n_lot"></label>
+        <label class="f">Date<input class="in" id="n_date" type="date" onchange="lotAuto()"></label>
+        <label class="f">N° de lot<input class="in" id="n_lot" inputmode="numeric" oninput="this.dataset.manual='1'"></label>
       </div>
       <label class="f">Brassins dans la cuve
         <select class="in" id="n_count"><option value="1">1 brassin</option><option value="2">2 brassins</option><option value="3">3 brassins</option></select></label>
@@ -257,18 +257,23 @@ function openDay(id){curId=id;curB=0;renderList();renderSheet();window.scrollTo(
 
 /* ===================== Nouvelle journée ===================== */
 function recipes(){return ld(REC_KEY,[]).filter(r=>(r.mode||'biere')==='biere'&&(r.malts||[]).length);}
-function nextLot(){
-  const y=new Date().getFullYear();let max=0;
-  days.forEach(d=>{const m=String(d.lot).match(new RegExp('^'+y+'-(\\d+)'));if(m)max=Math.max(max,+m[1]);});
-  ld(CUVES_KEY,{tanks:[]}).tanks.forEach(t=>{const m=String(t.batch&&t.batch.lot||'').match(new RegExp('^'+y+'-(\\d+)'));if(m)max=Math.max(max,+m[1]);});
-  return y+'-'+String(max+1).padStart(3,'0');
+/* N° de lot = AMMJJ de la date de brassage (ex. 61020 = 20/10/2026). Si déjà pris ce jour-là : 61020-2, -3… */
+function lotBase(date){const [y,m,d]=(date||today()).split('-');return String(+y%10)+m+d;}
+function usedLots(){
+  const u=new Set(days.map(d=>String(d.lot)));
+  const cv=ld(CUVES_KEY,{tanks:[],archive:[]});
+  (cv.tanks||[]).forEach(t=>{if(t.batch&&t.batch.lot)u.add(String(t.batch.lot));});
+  (cv.archive||[]).forEach(a=>{if(a.lot)u.add(String(a.lot));});
+  return u;
 }
+function nextLot(date){const b=lotBase(date),u=usedLots();if(!u.has(b))return b;let i=2;while(u.has(b+'-'+i))i++;return b+'-'+i;}
+function lotAuto(){const e=document.getElementById('n_lot');if(e.dataset.manual!=='1')e.value=nextLot(document.getElementById('n_date').value);}
 function openNew(){
   const rs=recipes();
   if(!rs.length){alert("Aucune recette bière enregistrée.\nEnregistre d'abord une recette dans le Carnet de brassage (recettes.html).");return;}
   document.getElementById('n_recipe').innerHTML=rs.sort((a,b)=>String(a.name).localeCompare(b.name,'fr')).map(r=>`<option value="${r.ts}">${esc(r.name)} — v${r.rev||1}</option>`).join('');
   document.getElementById('n_date').value=today();
-  document.getElementById('n_lot').value=nextLot();
+  const nl=document.getElementById('n_lot');nl.dataset.manual='';nl.value=nextLot(document.getElementById('n_date').value);
   document.getElementById('n_count').value='1';
   document.getElementById('newOv').classList.add('show');
 }
@@ -282,7 +287,7 @@ function newBrassin(r,n,date){
 function createDay(){
   const ts=+document.getElementById('n_recipe').value;
   const r=recipes().find(x=>x.ts===ts);if(!r)return;
-  const lot=document.getElementById('n_lot').value.trim()||nextLot();
+  const lot=document.getElementById('n_lot').value.trim()||nextLot(document.getElementById('n_date').value);
   if(days.some(d=>d.lot===lot)&&!confirm('Le lot '+lot+' existe déjà. Continuer ?'))return;
   const snap=JSON.parse(JSON.stringify(r));delete snap.versions;
   if(!snap.process)snap.process={mash:[{n:'Empâtage',t:+snap.mash||67,min:60}],boil:60,ferm:[],targets:{}};
