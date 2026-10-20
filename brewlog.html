@@ -124,6 +124,15 @@
 
   @media(max-width:900px){.layout{grid-template-columns:1fr}.side{position:static}.side .list{max-height:220px}}
 
+  table.ing .qty{display:flex;gap:.3rem;align-items:center}
+  table.ing .qty .u{font-size:.75rem;color:var(--ink-soft);white-space:nowrap}
+  table.ing select.u{width:64px;padding:.3rem}
+  table.ing small.plan{display:block;font-size:.7rem;color:var(--amber);margin-top:.15rem}
+  table.ing tr.chg td{background:rgba(207,152,43,.08)}
+  table.ing tr.added td{background:rgba(79,107,47,.06)}
+  table.ing small.tag{font-size:.62rem;color:var(--green);font-weight:700;text-transform:uppercase}
+  .xb{background:transparent;color:var(--ink-soft);padding:.2rem .35rem;font-size:1rem}.xb:hover{color:var(--red)}
+  @media(max-width:700px){table.ing th:first-child,table.ing td:first-child{display:none}}
   .print{display:none}
   @media print{
     @page{size:A4 portrait;margin:14mm}
@@ -304,10 +313,10 @@ function setNote(step,k,v){const n=day().brassins[curB].notes[step];n[k]=k==='s'
 
 /* ===================== Calculs ===================== */
 function calc(d,b){
-  const r=d.recipe, m=b.m, T=recipeTargets(r);
+  const r=d.recipe, m=b.m, T=recipeTargets(r), A=actualRecipe(d);
   const vPre=num(m.vPre),pPre=num(m.pPre),vPost=num(m.vPost),pPost=num(m.pPost),vFerm=num(m.vFerm);
-  const effPre=effFrom(r,vPre,pPre);
-  const effFerm=effFrom(r,vFerm,pPost);
+  const effPre=effFrom(A,vPre,pPre);   // rendement calculé sur les quantités réellement utilisées
+  const effFerm=effFrom(A,vFerm,pPost);
   const evapL=vPre!=null&&vPost!=null?vPre-vPost:null;
   const tBoil=(b.ev.boilStart&&b.ev.boilEnd)?(new Date(b.ev.boilEnd)-new Date(b.ev.boilStart))/3.6e6:((r.process&&+r.process.boil)||60)/60;
   const evapPct=evapL!=null&&vPre?evapL/vPre*100/(tBoil||1):null;
@@ -317,7 +326,7 @@ function calc(d,b){
 /* notes automatiques (1–5) — la note manuelle prime */
 function autoScores(d,b){
   const c=calc(d,b), r=d.recipe, s={};
-  const lotKeys=ingredientRows(r).map(x=>x.k);
+  const lotKeys=ingredientRows(d).map(x=>x.k);
   const filled=lotKeys.filter(k=>(d.lots[k]||'').trim()).length;
   s.grain=lotKeys.length?(filled===lotKeys.length?5:filled>=lotKeys.length/2?3:2):null;
   const devs=(r.process&&r.process.mash||[]).map((p,i)=>{const t=num(b.mash[i]&&b.mash[i].tReel);return t==null||num(p.t)==null?null:Math.abs(t-num(p.t));}).filter(x=>x!=null);
@@ -332,13 +341,54 @@ function score(d,b,step){const n=b.notes[step];return n&&n.s!=null?n.s:autoScore
 const STEPS=[['grain','Grain'],['mash','Empâtage'],['filt','Filtration'],['boil','Ébullition'],['cool','Refroidissement']];
 
 /* ===================== Rendu fiche ===================== */
-function ingredientRows(r){
-  const rows=[];
-  (r.malts||[]).forEach((m,i)=>rows.push({k:'m'+i,t:'Malt',n:m.n+(m.b?' · '+m.b:''),q:m.kg+' kg'+(m.cs?' (cold steep)':'')}));
-  (r.hops||[]).forEach((h,i)=>rows.push({k:'h'+i,t:'Houblon',n:h.n,q:h.g+' g'}));
-  if(r.yeast)rows.push({k:'y',t:'Levure',n:r.yeast.n,q:(r.yeast.g||'')+' g'});
-  (r.soft||[]).forEach((s,i)=>rows.push({k:'s'+i,t:'Autre',n:s.n,q:s.qty+' '+s.u}));
+/* Ingrédients de la journée : prévu (recette) + réel (modifié sur la fiche) */
+const ITYPES={malt:'Malt',hop:'Houblon',yeast:'Levure',other:'Autre'};
+function ingredientRows(d){
+  const r=d.recipe,S=d.subs||{},rows=[];
+  const mk=(k,t,typ,n,qty,u,extra)=>{const sb=S[k]||{};const an=sb.n!=null&&sb.n!==''?sb.n:n, aq=sb.qty!=null&&sb.qty!==''?sb.qty:qty;
+    return {k,t,typ,pn:n,pq:qty,u,n:an,qty:aq,q:aq+' '+u,changed:!extra&&(an!==n||String(aq)!==String(qty)),extra:!!extra};};
+  (r.malts||[]).forEach((m,i)=>rows.push(mk('m'+i,'Malt','malt',m.n+(m.b?' · '+m.b:''),m.kg,'kg'+(m.cs?' (cold steep)':''))));
+  (r.hops||[]).forEach((h,i)=>rows.push(mk('h'+i,'Houblon','hop',h.n,h.g,'g')));
+  if(r.yeast)rows.push(mk('y','Levure','yeast',r.yeast.n,r.yeast.g||'','g'));
+  (r.soft||[]).forEach((x,i)=>rows.push(mk('s'+i,'Autre','other',x.n,x.qty,x.u)));
+  (d.extra||[]).forEach(x=>rows.push({...mk('x'+x.id,ITYPES[x.typ]||'Autre',x.typ,x.n,x.qty,x.u,true),n:x.n,qty:x.qty,q:x.qty+' '+x.u}));
   return rows;
+}
+/* recette telle que brassée : quantités / noms modifiés + ingrédients ajoutés (pour les calculs) */
+function actualRecipe(d){
+  const r=JSON.parse(JSON.stringify(d.recipe)),S=d.subs||{};
+  const ap=(o,k,qk)=>{const sb=S[k];if(!sb||!o)return;if(sb.n)o.n=sb.n;if(sb.qty!==''&&sb.qty!=null&&!isNaN(parseFloat(sb.qty)))o[qk]=parseFloat(sb.qty);};
+  (r.malts||[]).forEach((m,i)=>ap(m,'m'+i,'kg'));(r.hops||[]).forEach((h,i)=>ap(h,'h'+i,'g'));ap(r.yeast,'y','g');(r.soft||[]).forEach((x,i)=>ap(x,'s'+i,'qty'));
+  (d.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:37,ebc:0,cs:false});});
+  return r;
+}
+function setSub(k,f,v){const d=day();d.subs=d.subs||{};d.subs[k]=d.subs[k]||{};d.subs[k][f]=v;save();refreshCalc();markChanged(k);}
+function resetSub(k){const d=day();if(d.subs)delete d.subs[k];save();renderSheet();}
+function markChanged(k){const row=ingredientRows(day()).find(x=>x.k===k);const e=document.getElementById('ing_'+k);if(e&&row)e.classList.toggle('chg',row.changed);
+  const p=document.getElementById('plan_'+k);if(p&&row)p.style.visibility=row.changed?'visible':'hidden';}
+function addExtra(){const d=day();d.extra=d.extra||[];const typ=document.getElementById('x_typ').value;
+  d.extra.push({id:Date.now().toString(36),typ,n:'',qty:'',u:typ==='malt'?'kg':'g'});save();renderSheet();}
+function setExtra(id,f,v){const x=(day().extra||[]).find(e=>e.id===id);if(x){x[f]=v;save();refreshCalc();}}
+function delExtra(id){const d=day();d.extra=(d.extra||[]).filter(e=>e.id!==id);delete d.lots['x'+id];save();renderSheet();}
+function ingTable(d){
+  const rows=ingredientRows(d);
+  return `<table class="t ing"><thead><tr><th>Type</th><th>Ingrédient</th><th style="width:140px">Quantité</th><th style="width:30%">N° de lot</th><th style="width:34px"></th></tr></thead><tbody>
+    ${rows.map(x=>x.extra?`<tr id="ing_${x.k}" class="added"><td>${x.t}<br><small class="tag">ajouté</small></td>
+        <td><input class="in" value="${esc(x.n)}" placeholder="Nom de l'ingrédient" oninput="setExtra('${x.k.slice(1)}','n',this.value)"></td>
+        <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" value="${esc(x.qty)}" oninput="setExtra('${x.k.slice(1)}','qty',this.value)">
+          <select class="in u" onchange="setExtra('${x.k.slice(1)}','u',this.value)">${['kg','g','L','mL','u'].map(u=>`<option${u===x.u?' selected':''}>${u}</option>`).join('')}</select></div></td>
+        <td><input class="in" value="${esc(d.lots[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur"></td>
+        <td><button class="xb" onclick="delExtra('${x.k.slice(1)}')" title="Retirer">×</button></td></tr>`
+      :`<tr id="ing_${x.k}" class="${x.changed?'chg':''}"><td>${x.t}</td>
+        <td><input class="in" value="${esc(x.n)}" oninput="setSub('${x.k}','n',this.value)"><small class="plan" id="plan_${x.k}" style="visibility:${x.changed?'visible':'hidden'}">prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)}</small></td>
+        <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" value="${esc(x.qty)}" oninput="setSub('${x.k}','qty',this.value)"><span class="u">${esc(x.u.replace(' (cold steep)',''))}</span></div></td>
+        <td><input class="in" value="${esc(d.lots[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur"></td>
+        <td><button class="xb" onclick="resetSub('${x.k}')" title="Revenir à la recette">↺</button></td></tr>`).join('')}
+    </tbody></table>
+    <div style="display:flex;gap:.5rem;margin-top:.6rem;align-items:center;flex-wrap:wrap">
+      <select class="in" id="x_typ" style="width:auto">${Object.entries(ITYPES).map(([k,l])=>`<option value="${k}">${l}</option>`).join('')}</select>
+      <button class="btn-ghost btn-sm" onclick="addExtra()">+ Ajouter un ingrédient</button>
+      <span style="font-size:.75rem;color:var(--ink-soft)">Les modifications valent pour ce lot uniquement ; la recette n'est pas touchée. Le rendement est recalculé sur les malts réellement versés.</span></div>`;
 }
 function tsBox(label,path,iso){
   return `<div class="ts${iso?' done':''}"><span>${label}</span><input class="in" type="time" value="${hhmm(iso)}" onchange="setTime('${path}',this.value)"><button onclick="stamp('${path}')">${iso?'↻':'Maintenant'}</button></div>`;
@@ -357,8 +407,8 @@ function renderSheet(){
   const S=document.getElementById('sheet');const d=day();
   if(!d){S.innerHTML=`<div class="card"><div class="empty">Choisis une journée à gauche, ou lance un « Nouveau brassage » :<br>la recette se charge avec toutes ses consignes, plus rien à recopier.</div></div>`;return;}
   const r=d.recipe,b=d.brassins[curB],P=r.process||{mash:[],ferm:[],boil:60},T=recipeTargets(r);
-  const ing=ingredientRows(r);
-  const boilHops=(r.hops||[]).map((h,i)=>({h,i,u:hopUse(h)})).filter(x=>x.u!=='dh').sort((a,b)=>(a.u==='wp')-(b.u==='wp')||(b.h.time-a.h.time));
+  const A=actualRecipe(d);
+  const boilHops=(A.hops||[]).map((h,i)=>({h,i,u:hopUse(h)})).filter(x=>x.u!=='dh').sort((a,b)=>(a.u==='wp')-(b.u==='wp')||(b.h.time-a.h.time));
   S.innerHTML=`
   <div class="card"><div class="card-b">
     <div class="head-sheet">
@@ -377,9 +427,7 @@ function renderSheet(){
   </div></div>
 
   <div class="card"><div class="card-h"><h2><span class="n">01</span>Grain</h2><span class="sub" style="margin:0">Lots des matières premières (communs à la journée)</span></div>
-    <div class="card-b"><table class="t"><thead><tr><th>Type</th><th>Ingrédient</th><th class="num">Quantité</th><th style="width:34%">N° de lot</th></tr></thead><tbody>
-      ${ing.map(x=>`<tr><td>${x.t}</td><td>${esc(x.n)}</td><td class="num">${esc(x.q)}</td><td><input class="in" value="${esc(d.lots[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur"></td></tr>`).join('')}
-    </tbody></table>${noteBox('grain')}</div></div>
+    <div class="card-b">${ingTable(d)}${noteBox('grain')}</div></div>
 
   <div class="card"><div class="card-h"><h2><span class="n">02</span>Empâtage</h2></div>
     <div class="card-b">
@@ -527,7 +575,7 @@ function sendToCave(){
 /* ===================== PDF ===================== */
 function printSheet(){
   const d=day();const r=d.recipe;const T=recipeTargets(r);
-  const rows=ingredientRows(r).map(x=>`<tr><td>${x.t}</td><td>${esc(x.n)}</td><td class="r">${esc(x.q)}</td><td>${esc(d.lots[x.k]||'')}</td></tr>`).join('');
+  const rows=ingredientRows(d).map(x=>`<tr><td>${x.t}${x.extra?' (ajouté)':''}</td><td>${esc(x.n)}${x.changed?` <i>(prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)})</i>`:''}</td><td class="r">${esc(x.q)}</td><td>${esc(d.lots[x.k]||'')}</td></tr>`).join('');
   const per=d.brassins.map(b=>{const c=calc(d,b);const m=b.m;
     const ev=[['Début empâtage',b.ev.mashIn],['Début filtration',b.ev.lautStart],['Fin filtration',b.ev.lautEnd],['Début ébullition',b.ev.boilStart],['Fin ébullition',b.ev.boilEnd],['Whirlpool',b.ev.wp],['Début refroid.',b.ev.coolStart],['Fin refroid.',b.ev.coolEnd]].filter(x=>x[1]).map(x=>x[0]+' '+hhmm(x[1])).join(' · ');
     return `<h2>Brassin ${b.n}</h2><div>${ev||'—'}</div>
