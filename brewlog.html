@@ -219,7 +219,7 @@
 <!-- Modal envoi en cave -->
 <div class="overlay" id="caveOv">
   <div class="modal">
-    <h2>Envoyer en cave</h2>
+    <h2>Envoyer en cuve</h2>
     <div class="mhint" id="caveHint"></div>
     <div class="form">
       <label class="f">Cuve<select class="in" id="c_tank" onchange="caveWarn()"></select></label>
@@ -278,7 +278,7 @@ function renderList(){
   const L=document.getElementById('dayList');
   if(!days.length){L.innerHTML='<div class="empty" style="padding:1.5rem 1rem">Aucun brassage.<br>Commence par « Nouveau brassage ».</div>';return;}
   L.innerHTML=[...days].sort((a,b)=>b.date.localeCompare(a.date)||b.created-a.created).map(d=>`<div class="bd${d.id===curId?' on':''}" onclick="openDay('${d.id}')">
-    <b>${esc(d.recipe.name)}${d.sent?'<span class="pill cave">En cave</span>':'<span class="pill cours">En cours</span>'}</b>
+    <b>${esc(d.recipe.name)}${d.sent?'<span class="pill cave">En cuve</span>':'<span class="pill cours">En cours</span>'}</b>
     <small>Lot ${esc(d.lot)} · ${fmtD(d.date)}${d.brassins.length>1&&lastDate(d)!==d.date?' → '+fmtD(lastDate(d)):''} · ${d.brassins.length} brassin${d.brassins.length>1?'s':''}</small></div>`).join('');
 }
 function openDay(id){curId=id;curB=0;renderList();renderSheet();window.scrollTo(0,0);}
@@ -516,7 +516,7 @@ function renderSheet(){
       <div id="scoreRows"></div>
       <div id="compare"></div>
       <div class="toolbar" style="margin-top:1rem">
-        <button class="btn-copper" onclick="openCave()">${d.sent?'Renvoyer en cave':'Envoyer en cave →'}</button>
+        <button class="btn-copper" onclick="openCave()">Envoyer en cuve →</button>
         <button class="btn-ghost" onclick="openStock()" id="btnStock">${d.stock?'Mettre à jour la sortie de stock':'Déduire du stock'}</button>
         ${d.stock?`<span class="pill cave" id="stockPill">Stock déduit le ${fmtD(d.stock.at.slice(0,10))}</span>`:''}
         <a class="btn-ghost" style="text-decoration:none;padding:.6rem .9rem;border-radius:10px;font-weight:600;font-size:.85rem;color:var(--ink)" href="cuves.html">Ouvrir le suivi des cuves</a>
@@ -583,7 +583,7 @@ function openCave(){
   document.getElementById('c_og').value=t.og!=null?t.og.toFixed(1):'';
   document.getElementById('c_ph').value=t.ph!=null?t.ph.toFixed(2):'';
   document.getElementById('c_temp').value=t.temp!=null?t.temp.toFixed(1):'';
-  document.getElementById('caveHint').textContent=`Lot ${d.lot} · ${d.recipe.name} — densité, volume, pH et température arrivent dans la fiche de cuve, avec le protocole de fermentation de la recette.`;
+  document.getElementById('caveHint').textContent=`Lot ${d.lot} · ${d.recipe.name} — ${d.brassins.length} brassin${d.brassins.length>1?'s':''} saisi${d.brassins.length>1?'s':''} (${d.brassins.map((x,i)=>bCode(d,i)).join(', ')}). Densité, volume, pH et température arrivent dans la fiche de cuve, avec le protocole de fermentation.${d.sent?' Déjà en cuve : la fiche sera mise à jour avec tous les brassins.':''}`;
   document.getElementById('caveOv').classList.add('show');caveWarn();
 }
 function caveWarn(){
@@ -592,7 +592,7 @@ function caveWarn(){
   const v=num(document.getElementById('c_vol').value);const d=day();const left=MAXB-d.brassins.length;
   const e=document.getElementById('c_warn');if(!cap||v==null){e.textContent='';return;}
   e.innerHTML=v>cap?`<b style="color:var(--red)">${v} HL dépasse la capacité de la cuve (${cap} HL).</b>`
-    :`Remplissage ${Math.round(v/cap*100)} % (${v} / ${cap} HL)${left>0?` · encore ${left} brassin${left>1?'s':''} possible${left>1?'s':''} : renvoie en cave après chaque brassin, les volumes se cumulent.`:''}`;
+    :`Remplissage ${Math.round(v/cap*100)} % (${v} / ${cap} HL)${left>0?` · encore ${left} brassin${left>1?'s':''} possible${left>1?'s':''} : renvoie en cuve après chaque brassin, les volumes se cumulent.`:''}`;
 }
 function addDays(s,n){const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
 function sendToCave(){
