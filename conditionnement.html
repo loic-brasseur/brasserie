@@ -174,7 +174,8 @@
     <h2>Nouvelle session</h2>
     <div class="mhint">Choisis le lot : la session est reliée à son brassin, à sa cuve et à ses cibles.</div>
     <div class="form">
-      <label class="f">Lot<select class="in" id="n_lot"></select></label>
+      <label class="f">Lot<select class="in" id="n_lot" onchange="codeHint()"></select></label>
+      <div class="mhint" id="n_code" style="padding:0;font-style:normal"></div>
       <div class="g g2">
         <label class="f">Date<input class="in" id="n_date" type="date"></label>
         <label class="f">Opérateur<input class="in" id="n_op" style="font-family:var(--sans)"></label>
@@ -202,6 +203,7 @@ function recipeTargets(r){
 const FORMATS={'33cl':{l:'Bouteille 33 cl',v:.33},'44cl':{l:'Canette 44 cl',v:.44},'75cl':{l:'Bouteille 75 cl',v:.75},'1.5L':{l:'Magnum 1,5 L',v:1.5},
   '10L':{l:'Fût 10 L',v:10},'20L':{l:'Fût 20 L',v:20},'30L':{l:'Fût 30 L',v:30},'autre':{l:'Autre',v:1}};
 let S=ld(KEY,[]);let curId=null;
+S.forEach(x=>{if(!x.code)x.code=sCode(x);});
 function save(){sv(KEY,S);}
 function cur(){return S.find(x=>x.id===curId);}
 function closeOv(id){document.getElementById(id).classList.remove('show');}
@@ -221,9 +223,15 @@ function openNew(){
   const L=lotSources();
   if(!L.length){alert("Aucun lot trouvé. Les lots viennent du Brew Log et du Suivi des cuves.");return;}
   document.getElementById('n_lot').innerHTML=L.sort((a,b)=>(b.active?1:0)-(a.active?1:0)||String(b.lot).localeCompare(a.lot)).map(l=>`<option value="${esc(l.lot)}">${esc(l.lot)} — ${esc(l.recipe)}${l.tank?' · '+esc(l.tank):''}</option>`).join('');
-  document.getElementById('n_date').value=today();
+  document.getElementById('n_date').value=today();codeHint();
   document.getElementById('newOv').classList.add('show');
 }
+/* code conditionnement = n° de lot + A / B / C dans l'ordre (ex. 61020A) */
+function nextCode(lot){const used=new Set(S.filter(x=>x.lot===lot).map(sCode));for(const L of 'ABCDEFGH'){if(!used.has(lot+L))return lot+L;}return lot+'?';}
+function sCode(s){if(s.code)return s.code;const same=S.filter(x=>x.lot===s.lot&&x.code==null).sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
+  const taken=new Set(S.filter(x=>x.lot===s.lot&&x.code).map(x=>x.code));let i=0;for(const L of 'ABCDEFGH'){if(taken.has(s.lot+L))continue;if(same[i]===s)return s.lot+L;i++;}return s.lot;}
+function codeHint(){const lot=document.getElementById('n_lot').value;const n=S.filter(x=>x.lot===lot).length;
+  document.getElementById('n_code').innerHTML=lot?`Code : <b>${esc(nextCode(lot))}</b>${n>=3?' — <span class="bad">déjà '+n+' conditionnements sur ce lot</span>':''}`:'';}
 function createSession(){
   const lot=document.getElementById('n_lot').value;const src=lotSources().find(l=>l.lot===lot);if(!src)return;
   const s={id:'k'+Date.now(),date:document.getElementById('n_date').value||today(),op:document.getElementById('n_op').value.trim(),
@@ -232,14 +240,14 @@ function createSession(){
     dil:{target:src.targets&&src.targets.abv!=null?String(src.targets.abv):'',water:''},
     formats:[{f:'33cl',units:'',rej:''}],w:{f:'33cl',target:'',tol:'5',samples:[]},
     note:{s:null,c:''}};
-  S.push(s);save();closeOv('newOv');open_(s.id);
+  s.code=nextCode(lot);S.push(s);save();closeOv('newOv');open_(s.id);
 }
 function open_(id){curId=id;renderList();render();window.scrollTo(0,0);}
 function renderList(){
   const L=document.getElementById('list');
   if(!S.length){L.innerHTML='<div class="empty" style="padding:1.5rem 1rem">Aucune session.</div>';return;}
   L.innerHTML=[...S].sort((a,b)=>b.date.localeCompare(a.date)).map(s=>{const c=calc(s);
-    return `<div class="bd${s.id===curId?' on':''}" onclick="open_('${s.id}')"><b>${esc(s.recipe)}</b><small>Lot ${esc(s.lot)} · ${fmtD(s.date)} · ${c.outL?Math.round(c.outL)+' L':'—'}</small></div>`;}).join('');
+    return `<div class="bd${s.id===curId?' on':''}" onclick="open_('${s.id}')"><b>${esc(sCode(s))} · ${esc(s.recipe)}</b><small>Lot ${esc(s.lot)} · ${fmtD(s.date)} · ${c.outL?Math.round(c.outL)+' L':'—'}</small></div>`;}).join('');
 }
 
 /* ---- calculs ---- */
@@ -289,7 +297,7 @@ function render(){
   const T=s.targets||{};
   M.innerHTML=`
   <div class="card"><div class="card-b"><div class="head-sheet">
-    <div><div class="ttl">${esc(s.recipe)}</div><div class="meta">Lot <b>${esc(s.lot)}</b> · ${fmtD(s.date)}${s.tank?' · depuis '+esc(s.tank):''}${s.op?' · '+esc(s.op):''}</div></div>
+    <div><div class="ttl">${esc(s.recipe)}</div><div class="meta">Conditionnement <b>${esc(sCode(s))}</b> · lot ${esc(s.lot)} · ${fmtD(s.date)}${s.tank?' · depuis '+esc(s.tank):''}${s.op?' · '+esc(s.op):''}</div></div>
     <div class="toolbar"><button class="btn-ghost btn-sm" onclick="printS()">PDF</button><button class="btn-ghost btn-sm" style="color:var(--red)" onclick="delSession()">Supprimer</button></div></div></div></div>
 
   <div class="card"><div class="card-h"><h2><span class="n">01</span>Analyses de la cuve de garde</h2>
@@ -353,7 +361,7 @@ function refresh(){
 }
 function printS(){
   const s=cur(),c=calc(s),T=s.targets||{};
-  document.getElementById('printSheet').innerHTML=`<h1>${esc(s.recipe)} — lot ${esc(s.lot)}</h1><div>Conditionnement du ${fmtD(s.date)}${s.tank?' · '+esc(s.tank):''}${s.op?' · '+esc(s.op):''}</div>
+  document.getElementById('printSheet').innerHTML=`<h1>${esc(s.recipe)} — ${esc(sCode(s))}</h1><div>Conditionnement du ${fmtD(s.date)}${s.tank?' · '+esc(s.tank):''}${s.op?' · '+esc(s.op):''}</div>
   <h2>Analyses</h2><table><tr><th>Volume</th><td>${s.a.vol||'—'} L</td><th>CO₂</th><td>${s.a.co2||'—'} g/L (cible ${T.co2??'—'})</td><th>O₂</th><td>${s.a.o2||'—'} ppb (max ${T.o2??'—'})</td></tr>
   <tr><th>Alcool</th><td>${s.a.abv||'—'} %</td><th>Eau ajoutée</th><td>${c.water} L</td><th>Alcool final</th><td>${c.abvAfter!=null?c.abvAfter.toFixed(2):'—'} %</td></tr></table>
   <h2>Formats</h2><table><tr><th>Format</th><th class="r">Unités</th><th class="r">Rebuts</th><th class="r">Litres</th></tr>${s.formats.map(f=>{const v=f.f==='autre'?(num(f.vu)||0):FORMATS[f.f].v;return `<tr><td>${FORMATS[f.f].l}</td><td class="r">${f.units||0}</td><td class="r">${f.rej||0}</td><td class="r">${((num(f.units)||0)*v).toFixed(1)}</td></tr>`;}).join('')}
