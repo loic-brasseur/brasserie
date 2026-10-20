@@ -387,7 +387,8 @@ function calc(d,b){
   const lossL=vPost!=null&&vFerm!=null?vPost-vFerm:null;
     // couleur et amertume du brassin réel : quantités réelles, volume et densité mesurés en fin d'ébullition (sinon ceux de la recette)
   const cb=colorBitter(A,vPost||num(r.vol),pPost!=null?platoToSG(pPost):(r.calc&&r.calc.og)||null);
-  return {T,effPre,effFerm,evapL,evapPct,lossL,vFerm,pPost,vPre,pPre,targetVol:num(r.vol),recipeEff:num(r.eff),ebc:cb.ebc,ibu:cb.ibu,ebcPlan:r.calc&&r.calc.ebc,ibuPlan:r.calc&&r.calc.ibu};
+  const abv=pPost!=null&&T.fg!=null?(platoToSG(pPost)-platoToSG(T.fg))*131.25:null; // ABV estimé : DI mesurée, DF cible
+  return {T,abv,abvPlan:r.calc&&r.calc.abv,effPre,effFerm,evapL,evapPct,lossL,vFerm,pPost,vPre,pPre,targetVol:num(r.vol),recipeEff:num(r.eff),ebc:cb.ebc,ibu:cb.ibu,ebcPlan:r.calc&&r.calc.ebc,ibuPlan:r.calc&&r.calc.ibu};
 }
 /* notes automatiques (1–5) — la note manuelle prime */
 function autoScores(d,b){
@@ -813,10 +814,21 @@ function printSheet(){
     <table><tr><th>Eau</th><td>${m.eau||'—'} L</td><th>pH emp.</th><td>${m.ph||'—'}</td><th>1er moût</th><td>${m.fw||'—'} °P</td></tr>
     <tr><th>V pré-éb.</th><td>${m.vPre||'—'} L</td><th>°P pré-éb.</th><td>${m.pPre||'—'}</td><th>Rendement</th><td>${f1(c.effPre)} %</td></tr>
     <tr><th>V fin éb.</th><td>${m.vPost||'—'} L</td><th>DI</th><td>${m.pPost||'—'} °P (cible ${T.ogP??'—'})</td><th>Évap.</th><td>${f0(c.evapL)} L</td></tr>
-    <tr><th>Couleur</th><td>${f0(c.ebc)} EBC (recette ${c.ebcPlan!=null?Math.round(c.ebcPlan):'—'})</td><th>Amertume</th><td>${f0(c.ibu)} IBU (recette ${c.ibuPlan!=null?Math.round(c.ibuPlan):'—'})</td><th></th><td></td></tr>
+    <tr><th>Couleur</th><td>${f0(c.ebc)} EBC (recette ${c.ebcPlan!=null?Math.round(c.ebcPlan):'—'})</td><th>Amertume</th><td>${f0(c.ibu)} IBU (recette ${c.ibuPlan!=null?Math.round(c.ibuPlan):'—'})</td><th>Alcool est.</th><td>${c.abv!=null?c.abv.toFixed(1)+' %':'—'} (recette ${c.abvPlan!=null?(+c.abvPlan).toFixed(1):'—'})</td></tr>
     <tr><th>V fermenteur</th><td>${m.vFerm||'—'} L</td><th>T° ens.</th><td>${m.tFerm||'—'} °C</td><th>pH moût</th><td>${m.phFerm||'—'}</td></tr></table>
     <table><tr>${STEPS.map(([k,l])=>`<th>${l}</th>`).join('')}</tr><tr>${STEPS.map(([k])=>`<td>${score(d,b,k)??'—'}/5 ${esc(b.notes[k].c||'')}</td>`).join('')}</tr></table>`;}).join('');
+  // moyennes du lot, pondérées par le volume en fermenteur (moyenne simple si volumes non saisis)
+  const C=d.brassins.map(b=>({c:calc(d,b),w:num(b.m.vFerm)}));
+  const wavg=k=>{const v=C.filter(x=>x.c[k]!=null);if(!v.length)return null;const allW=v.every(x=>x.w);
+    return allW?v.reduce((a,x)=>a+x.c[k]*x.w,0)/v.reduce((a,x)=>a+x.w,0):v.reduce((a,x)=>a+x.c[k],0)/v.length;};
+  const mE=wavg('ebc'),mI=wavg('ibu'),mA=wavg('abv'),c0=C[0].c,nb=d.brassins.length;
+  const avgBlock=`<h2>Moyenne du lot — ${nb} brassin${nb>1?'s':''} (${d.brassins.map((x,i)=>bCode(d,i)).join(', ')})</h2>
+    <table><tr><th>Couleur</th><td>${mE!=null?Math.round(mE)+' EBC':'—'} (recette ${c0.ebcPlan!=null?Math.round(c0.ebcPlan):'—'})</td>
+    <th>Amertume</th><td>${mI!=null?Math.round(mI)+' IBU':'—'} (recette ${c0.ibuPlan!=null?Math.round(c0.ibuPlan):'—'})</td>
+    <th>Alcool estimé</th><td>${mA!=null?mA.toFixed(1)+' %':'—'} (recette ${c0.abvPlan!=null?(+c0.abvPlan).toFixed(1):'—'})</td></tr></table>
+    <div style="color:#8a7a64;font-size:9px">Alcool estimé à partir de la DI mesurée et de la DF cible (${c0.T.fg!=null?(+c0.T.fg).toFixed(1)+' °P':'—'}). Moyennes pondérées par le volume en fermenteur.</div>`;
   document.getElementById('printSheet').innerHTML=`<h1>${esc(r.name)} — lot ${esc(d.lot)}</h1><div>${fmtD(d.date)} · recette v${r.rev||1} · ${esc(r.style||'')}</div>
+    ${avgBlock}
     ${per}
     <div style="margin-top:12px;color:#8a7a64">Brew Log — imprimé le ${new Date().toLocaleString('fr-FR')}</div>`;
   window.print();
