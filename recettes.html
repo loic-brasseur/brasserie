@@ -1267,7 +1267,9 @@ function saveIngredient(){
 
 /* ---- Persistance du catalogue ---- */
 const CATKEY='brasserie_catalogue_v1';
-function saveCatalog(){try{localStorage.setItem(CATKEY,JSON.stringify({malts:MALTS,hops:HOPS,yeasts:YEASTS,softs:SOFTS}));}catch(e){}}
+function saveCatalog(){try{localStorage.setItem(CATKEY,JSON.stringify({malts:MALTS,hops:HOPS,yeasts:YEASTS,softs:SOFTS}));}catch(e){}publishCatalog();}
+/* catalogue complet (valeurs d'origine + ajouts) lu par le Brew Log pour la saisie assistée */
+function publishCatalog(){try{localStorage.setItem('brasserie_catalogue_pub_v1',JSON.stringify({ts:Date.now(),malts:MALTS.map(m=>({n:m.n,b:m.b,ppg:m.ppg,ebc:m.ebc})),hops:HOPS.map(h=>({n:h.n,a:h.a})),yeasts:YEASTS.map(y=>({n:y.n})),softs:SOFTS.map(x=>({n:x.n,u:x.u}))}));}catch(e){}}
 function loadCatalog(){
   let c=null;try{c=JSON.parse(localStorage.getItem(CATKEY));}catch(e){}
   if(!c)return;
@@ -2132,6 +2134,7 @@ function loadVersion(ts,i){
 window.addEventListener('DOMContentLoaded',()=>{
   loadCatalog();
   mergeCatalogAdds();
+  publishCatalog();
   bindCostEvents();
   let auto=null;try{auto=JSON.parse(localStorage.getItem(AUTOKEY));}catch(e){}
   if(auto && ((auto.malts&&auto.malts.length)||(auto.soft&&auto.soft.length))){

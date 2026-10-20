@@ -143,6 +143,13 @@
   table.st tr.over td{background:rgba(168,57,43,.06)}
   table.st small{display:block;color:var(--ink-soft);font-size:.7rem}
   @media(max-width:600px){table.st .hm{display:none}}
+  .ta{position:relative}
+  .ta-list{position:absolute;left:0;right:0;top:100%;z-index:30;background:#fff;border:1px solid var(--line-strong);border-radius:10px;box-shadow:var(--shadow);max-height:240px;overflow:auto;margin-top:2px}
+  .ta-it{padding:.5rem .65rem;font-size:.86rem;cursor:pointer;border-bottom:1px solid var(--line)}
+  .ta-it:last-child{border-bottom:none}
+  .ta-it:hover,.ta-it.on{background:var(--bg2)}
+  .ta-it small{color:var(--ink-soft);margin-left:.35rem;font-size:.72rem}
+  .ta-it b{color:var(--copper)}
   .print{display:none}
   @media print{
     @page{size:A4 portrait;margin:14mm}
@@ -382,7 +389,7 @@ function ingredientRows(d){
   const r=d.recipe,S=d.subs||{},rows=[];
   const mk=(k,t,typ,n,qty,u,extra)=>{const sb=S[k]||{};const an=sb.n!=null&&sb.n!==''?sb.n:n, aq=sb.qty!=null&&sb.qty!==''?sb.qty:qty;
     return {k,t,typ,pn:n,pq:qty,u,n:an,qty:aq,q:aq+' '+u,changed:!extra&&(an!==n||String(aq)!==String(qty)),extra:!!extra};};
-  (r.malts||[]).forEach((m,i)=>rows.push(mk('m'+i,'Malt','malt',m.n+(m.b?' · '+m.b:''),m.kg,'kg'+(m.cs?' (cold steep)':''))));
+  (r.malts||[]).forEach((m,i)=>rows.push(mk('m'+i,'Malt','malt',m.n,m.kg,'kg'+(m.cs?' (cold steep)':''))));
   (r.hops||[]).forEach((h,i)=>rows.push(mk('h'+i,'Houblon','hop',h.n,h.g,'g')));
   if(r.yeast)rows.push(mk('y','Levure','yeast',r.yeast.n,r.yeast.g||'','g'));
   (r.soft||[]).forEach((x,i)=>rows.push(mk('s'+i,'Autre','other',x.n,x.qty,x.u)));
@@ -392,12 +399,12 @@ function ingredientRows(d){
 /* recette telle que brassée : quantités / noms modifiés + ingrédients ajoutés (pour les calculs) */
 function actualRecipe(d){
   const r=JSON.parse(JSON.stringify(d.recipe)),S=d.subs||{};
-  const ap=(o,k,qk)=>{const sb=S[k];if(!sb||!o)return;if(sb.n)o.n=sb.n;if(sb.qty!==''&&sb.qty!=null&&!isNaN(parseFloat(sb.qty)))o[qk]=parseFloat(sb.qty);};
+  const ap=(o,k,qk)=>{const sb=S[k];if(!sb||!o)return;if(sb.n)o.n=sb.n;if(sb.ppg)o.ppg=sb.ppg;if(sb.a!=null&&qk==='g')o.a=sb.a;if(sb.qty!==''&&sb.qty!=null&&!isNaN(parseFloat(sb.qty)))o[qk]=parseFloat(sb.qty);};
   (r.malts||[]).forEach((m,i)=>ap(m,'m'+i,'kg'));(r.hops||[]).forEach((h,i)=>ap(h,'h'+i,'g'));ap(r.yeast,'y','g');(r.soft||[]).forEach((x,i)=>ap(x,'s'+i,'qty'));
-  (d.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:37,ebc:0,cs:false});});
+  (d.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:x.ppg||37,ebc:0,cs:false});});
   return r;
 }
-function setSub(k,f,v){const d=day();d.subs=d.subs||{};d.subs[k]=d.subs[k]||{};d.subs[k][f]=v;save();refreshCalc();markChanged(k);}
+function setSub(k,f,v){const d=day();d.subs=d.subs||{};d.subs[k]=d.subs[k]||{};d.subs[k][f]=v;if(f==='n'){delete d.subs[k].ppg;delete d.subs[k].a;}save();refreshCalc();markChanged(k);}
 function resetSub(k){const d=day();if(d.subs)delete d.subs[k];save();renderSheet();}
 function markChanged(k){const row=ingredientRows(day()).find(x=>x.k===k);const e=document.getElementById('ing_'+k);if(e&&row)e.classList.toggle('chg',row.changed);
   const p=document.getElementById('plan_'+k);if(p&&row)p.style.visibility=row.changed?'visible':'hidden';}
@@ -409,13 +416,13 @@ function ingTable(d){
   const rows=ingredientRows(d);
   return `<table class="t ing"><thead><tr><th>Type</th><th>Ingrédient</th><th style="width:140px">Quantité</th><th style="width:30%">N° de lot</th><th style="width:34px"></th></tr></thead><tbody>
     ${rows.map(x=>x.extra?`<tr id="ing_${x.k}" class="added"><td>${x.t}<br><small class="tag">ajouté</small></td>
-        <td><input class="in" value="${esc(x.n)}" placeholder="Nom de l'ingrédient" oninput="setExtra('${x.k.slice(1)}','n',this.value)"></td>
+        <td><div class="ta"><input class="in" value="${esc(x.n)}" placeholder="Tape les premières lettres…" autocomplete="off" data-typ="${x.typ}" data-k="${x.k}" oninput="setExtra('${x.k.slice(1)}','n',this.value);taShow(this)" onfocus="taShow(this)" onkeydown="taKey(event,this)" onblur="taHide(this)"></div></td>
         <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" value="${esc(x.qty)}" oninput="setExtra('${x.k.slice(1)}','qty',this.value)">
           <select class="in u" onchange="setExtra('${x.k.slice(1)}','u',this.value)">${['kg','g','L','mL','u'].map(u=>`<option${u===x.u?' selected':''}>${u}</option>`).join('')}</select></div></td>
         <td><input class="in" value="${esc(d.lots[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur"></td>
         <td><button class="xb" onclick="delExtra('${x.k.slice(1)}')" title="Retirer">×</button></td></tr>`
       :`<tr id="ing_${x.k}" class="${x.changed?'chg':''}"><td>${x.t}</td>
-        <td><input class="in" value="${esc(x.n)}" oninput="setSub('${x.k}','n',this.value)"><small class="plan" id="plan_${x.k}" style="visibility:${x.changed?'visible':'hidden'}">prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)}</small></td>
+        <td><div class="ta"><input class="in" value="${esc(x.n)}" autocomplete="off" data-typ="${x.typ}" data-k="${x.k}" oninput="setSub('${x.k}','n',this.value);taShow(this)" onfocus="this.select();taShow(this)" onkeydown="taKey(event,this)" onblur="taHide(this)"></div><small class="plan" id="plan_${x.k}" style="visibility:${x.changed?'visible':'hidden'}">prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)}</small></td>
         <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" value="${esc(x.qty)}" oninput="setSub('${x.k}','qty',this.value)"><span class="u">${esc(x.u.replace(' (cold steep)',''))}</span></div></td>
         <td><input class="in" value="${esc(d.lots[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur"></td>
         <td><button class="xb" onclick="resetSub('${x.k}')" title="Revenir à la recette">↺</button></td></tr>`).join('')}
@@ -623,6 +630,57 @@ function sendToCave(){
 }
 
 
+
+/* ===================== Saisie assistée des ingrédients ===================== */
+/* Sources : catalogue du Carnet de brassage, ingrédients de toutes les recettes, articles du Stock */
+let TA_CACHE=null;
+function taSource(){
+  if(TA_CACHE)return TA_CACHE;
+  const L={malt:new Map(),hop:new Map(),yeast:new Map(),other:new Map()};
+  const add=(t,n,meta)=>{n=String(n||'').trim();if(!n)return;const k=n.toLowerCase();if(!L[t].has(k))L[t].set(k,{n,...meta});else Object.assign(L[t].get(k),Object.fromEntries(Object.entries(meta||{}).filter(([a,v])=>v!=null&&L[t].get(k)[a]==null)));};
+  const cat=ld('brasserie_catalogue_pub_v1',null)||ld('brasserie_catalogue_v1',null)||{};
+  (cat.malts||[]).forEach(m=>add('malt',m.n,{ppg:m.ppg,src:'catalogue'}));
+  (cat.hops||[]).forEach(h=>add('hop',h.n,{a:h.a,src:'catalogue'}));
+  (cat.yeasts||[]).forEach(y=>add('yeast',y.n,{src:'catalogue'}));
+  (cat.softs||[]).forEach(x=>add('other',x.n,{u:x.u,src:'catalogue'}));
+  ld(REC_KEY,[]).forEach(r=>{(r.malts||[]).forEach(m=>add('malt',m.n,{ppg:m.ppg,src:'recette'}));(r.hops||[]).forEach(h=>add('hop',h.n,{a:h.a,src:'recette'}));
+    if(r.yeast)add('yeast',r.yeast.n,{src:'recette'});(r.soft||[]).forEach(x=>add('other',x.n,{u:x.u,src:'recette'}));});
+  const st=ld('brasserie_stock_v2',null);const SC={malt:'malt',houblon:'hop',levure:'yeast',conso:'other'};
+  ((st&&st.items)||[]).forEach(it=>add(SC[it.cat]||'other',it.name,{src:'stock',stock:it.qty+' '+(it.unit||'')}));
+  TA_CACHE={};Object.keys(L).forEach(t=>TA_CACHE[t]=[...L[t].values()].sort((a,b)=>a.n.localeCompare(b.n,'fr')));
+  return TA_CACHE;
+}
+const taN=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+function taMatches(typ,q){
+  const list=(taSource()[typ]||[]);q=taN(q).trim();if(!q)return list.slice(0,40);
+  const starts=[],words=[];
+  list.forEach(x=>{const n=taN(x.n);if(n.startsWith(q))starts.push(x);else if(n.split(/[\s·\-\/]+/).some(w=>w.startsWith(q)))words.push(x);});
+  return starts.concat(words).slice(0,40);
+}
+function taShow(inp){
+  const box=inp.parentNode;let el=box.querySelector('.ta-list');
+  const res=taMatches(inp.dataset.typ,inp.value);
+  if(!res.length){if(el)el.remove();return;}
+  if(!el){el=document.createElement('div');el.className='ta-list';box.appendChild(el);}
+  const q=taN(inp.value).trim();
+  el.innerHTML=res.map((x,i)=>{const n=esc(x.n);const hi=q&&taN(x.n).startsWith(q)?`<b>${esc(x.n.slice(0,q.length))}</b>${esc(x.n.slice(q.length))}`:n;
+    return `<div class="ta-it${i===0&&q?' on':''}" data-i="${i}" onmousedown="event.preventDefault();taPick(this)">${hi}<small>${x.src==='stock'?'stock · '+esc(x.stock):x.src}${x.ppg?' · '+x.ppg+' PPG':''}</small></div>`;}).join('');
+  el._res=res;el._inp=inp;
+}
+function taHide(inp){setTimeout(()=>{const el=inp.parentNode.querySelector('.ta-list');if(el)el.remove();},120);}
+function taKey(e,inp){
+  const el=inp.parentNode.querySelector('.ta-list');if(!el)return;const its=[...el.querySelectorAll('.ta-it')];let i=its.findIndex(x=>x.classList.contains('on'));
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();i=e.key==='ArrowDown'?Math.min(its.length-1,i+1):Math.max(0,i-1);its.forEach((x,j)=>x.classList.toggle('on',j===i));its[i].scrollIntoView({block:'nearest'});}
+  else if(e.key==='Enter'&&i>=0){e.preventDefault();taPick(its[i]);}
+  else if(e.key==='Escape')el.remove();
+}
+function taPick(it){
+  const el=it.parentNode,x=el._res[+it.dataset.i],inp=el._inp,k=inp.dataset.k,d=day();
+  inp.value=x.n;el.remove();
+  if(k.startsWith('x')){const e=(d.extra||[]).find(z=>'x'+z.id===k);if(e){e.n=x.n;if(x.ppg)e.ppg=x.ppg;if(x.u&&!e.qty)e.u=x.u;}save();refreshCalc();}
+  else{d.subs=d.subs||{};const sb=d.subs[k]=d.subs[k]||{};sb.n=x.n;if(x.ppg)sb.ppg=x.ppg;else delete sb.ppg;if(x.a!=null)sb.a=x.a;save();refreshCalc();markChanged(k);}
+  inp.blur();
+}
 /* ===================== Déduction du stock (app Stock : brasserie_stock_v2) ===================== */
 const STOCK_KEY='brasserie_stock_v2';
 const stNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
