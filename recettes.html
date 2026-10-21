@@ -945,12 +945,14 @@ const EXAMPLES=[
 ];
 
 /* SRM -> hex (1..40) */
-const SRM_HEX=["#FFE699","#FFD878","#FFCA5A","#FFBF42","#FBB123","#F8A600","#F39C00","#EA8F00","#E58500","#DE7C00","#D77200","#CF6900","#CB6200","#C35900","#BB5100","#B54C00","#B04500","#A63E00","#A13700","#9B3200","#952D00","#8E2900","#882300","#821E00","#7B1A00","#771900","#701400","#6A0E00","#660D00","#5E0B00","#5A0A02","#560A05","#520907","#4C0505","#470606","#440607","#3F0708","#3B0607","#3A070B","#36080A"];
+const SRM_HEX=["#FFE699","#FFD878","#FFCA5A","#FFBF42","#FBB123","#F8A600","#F39C00","#EA8F00","#E58500","#DE7C00","#D77200","#CF6900","#CB6200","#C35900","#BB5100","#B54C00","#B04500","#A63E00","#A13700","#9B3200","#8A2C04","#7F2704","#742204","#691E04","#5E1A05","#541705","#4A1405","#401105","#370F05","#2F0D05","#290B05","#240A05","#200905","#1C0805","#190704","#160604","#130504","#110504","#0F0403","#0D0403"]; // SRM 1→40, foncés recalés sur l'aspect réel en verre
 function ebcHex(ebc){let srm=ebc/1.97;let i=Math.max(1,Math.min(40,Math.round(srm)));return SRM_HEX[i-1];}
 function colorName(ebc){
-  if(ebc<6)return"Paille";if(ebc<12)return"Or";if(ebc<20)return"Ambré clair";if(ebc<30)return"Ambré";
-  if(ebc<45)return"Cuivre";if(ebc<60)return"Brun-rouge";if(ebc<80)return"Brun";if(ebc<140)return"Brun foncé";
-  return"Noir";
+  // échelle SRM (EBC = SRM × 1,97)
+  const T=[[4,"Paille très pâle"],[6,"Paille"],[10,"Doré pâle"],[14,"Doré"],[18,"Doré foncé"],[24,"Ambré clair"],[30,"Ambré"],
+    [35,"Ambré foncé"],[39,"Cuivré"],[47,"Brun cuivré"],[59,"Brun foncé"],[69,"Très foncé"],[79,"Noir"]];
+  for(const [m,n] of T)if(ebc<m)return n;
+  return"Noir opaque";
 }
 
 /* ============================ STATE ============================ */
