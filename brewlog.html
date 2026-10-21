@@ -415,7 +415,7 @@ function ingredientRows(d,b){
   const mk=(k,t,typ,n,qty,u,extra)=>{const sb=S[k]||{};const an=sb.n!=null&&sb.n!==''?sb.n:n, aq=sb.qty!=null&&sb.qty!==''?sb.qty:qty;
     return {k,t,typ,pn:n,pq:qty,u,n:an,qty:aq,q:aq+' '+u,changed:!extra&&(an!==n||String(aq)!==String(qty)),extra:!!extra};};
   (r.malts||[]).forEach((m,i)=>rows.push(mk('m'+i,'Malt','malt',m.n,m.kg,'kg'+(m.cs?' (cold steep)':''))));
-  (r.hops||[]).forEach((h,i)=>{const row=mk('h'+i,'Houblon','hop',h.n,h.g,'g'),sb=S['h'+i]||{};row.pa=h.a;row.a=sb.a!=null&&sb.a!==''?sb.a:h.a;if(String(row.a)!==String(h.a))row.changed=true;rows.push(row);});
+  (r.hops||[]).forEach((h,i)=>{const row=mk('h'+i,'Houblon','hop',h.n,h.g,'g'),sb=S['h'+i]||{};row.pa=h.a;row.use=hopUse(h);row.when=hopUse(h)==='boil'?'Ébullition '+(h.time||0)+' min':hopUse(h)==='wp'?'Whirlpool':'Dry hop';row.auto=!!sb.qtyAuto;row.a=sb.a!=null&&sb.a!==''?sb.a:h.a;if(String(row.a)!==String(h.a))row.changed=true;rows.push(row);});
   if(r.yeast)rows.push(mk('y','Levure','yeast',r.yeast.n,r.yeast.g||'','g'));
   (r.soft||[]).forEach((x,i)=>rows.push(mk('s'+i,'Autre','other',x.n,x.qty,x.u)));
   (b.extra||[]).forEach(x=>rows.push({...mk('x'+x.id,ITYPES[x.typ]||'Autre',x.typ,x.n,x.qty,x.u,true),n:x.n,qty:x.qty,q:x.qty+' '+x.u}));
@@ -429,7 +429,19 @@ function actualRecipe(d,b){
   (b.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:x.ppg||37,ebc:x.ebc||0,cs:false});});
   return r;
 }
-function setSub(k,f,v){const b=curBr();b.subs=b.subs||{};b.subs[k]=b.subs[k]||{};b.subs[k][f]=v;if(f==='n'){delete b.subs[k].ppg;delete b.subs[k].ebc;}save();refreshCalc();markChanged(k);}
+/* Houblon d'ébullition : quand l'α du lot change, la quantité est recalculée pour garder la même masse d'acides alpha
+   (même amertume). Whirlpool et dry hop : quantité inchangée (apport aromatique). */
+function alphaAdjust(k,v){
+  const d=day(),b=curBr(d),i=+k.slice(1),h=(d.recipe.hops||[])[i];if(!h)return;
+  const sb=b.subs[k];if(hopUse(h)!=='boil')return;
+  const a=parseFloat(v),pa=parseFloat(h.a),pg=parseFloat(h.g);
+  if(!(a>0)||!(pa>0)||!(pg>0)||Math.abs(a-pa)<1e-9){if(sb.qtyAuto){delete sb.qty;delete sb.qtyAuto;}}
+  else if(sb.qtyAuto||sb.qty==null||sb.qty===''||String(sb.qty)===String(h.g)){sb.qty=String(Math.round(pg*pa/a));sb.qtyAuto=true;}
+  const q=document.getElementById('qty_'+k);if(q)q.value=sb.qty!=null&&sb.qty!==''?sb.qty:h.g;
+  const n=document.getElementById('anote_'+k);if(n)n.textContent=sb.qtyAuto?`ajusté : ${h.g} g × ${pa} / ${a} %`:'';
+}
+function setSub(k,f,v){const b=curBr();b.subs=b.subs||{};b.subs[k]=b.subs[k]||{};b.subs[k][f]=v;
+  if(f==='a')alphaAdjust(k,v);if(f==='qty')delete b.subs[k].qtyAuto;if(f==='n'){delete b.subs[k].ppg;delete b.subs[k].ebc;}save();refreshCalc();markChanged(k);}
 function resetSub(k){const b=curBr();if(b.subs)delete b.subs[k];save();renderSheet();}
 function markChanged(k){const row=ingredientRows(day()).find(x=>x.k===k);const e=document.getElementById('ing_'+k);if(e&&row)e.classList.toggle('chg',row.changed);
   const p=document.getElementById('plan_'+k);if(p&&row)p.style.visibility=row.changed?'visible':'hidden';}
@@ -448,7 +460,8 @@ function ingTable(d){
         <td><button class="xb" onclick="delExtra('${x.k.slice(1)}')" title="Retirer">×</button></td></tr>`
       :`<tr id="ing_${x.k}" class="${x.changed?'chg':''}"><td>${x.t}</td>
         <td><div class="ta"><input class="in" value="${esc(x.n)}" autocomplete="off" data-typ="${x.typ}" data-k="${x.k}" oninput="setSub('${x.k}','n',this.value);taShow(this)" onfocus="this.select();taShow(this)" onkeydown="taKey(event,this)" onblur="taHide(this)"></div><small class="plan" id="plan_${x.k}" style="visibility:${x.changed?'visible':'hidden'}">prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)}${x.typ==='hop'?' · '+esc(x.pa)+' % α':''}</small></td>
-        <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" value="${esc(x.qty)}" oninput="setSub('${x.k}','qty',this.value)"><span class="u">${esc(x.u.replace(' (cold steep)',''))}</span></div>${x.typ==='hop'?`<div class="qty" style="margin-top:.25rem"><input class="in" id="alpha_${x.k}" type="number" step="0.1" inputmode="decimal" value="${esc(x.a)}" title="Acides alpha du lot" oninput="setSub('${x.k}','a',this.value)"><span class="u">% α</span></div>`:''}</td>
+        <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" id="qty_${x.k}" value="${esc(x.qty)}" oninput="setSub('${x.k}','qty',this.value);const n=document.getElementById('anote_${x.k}');if(n)n.textContent=''"><span class="u">${esc(x.u.replace(' (cold steep)',''))}</span></div>${x.typ==='hop'?`<div class="qty" style="margin-top:.25rem"><input class="in" id="alpha_${x.k}" type="number" step="0.1" inputmode="decimal" value="${esc(x.a)}" title="Acides alpha du lot" oninput="setSub('${x.k}','a',this.value)"><span class="u">% α</span></div>
+          <small class="plan" style="visibility:visible;color:var(--ink-soft)">${esc(x.when)}${x.use==='boil'?'':' · quantité non recalculée'}</small><small class="plan" id="anote_${x.k}" style="visibility:visible">${x.auto?`ajusté : ${esc(x.pq)} g × ${esc(x.pa)} / ${esc(x.a)} %`:''}</small>`:''}</td>
         <td><input class="in" value="${esc(L[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur"></td>
         <td><button class="xb" onclick="resetSub('${x.k}')" title="Revenir à la recette">↺</button></td></tr>`).join('')}
     </tbody></table>
