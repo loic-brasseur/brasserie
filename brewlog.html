@@ -156,6 +156,10 @@
     body{background:#fff!important;padding:0}
     .wrap,.overlay,#backHome{display:none!important}
     .print{display:block;color:#1c140d;font-family:var(--serif);line-height:1.45;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    #printSheet{width:auto!important}
+  }
+  /* styles de la fiche PDF (hors @media print pour pouvoir la mesurer avant impression) */
+  .print{color:#1c140d;font-family:var(--serif);line-height:1.45;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     .ps-head{padding-bottom:12px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid #1c140d;position:relative}
     .ps-head::after{content:"";position:absolute;left:0;bottom:-6px;width:64px;height:2.5px;background:#cf982b}
     .ps-head h1{font-size:28px;margin:0;font-weight:600;line-height:1.05}
@@ -202,7 +206,7 @@
     .ps-2col{display:flex;gap:14px}.ps-2col > *{flex:1}
     .ps-stars{color:#cf982b;letter-spacing:1px;white-space:nowrap}.ps-stars i{color:#e2d6bd;font-style:normal}
     .ps-foot{margin-top:6px;padding-top:5px;border-top:1px solid #d8c7a8;font-family:var(--sans);font-size:8.5px;color:#8a7a64;letter-spacing:.04em;display:flex;justify-content:space-between}
-  }
+
 </style>
 </head>
 <body>
@@ -968,7 +972,18 @@ function printSheet(){
     </tbody></table></div></div>`;
   document.getElementById('printSheet').innerHTML='<div class="ps-p1">'+head+synth+mp+cave+'</div>'+
     `<div class="ps-foot"><span>Brew Log — imprimé le ${new Date().toLocaleString('fr-FR')}</span><span>${esc(r.name)} · lot ${esc(d.lot)}</span></div>`;
-  window.print();
+  fitOnePage();window.print();
+}
+/* Ajuste la fiche à une page A4 : mesure le contenu à la largeur imprimable et réduit l'échelle si besoin (au cas par cas) */
+function fitOnePage(){
+  const el=document.getElementById('printSheet');el.style.zoom='';
+  const MM=96/25.4,W=(210-26)*MM,H=(297-22)*MM*0.985;
+  const st=el.getAttribute('style')||'';
+  el.style.cssText='display:block;position:absolute;left:-10000px;top:0;width:'+W+'px;visibility:hidden';
+  const h=el.scrollHeight;el.style.cssText=st;
+  const z=h>H?Math.max(0.6,H/h):1;
+  el.style.zoom=z<1?String(Math.floor(z*1000)/1000):'';
+  return z;
 }
 
 /* ===================== Import / export ===================== */
