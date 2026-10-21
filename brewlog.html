@@ -862,7 +862,7 @@ function applyStock(){
   alert((prev?'Sortie de stock mise à jour':'Stock déduit')+' : '+lines.length+' article(s). Visible dans l\'historique de l\'app Stock.');
 }
 /* ===================== PDF ===================== */
-const SRM_HEX=["#FFE699","#FFD878","#FFCA5A","#FFBF42","#FBB123","#F8A600","#F39C00","#EA8F00","#E58500","#DE7C00","#D77200","#CF6900","#CB6200","#C35900","#BB5100","#B54C00","#B04500","#A63E00","#A13700","#9B3200","#952D00","#8E2900","#882300","#821E00","#7B1A00","#771900","#701400","#6A0E00","#660D00","#5E0B00","#5A0A02","#560A05","#520907","#4C0505","#470606","#440607","#3F0708","#3B0607","#3A070B","#36080A"];
+const SRM_HEX=["#FFE699","#FFD878","#FFCA5A","#FFBF42","#FBB123","#F8A600","#F39C00","#EA8F00","#E58500","#DE7C00","#D77200","#CF6900","#CB6200","#C35900","#BB5100","#B54C00","#B04500","#A63E00","#A13700","#9B3200","#8A2C04","#7F2704","#742204","#691E04","#5E1A05","#541705","#4A1405","#401105","#370F05","#2F0D05","#290B05","#240A05","#200905","#1C0805","#190704","#160604","#130504","#110504","#0F0403","#0D0403"]; // SRM 1→40, foncés recalés sur l'aspect réel en verre
 function ebcHex(ebc){const i=Math.max(1,Math.min(40,Math.round((ebc||0)/1.97)));return SRM_HEX[i-1];}
 function printSheet(){
   const d=day();const r=d.recipe;const T=recipeTargets(r);const nb=d.brassins.length;
