@@ -152,14 +152,45 @@
   .ta-it b{color:var(--copper)}
   .print{display:none}
   @media print{
-    @page{size:A4 portrait;margin:14mm}
+    @page{size:A4 portrait;margin:16mm 15mm}
     body{background:#fff!important;padding:0}
     .wrap,.overlay,#backHome{display:none!important}
-    .print{display:block;font-family:var(--sans);font-size:10.5px;color:#1c140d}
-    .print h1{font-family:var(--serif);font-size:22px;margin:0 0 2px}
-    .print h2{font-family:var(--serif);font-size:13px;margin:12px 0 4px;border-bottom:1.5px solid #cf982b;padding-bottom:2px}
-    .print table{width:100%;border-collapse:collapse}.print td,.print th{border-bottom:1px solid #e6d8bd;padding:3px 4px;text-align:left}
-    .print .r{text-align:right}
+    .print{display:block;color:#1c140d;font-family:var(--serif);line-height:1.45;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .ps-head{padding-bottom:12px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2.5px solid #1c140d;position:relative}
+    .ps-head::after{content:"";position:absolute;left:0;bottom:-6px;width:64px;height:2.5px;background:#cf982b}
+    .ps-head h1{font-size:28px;margin:0;font-weight:600;line-height:1.05}
+    .ps-style{font-size:11px;color:#a8541b;margin-top:7px;font-family:var(--sans);letter-spacing:.14em;text-transform:uppercase;font-weight:600}
+    .ps-brand{text-align:right;font-family:var(--sans);font-size:9.5px;color:#8a7a64;letter-spacing:.14em;text-transform:uppercase;line-height:1.7}
+    .ps-stats{display:flex;margin-bottom:8px;border:1px solid #d8c7a8;border-radius:10px;overflow:hidden}
+    .ps-stat{flex:1;padding:11px 6px 10px;text-align:center;border-right:1px solid #e6d8bd;background:#fcf8ef;position:relative}
+    .ps-stat::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;background:#cf982b}
+    .ps-stat:last-child{border-right:none}
+    .ps-stat .l{font-size:8px;text-transform:uppercase;letter-spacing:.1em;color:#8a7a64;font-family:var(--sans);font-weight:700}
+    .ps-stat .v{font-size:19px;font-weight:600;margin-top:5px;line-height:1}
+    .ps-stat .s{font-family:var(--sans);font-size:8.5px;color:#8a7a64;margin-top:4px}
+    .ps-swatch{display:inline-block;width:22px;height:11px;border-radius:3px;vertical-align:middle;margin-left:5px;border:1px solid rgba(0,0,0,.18)}
+    .ps-note{font-family:var(--sans);font-size:9.5px;color:#8a7a64;margin:0 0 18px;line-height:1.5}
+    .ps-brassin{break-before:page}
+    
+    .ps-bh{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 12px;padding-bottom:6px;border-bottom:1.5px solid #1c140d}
+    .ps-bh h2{font-size:20px;margin:0;font-weight:600}
+    .ps-bh span{font-family:var(--sans);font-size:10px;color:#8a7a64;letter-spacing:.1em;text-transform:uppercase}
+    .ps-sec{margin-bottom:13px;break-inside:avoid}
+    .ps-sec h3{font-size:11px;margin:0 0 7px;padding-bottom:5px;border-bottom:1.5px solid #cf982b;text-transform:uppercase;letter-spacing:.12em;font-family:var(--sans);font-weight:700;color:#a8541b}
+    .ps-table{width:100%;border-collapse:collapse;table-layout:fixed;font-family:var(--sans);font-size:10.5px}
+    .ps-table th{text-align:left;font-size:8px;text-transform:uppercase;letter-spacing:.07em;color:#8a7a64;padding:5px 8px;border-bottom:1.5px solid #d8c7a8;font-weight:700}
+    .ps-table th.num,.ps-table td.num{text-align:right}
+    .ps-table tbody tr:nth-child(even){background:#faf6ec}
+    .ps-table td{padding:4px 7px;border-bottom:1px solid #eee3cd;overflow-wrap:anywhere;vertical-align:top}
+    .ps-table td.num{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:500}
+    .ps-table td.k{color:#8a7a64;font-size:9px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+    .ps-table .pv{display:block;color:#a8541b;font-size:9px;font-style:italic}
+    .ps-params{font-family:var(--sans);font-size:9.5px;color:#3a2c1f;display:flex;gap:6px;flex-wrap:wrap}
+    .ps-params span{background:#f5edda;border:1px solid #e6d8bd;border-radius:999px;padding:3px 10px;font-weight:500}
+    .ps-params b{color:#a8541b;font-weight:700;margin-right:3px}
+    .ps-2col{display:flex;gap:14px}.ps-2col > *{flex:1}
+    .ps-stars{color:#cf982b;letter-spacing:1px;white-space:nowrap}.ps-stars i{color:#e2d6bd;font-style:normal}
+    .ps-foot{margin-top:18px;padding-top:8px;border-top:1px solid #d8c7a8;font-family:var(--sans);font-size:8.5px;color:#8a7a64;letter-spacing:.04em;display:flex;justify-content:space-between}
   }
 </style>
 </head>
@@ -415,7 +446,7 @@ function ingredientRows(d,b){
   const mk=(k,t,typ,n,qty,u,extra)=>{const sb=S[k]||{};const an=sb.n!=null&&sb.n!==''?sb.n:n, aq=sb.qty!=null&&sb.qty!==''?sb.qty:qty;
     return {k,t,typ,pn:n,pq:qty,u,n:an,qty:aq,q:aq+' '+u,changed:!extra&&(an!==n||String(aq)!==String(qty)),extra:!!extra};};
   (r.malts||[]).forEach((m,i)=>rows.push(mk('m'+i,'Malt','malt',m.n,m.kg,'kg'+(m.cs?' (cold steep)':''))));
-  (r.hops||[]).forEach((h,i)=>{const row=mk('h'+i,'Houblon','hop',h.n,h.g,'g'),sb=S['h'+i]||{};row.pa=h.a;row.a=sb.a!=null&&sb.a!==''?sb.a:h.a;if(String(row.a)!==String(h.a))row.changed=true;rows.push(row);});
+  (r.hops||[]).forEach((h,i)=>{const row=mk('h'+i,'Houblon','hop',h.n,h.g,'g'),sb=S['h'+i]||{};row.pa=h.a;row.use=hopUse(h);row.when=hopUse(h)==='boil'?'Ébullition '+(h.time||0)+' min':hopUse(h)==='wp'?'Whirlpool':'Dry hop';row.auto=!!sb.qtyAuto;row.a=sb.a!=null&&sb.a!==''?sb.a:h.a;if(String(row.a)!==String(h.a))row.changed=true;rows.push(row);});
   if(r.yeast)rows.push(mk('y','Levure','yeast',r.yeast.n,r.yeast.g||'','g'));
   (r.soft||[]).forEach((x,i)=>rows.push(mk('s'+i,'Autre','other',x.n,x.qty,x.u)));
   (b.extra||[]).forEach(x=>rows.push({...mk('x'+x.id,ITYPES[x.typ]||'Autre',x.typ,x.n,x.qty,x.u,true),n:x.n,qty:x.qty,q:x.qty+' '+x.u}));
@@ -429,7 +460,19 @@ function actualRecipe(d,b){
   (b.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:x.ppg||37,ebc:x.ebc||0,cs:false});});
   return r;
 }
-function setSub(k,f,v){const b=curBr();b.subs=b.subs||{};b.subs[k]=b.subs[k]||{};b.subs[k][f]=v;if(f==='n'){delete b.subs[k].ppg;delete b.subs[k].ebc;}save();refreshCalc();markChanged(k);}
+/* Houblon d'ébullition : quand l'α du lot change, la quantité est recalculée pour garder la même masse d'acides alpha
+   (même amertume). Whirlpool et dry hop : quantité inchangée (apport aromatique). */
+function alphaAdjust(k,v){
+  const d=day(),b=curBr(d),i=+k.slice(1),h=(d.recipe.hops||[])[i];if(!h)return;
+  const sb=b.subs[k];if(hopUse(h)!=='boil')return;
+  const a=parseFloat(v),pa=parseFloat(h.a),pg=parseFloat(h.g);
+  if(!(a>0)||!(pa>0)||!(pg>0)||Math.abs(a-pa)<1e-9){if(sb.qtyAuto){delete sb.qty;delete sb.qtyAuto;}}
+  else if(sb.qtyAuto||sb.qty==null||sb.qty===''||String(sb.qty)===String(h.g)){sb.qty=String(Math.round(pg*pa/a));sb.qtyAuto=true;}
+  const q=document.getElementById('qty_'+k);if(q)q.value=sb.qty!=null&&sb.qty!==''?sb.qty:h.g;
+  const n=document.getElementById('anote_'+k);if(n)n.textContent=sb.qtyAuto?`ajusté : ${h.g} g × ${pa} / ${a} %`:'';
+}
+function setSub(k,f,v){const b=curBr();b.subs=b.subs||{};b.subs[k]=b.subs[k]||{};b.subs[k][f]=v;
+  if(f==='a')alphaAdjust(k,v);if(f==='qty')delete b.subs[k].qtyAuto;if(f==='n'){delete b.subs[k].ppg;delete b.subs[k].ebc;}save();refreshCalc();markChanged(k);}
 function resetSub(k){const b=curBr();if(b.subs)delete b.subs[k];save();renderSheet();}
 function markChanged(k){const row=ingredientRows(day()).find(x=>x.k===k);const e=document.getElementById('ing_'+k);if(e&&row)e.classList.toggle('chg',row.changed);
   const p=document.getElementById('plan_'+k);if(p&&row)p.style.visibility=row.changed?'visible':'hidden';}
@@ -448,7 +491,8 @@ function ingTable(d){
         <td><button class="xb" onclick="delExtra('${x.k.slice(1)}')" title="Retirer">×</button></td></tr>`
       :`<tr id="ing_${x.k}" class="${x.changed?'chg':''}"><td>${x.t}</td>
         <td><div class="ta"><input class="in" value="${esc(x.n)}" autocomplete="off" data-typ="${x.typ}" data-k="${x.k}" oninput="setSub('${x.k}','n',this.value);taShow(this)" onfocus="this.select();taShow(this)" onkeydown="taKey(event,this)" onblur="taHide(this)"></div><small class="plan" id="plan_${x.k}" style="visibility:${x.changed?'visible':'hidden'}">prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)}${x.typ==='hop'?' · '+esc(x.pa)+' % α':''}</small></td>
-        <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" value="${esc(x.qty)}" oninput="setSub('${x.k}','qty',this.value)"><span class="u">${esc(x.u.replace(' (cold steep)',''))}</span></div>${x.typ==='hop'?`<div class="qty" style="margin-top:.25rem"><input class="in" id="alpha_${x.k}" type="number" step="0.1" inputmode="decimal" value="${esc(x.a)}" title="Acides alpha du lot" oninput="setSub('${x.k}','a',this.value)"><span class="u">% α</span></div>`:''}</td>
+        <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" id="qty_${x.k}" value="${esc(x.qty)}" oninput="setSub('${x.k}','qty',this.value);const n=document.getElementById('anote_${x.k}');if(n)n.textContent=''"><span class="u">${esc(x.u.replace(' (cold steep)',''))}</span></div>${x.typ==='hop'?`<div class="qty" style="margin-top:.25rem"><input class="in" id="alpha_${x.k}" type="number" step="0.1" inputmode="decimal" value="${esc(x.a)}" title="Acides alpha du lot" oninput="setSub('${x.k}','a',this.value)"><span class="u">% α</span></div>
+          <small class="plan" style="visibility:visible;color:var(--ink-soft)">${esc(x.when)}${x.use==='boil'?'':' · quantité non recalculée'}</small><small class="plan" id="anote_${x.k}" style="visibility:visible">${x.auto?`ajusté : ${esc(x.pq)} g × ${esc(x.pa)} / ${esc(x.a)} %`:''}</small>`:''}</td>
         <td><input class="in" value="${esc(L[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur"></td>
         <td><button class="xb" onclick="resetSub('${x.k}')" title="Revenir à la recette">↺</button></td></tr>`).join('')}
     </tbody></table>
@@ -803,34 +847,77 @@ function applyStock(){
   alert((prev?'Sortie de stock mise à jour':'Stock déduit')+' : '+lines.length+' article(s). Visible dans l\'historique de l\'app Stock.');
 }
 /* ===================== PDF ===================== */
+const SRM_HEX=["#FFE699","#FFD878","#FFCA5A","#FFBF42","#FBB123","#F8A600","#F39C00","#EA8F00","#E58500","#DE7C00","#D77200","#CF6900","#CB6200","#C35900","#BB5100","#B54C00","#B04500","#A63E00","#A13700","#9B3200","#952D00","#8E2900","#882300","#821E00","#7B1A00","#771900","#701400","#6A0E00","#660D00","#5E0B00","#5A0A02","#560A05","#520907","#4C0505","#470606","#440607","#3F0708","#3B0607","#3A070B","#36080A"];
+function ebcHex(ebc){const i=Math.max(1,Math.min(40,Math.round((ebc||0)/1.97)));return SRM_HEX[i-1];}
 function printSheet(){
-  const d=day();const r=d.recipe;const T=recipeTargets(r);
-  const rowsOf=b=>ingredientRows(d,b).map(x=>`<tr><td>${x.t}${x.extra?' (ajouté)':''}</td><td>${esc(x.n)}${x.changed?` <i>(prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)})</i>`:''}</td><td class="r">${esc(x.q)}</td><td>${esc((b.lots||{})[x.k]||'')}</td></tr>`).join('');
-  const per=d.brassins.map(b=>{const c=calc(d,b);const m=b.m;
-    const ev=[['Début empâtage',b.ev.mashIn],['Début filtration',b.ev.lautStart],['Fin filtration',b.ev.lautEnd],['Début ébullition',b.ev.boilStart],['Fin ébullition',b.ev.boilEnd],['Whirlpool',b.ev.wp],['Début refroid.',b.ev.coolStart],['Fin refroid.',b.ev.coolEnd]].filter(x=>x[1]).map(x=>x[0]+' '+hhmm(x[1])).join(' · ');
-    return `<h2>Brassin ${bCode(d,b.n-1)} — ${fmtD(b.date||d.date)}</h2><div>${ev||'—'}</div>
-    <table><tr><th>Type</th><th>Ingrédient</th><th class="r">Qté</th><th>Lot</th></tr>${rowsOf(b)}</table>
-    <table><tr><th>Paliers</th>${(r.process.mash||[]).map((p,i)=>`<td>${esc(p.n)} ${p.t}°C → ${esc((b.mash[i]||{}).tReel)||'—'}°C ${hhmm((b.mash[i]||{}).ts)}</td>`).join('')}</tr></table>
-    <table><tr><th>Eau</th><td>${m.eau||'—'} L</td><th>pH emp.</th><td>${m.ph||'—'}</td><th>1er moût</th><td>${m.fw||'—'} °P</td></tr>
-    <tr><th>V pré-éb.</th><td>${m.vPre||'—'} L</td><th>°P pré-éb.</th><td>${m.pPre||'—'}</td><th>Rendement</th><td>${f1(c.effPre)} %</td></tr>
-    <tr><th>V fin éb.</th><td>${m.vPost||'—'} L</td><th>DI</th><td>${m.pPost||'—'} °P (cible ${T.ogP??'—'})</td><th>Évap.</th><td>${f0(c.evapL)} L</td></tr>
-    <tr><th>Couleur</th><td>${f0(c.ebc)} EBC (recette ${c.ebcPlan!=null?Math.round(c.ebcPlan):'—'})</td><th>Amertume</th><td>${f0(c.ibu)} IBU (recette ${c.ibuPlan!=null?Math.round(c.ibuPlan):'—'})</td><th>Alcool est.</th><td>${c.abv!=null?c.abv.toFixed(1)+' %':'—'} (recette ${c.abvPlan!=null?(+c.abvPlan).toFixed(1):'—'})</td></tr>
-    <tr><th>V fermenteur</th><td>${m.vFerm||'—'} L</td><th>T° ens.</th><td>${m.tFerm||'—'} °C</td><th>pH moût</th><td>${m.phFerm||'—'}</td></tr></table>
-    <table><tr>${STEPS.map(([k,l])=>`<th>${l}</th>`).join('')}</tr><tr>${STEPS.map(([k])=>`<td>${score(d,b,k)??'—'}/5 ${esc(b.notes[k].c||'')}</td>`).join('')}</tr></table>`;}).join('');
+  const d=day();const r=d.recipe;const T=recipeTargets(r);const nb=d.brassins.length;
+  const val=(v,u)=>v==null||v===''||(typeof v==='number'&&isNaN(v))?'—':v+(u?' '+u:'');
+  const stars=s=>s==null?'—':`<span class="ps-stars">${'★'.repeat(s)}<i>${'★'.repeat(5-s)}</i></span>`;
   // moyennes du lot, pondérées par le volume en fermenteur (moyenne simple si volumes non saisis)
   const C=d.brassins.map(b=>({c:calc(d,b),w:num(b.m.vFerm)}));
   const wavg=k=>{const v=C.filter(x=>x.c[k]!=null);if(!v.length)return null;const allW=v.every(x=>x.w);
     return allW?v.reduce((a,x)=>a+x.c[k]*x.w,0)/v.reduce((a,x)=>a+x.w,0):v.reduce((a,x)=>a+x.c[k],0)/v.length;};
-  const mE=wavg('ebc'),mI=wavg('ibu'),mA=wavg('abv'),c0=C[0].c,nb=d.brassins.length;
-  const avgBlock=`<h2>Moyenne du lot — ${nb} brassin${nb>1?'s':''} (${d.brassins.map((x,i)=>bCode(d,i)).join(', ')})</h2>
-    <table><tr><th>Couleur</th><td>${mE!=null?Math.round(mE)+' EBC':'—'} (recette ${c0.ebcPlan!=null?Math.round(c0.ebcPlan):'—'})</td>
-    <th>Amertume</th><td>${mI!=null?Math.round(mI)+' IBU':'—'} (recette ${c0.ibuPlan!=null?Math.round(c0.ibuPlan):'—'})</td>
-    <th>Alcool estimé</th><td>${mA!=null?mA.toFixed(1)+' %':'—'} (recette ${c0.abvPlan!=null?(+c0.abvPlan).toFixed(1):'—'})</td></tr></table>
-    <div style="color:#8a7a64;font-size:9px">Alcool estimé à partir de la DI mesurée et de la DF cible (${c0.T.fg!=null?(+c0.T.fg).toFixed(1)+' °P':'—'}). Moyennes pondérées par le volume en fermenteur.</div>`;
-  document.getElementById('printSheet').innerHTML=`<h1>${esc(r.name)} — lot ${esc(d.lot)}</h1><div>${fmtD(d.date)} · recette v${r.rev||1} · ${esc(r.style||'')}</div>
-    ${avgBlock}
-    ${per}
-    <div style="margin-top:12px;color:#8a7a64">Brew Log — imprimé le ${new Date().toLocaleString('fr-FR')}</div>`;
+  const mE=wavg('ebc'),mI=wavg('ibu'),mA=wavg('abv'),mR=wavg('effPre'),mOG=wavg('pPost'),c0=C[0].c;
+  const vTot=C.reduce((a,x)=>a+(x.w||0),0);
+  const plan=(v,dg,u)=>v!=null?'recette '+(+v).toFixed(dg)+(u||''):'';
+  const head=`<div class="ps-head"><div><h1>${esc(r.name)}</h1>
+      <div class="ps-style">Lot ${esc(d.lot)} · ${nb} brassin${nb>1?'s':''}${r.style?' · '+esc(r.style):''} · recette v${r.rev||1}</div></div>
+      <div class="ps-brand">Brew Log<br>${fmtD(d.date)}${nb>1&&lastDate(d)!==d.date?' → '+fmtD(lastDate(d)):''}</div></div>
+    <div class="ps-stats">
+      <div class="ps-stat"><div class="l">Volume fermenteur</div><div class="v">${vTot?(vTot/100).toFixed(1)+' HL':'—'}</div><div class="s">${d.brassins.map((x,i)=>bCode(d,i)).join(' · ')}</div></div>
+      <div class="ps-stat"><div class="l">DI moyenne</div><div class="v">${mOG!=null?mOG.toFixed(1)+' °P':'—'}</div><div class="s">${plan(T.ogP,1,' °P')}</div></div>
+      <div class="ps-stat"><div class="l">Alcool estimé</div><div class="v">${mA!=null?mA.toFixed(1)+' %':'—'}</div><div class="s">${plan(c0.abvPlan,1,' %')}</div></div>
+      <div class="ps-stat"><div class="l">Couleur</div><div class="v">${mE!=null?Math.round(mE)+' EBC':'—'}${mE!=null?`<span class="ps-swatch" style="background:${ebcHex(mE)}"></span>`:''}</div><div class="s">${plan(c0.ebcPlan,0,' EBC')}</div></div>
+      <div class="ps-stat"><div class="l">Amertume</div><div class="v">${mI!=null?Math.round(mI)+' IBU':'—'}</div><div class="s">${plan(c0.ibuPlan,0,' IBU')}</div></div>
+      <div class="ps-stat"><div class="l">Rendement</div><div class="v">${mR!=null?mR.toFixed(1)+' %':'—'}</div><div class="s">${plan(r.eff,1,' %')}</div></div>
+    </div>
+    <div class="ps-note">Moyennes du lot pondérées par le volume en fermenteur. Alcool estimé à partir de la DI mesurée et de la DF cible (${T.fg!=null?(+T.fg).toFixed(1)+' °P':'—'}).</div>`;
+  // synthèse : un brassin par colonne
+  const cols=d.brassins.map((b,i)=>({b,c:C[i].c,code:bCode(d,i)}));
+  const avgScore=b=>{const v=STEPS.map(([k])=>score(d,b,k)).filter(x=>x!=null);return v.length?v.reduce((a,x)=>a+x,0)/v.length:null;};
+  const srow=(lbl,f,rec)=>`<tr><td class="k">${lbl}</td>${cols.map(x=>`<td class="num">${f(x)}</td>`).join('')}<td class="num" style="color:#8a7a64">${rec||''}</td></tr>`;
+  const synth=`<div class="ps-sec"><h3>Synthèse des brassins</h3><table class="ps-table"><thead><tr><th></th>${cols.map(x=>`<th class="num" style="text-transform:none;font-size:9.5px;color:#1c140d">${x.code}</th>`).join('')}<th class="num">Recette</th></tr></thead><tbody>
+    ${srow('Date',x=>fmtD(x.b.date||d.date))}
+    ${srow('Vol. fermenteur',x=>val(x.b.m.vFerm,'L'),r.vol?r.vol+' L':'')}
+    ${srow('DI',x=>val(x.b.m.pPost,'°P'),T.ogP!=null?T.ogP+' °P':'')}
+    ${srow('Rendement',x=>x.c.effPre!=null?x.c.effPre.toFixed(1)+' %':'—',r.eff?r.eff+' %':'')}
+    ${srow('Évaporation',x=>x.c.evapL!=null?Math.round(x.c.evapL)+' L':'—')}
+    ${srow('Couleur',x=>x.c.ebc!=null?Math.round(x.c.ebc)+' EBC':'—',c0.ebcPlan!=null?Math.round(c0.ebcPlan)+' EBC':'')}
+    ${srow('Amertume',x=>x.c.ibu!=null?Math.round(x.c.ibu)+' IBU':'—',c0.ibuPlan!=null?Math.round(c0.ibuPlan)+' IBU':'')}
+    ${srow('Alcool estimé',x=>x.c.abv!=null?x.c.abv.toFixed(1)+' %':'—',c0.abvPlan!=null?(+c0.abvPlan).toFixed(1)+' %':'')}
+    ${srow('Note moyenne',x=>{const a=avgScore(x.b);return a!=null?a.toFixed(1)+' / 5':'—';})}
+    </tbody></table></div>
+    ${r.notes?`<div class="ps-sec"><h3>Consignes de la recette</h3><div style="font-family:var(--sans);font-size:10.5px;white-space:pre-wrap;background:#fcf8ef;border:1px solid #e6d8bd;border-left:3px solid #cf982b;border-radius:8px;padding:9px 12px">${esc(r.notes)}</div></div>`:''}`;
+  const per=d.brassins.map((b,bi)=>{const c=C[bi].c,m=b.m;
+    const ev=[['Empâtage',b.ev.mashIn],['Filtration',b.ev.lautStart],['Fin filtr.',b.ev.lautEnd],['Ébullition',b.ev.boilStart],['Fin éb.',b.ev.boilEnd],['Whirlpool',b.ev.wp],['Refroid.',b.ev.coolStart],['Fin refroid.',b.ev.coolEnd]].filter(x=>x[1]);
+    const ing=ingredientRows(d,b).map(x=>`<tr><td>${x.t}${x.extra?' <i>(ajouté)</i>':''}</td><td>${esc(x.n)}${x.typ==='hop'?' · '+esc(x.a)+' % α':''}${x.changed?`<span class="pv">prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)}${x.typ==='hop'?' · '+esc(x.pa)+' % α':''}</span>`:''}</td><td class="num">${esc(x.qty)} ${esc(String(x.u).replace(' (cold steep)',''))}</td><td>${esc((b.lots||{})[x.k]||'—')}</td></tr>`).join('');
+    const mash=(r.process.mash||[]).map((p,i)=>`<tr><td>${esc(p.n)}</td><td class="num">${p.t} °C · ${p.min} min</td><td class="num">${val((b.mash[i]||{}).tReel,'°C')}</td><td class="num">${hhmm((b.mash[i]||{}).ts)||'—'}</td></tr>`).join('');
+    const mrow=(k1,v1,p1,k2,v2,p2)=>`<tr><td class="k">${k1}</td><td class="num">${v1}${p1?`<span class="pv">${p1}</span>`:''}</td><td class="k">${k2}</td><td class="num">${v2}${p2?`<span class="pv">${p2}</span>`:''}</td></tr>`;
+    return `<div class="ps-brassin">
+      <div class="ps-bh"><h2>Brassin ${bCode(d,bi)}</h2><span>${fmtD(b.date||d.date)}</span></div>
+      ${ev.length?`<div class="ps-sec"><div class="ps-params">${ev.map(x=>`<span><b>${hhmm(x[1])}</b>${x[0]}</span>`).join('')}</div></div>`:''}
+      <div class="ps-sec"><h3>Matières premières</h3><table class="ps-table"><colgroup><col style="width:14%"><col style="width:44%"><col style="width:16%"><col style="width:26%"></colgroup>
+        <thead><tr><th>Type</th><th>Ingrédient</th><th class="num">Quantité</th><th>N° de lot</th></tr></thead><tbody>${ing}</tbody></table></div>
+
+      <div class="ps-sec"><h3>Mesures</h3><table class="ps-table"><tbody>
+        ${mrow('Eau d\'empâtage',val(m.eau,'L'),'','pH empâtage',val(m.ph),'')}
+        ${mrow('Premier moût',val(m.fw,'°P'),'','Rendement',c.effPre!=null?c.effPre.toFixed(1)+' %':'—',plan(r.eff,1,' %'))}
+        ${mrow('Vol. avant ébullition',val(m.vPre,'L'),'','Densité avant éb.',val(m.pPre,'°P'),'')}
+        ${mrow('Vol. fin d\'ébullition',val(m.vPost,'L'),c.evapL!=null?'évaporation '+Math.round(c.evapL)+' L':'','DI',val(m.pPost,'°P'),plan(T.ogP,1,' °P'))}
+        ${mrow('Vol. fermenteur',val(m.vFerm,'L'),c.lossL!=null?'pertes '+Math.round(c.lossL)+' L':'','T° ensemencement',val(m.tFerm,'°C'),'')}
+        ${mrow('pH moût',val(m.phFerm),'','O₂ aération',val(m.o2,'mg/L'),'')}
+        ${mrow('Couleur',c.ebc!=null?Math.round(c.ebc)+' EBC':'—',plan(c.ebcPlan,0,' EBC'),'Amertume',c.ibu!=null?Math.round(c.ibu)+' IBU':'—',plan(c.ibuPlan,0,' IBU'))}
+        ${mrow('Alcool estimé',c.abv!=null?c.abv.toFixed(1)+' %':'—',plan(c.abvPlan,1,' %'),'','','')}
+      </tbody></table></div>
+      <div class="ps-2col">
+      <div class="ps-sec"><h3>Empâtage</h3><table class="ps-table"><colgroup><col style="width:36%"><col style="width:28%"><col style="width:18%"><col style="width:18%"></colgroup><thead><tr><th>Palier</th><th class="num">Consigne</th><th class="num">T° réelle</th><th class="num">Début</th></tr></thead><tbody>${mash||'<tr><td colspan="4">—</td></tr>'}</tbody></table></div>
+      <div class="ps-sec"><h3>Notes par étape</h3><table class="ps-table"><colgroup><col style="width:30%"><col style="width:24%"><col style="width:46%"></colgroup>
+        <thead><tr><th>Étape</th><th>Note</th><th>Commentaire</th></tr></thead><tbody>
+        ${STEPS.map(([k,l])=>`<tr><td>${l}</td><td>${stars(score(d,b,k))}</td><td>${esc(b.notes[k].c||'')}</td></tr>`).join('')}</tbody></table></div>
+      </div>
+    </div>`;}).join('');
+  document.getElementById('printSheet').innerHTML=head+synth+per+
+    `<div class="ps-foot"><span>Brew Log — imprimé le ${new Date().toLocaleString('fr-FR')}</span><span>${esc(r.name)} · lot ${esc(d.lot)}</span></div>`;
   window.print();
 }
 
