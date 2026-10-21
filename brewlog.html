@@ -776,17 +776,21 @@ function stRound(q,u){u=String(u||'').toLowerCase();return (u==='g'||u==='ml')?M
 let stRows=[],stState=null;
 /* ingrédients réellement utilisés sur tout le lot (quantités × nb de brassins), regroupés comme dans l'app Stock */
 function lotIngredients(d){
-  const out=[];const base=n=>String(n||'').split(' · ')[0];const k=1;
-  d.brassins.forEach(b=>{const A=actualRecipe(d,b);
-  (A.malts||[]).forEach(m=>out.push({type:'malt',cat:'malt',n:base(m.n),q:(+m.kg||0)*k,u:'kg'}));
-  (A.hops||[]).forEach(h=>out.push({type:'houblon',cat:'houblon',n:h.n,q:(+h.g||0)*k,u:'g'}));
-  if(A.yeast&&A.yeast.n)out.push({type:'levure',cat:'levure',n:A.yeast.n,q:(+A.yeast.g||0)*k,u:'g'});
-  (A.soft||[]).forEach(x=>{if(x.c==='eau'||stNorm(x.n)==='eau')return;out.push({type:'soft',cat:'conso',n:x.n,q:(+x.qty||0)*k,u:x.u||'kg'});});
-  const TY={hop:['houblon','houblon'],yeast:['levure','levure'],other:['soft','conso']};
-  (b.extra||[]).forEach(x=>{if(x.typ==='malt'||!x.n||num(x.qty)==null)return;const t=TY[x.typ]||TY.other;out.push({type:t[0],cat:t[1],n:x.n,q:num(x.qty)*k,u:x.u||'g'});});
+  // tous les ingrédients de tous les brassins ; un même article (ex. houblon en ébullition + dry hop) est regroupé sur une ligne
+  const out=[];const base=n=>String(n||'').split(' · ')[0];const q=v=>{const x=num(v);return x==null?0:x;};
+  const when=h=>{const u=hopUse(h);return u==='boil'?(h.time||0)+' min':u==='wp'?'whirlpool':'dry hop';};
+  d.brassins.forEach((b,bi)=>{const A=actualRecipe(d,b),code=bCode(d,bi);
+    (A.malts||[]).forEach(m=>out.push({type:'malt',cat:'malt',n:base(m.n),q:q(m.kg),u:'kg',sub:''}));
+    (A.hops||[]).forEach(h=>out.push({type:'houblon',cat:'houblon',n:h.n,q:q(h.g),u:'g',sub:when(h)}));
+    if(A.yeast&&A.yeast.n)out.push({type:'levure',cat:'levure',n:A.yeast.n,q:q(A.yeast.g),u:'g',sub:''});
+    (A.soft||[]).forEach(x=>{if(x.c==='eau'||stNorm(x.n)==='eau')return;out.push({type:'soft',cat:'conso',n:x.n,q:q(x.qty),u:x.u||'kg',sub:''});});
+    const TY={hop:['houblon','houblon'],yeast:['levure','levure'],other:['soft','conso']};
+    (b.extra||[]).forEach(x=>{if(x.typ==='malt'||!String(x.n||'').trim())return;const t=TY[x.typ]||TY.other;out.push({type:t[0],cat:t[1],n:x.n,q:q(x.qty),u:x.u||'g',sub:'ajouté '+code});});
   });
-  const g={};out.forEach(i=>{const key=i.type+'|'+stNorm(i.n);if(g[key])g[key].q+=stConv(i.q,i.u,g[key].u);else g[key]={...i,key};});
-  return Object.values(g).filter(i=>i.q>0);
+  const g={};out.forEach(i=>{const key=i.type+'|'+stNorm(i.n);
+    if(g[key]){g[key].q+=stConv(i.q,i.u,g[key].u);if(i.sub&&!g[key].subs.includes(i.sub))g[key].subs.push(i.sub);}
+    else g[key]={...i,key,subs:i.sub?[i.sub]:[]};});
+  return Object.values(g).map(i=>({...i,sub:i.subs.join(' + ')}));
 }
 function stGuess(ing){
   const saved=(stState.recipeMap||{})[ing.key];
@@ -805,7 +809,7 @@ function openStock(){
   const prevQ={};if(prev)prev.lines.forEach(l=>prevQ[l.id]=(prevQ[l.id]||0)+(parseFloat(l.qty)||0));
   stRows=lotIngredients(d).map(i=>({...i,sel:stGuess(i),ov:null}));
   stRows.prevQ=prevQ;stRows.prev=prev;
-  document.getElementById('stHint').textContent=`Lot ${d.lot} · ${d.recipe.name} · ${d.brassins.length} brassin${d.brassins.length>1?'s':''} — quantités réelles de la fiche.`+(prev?' Une sortie existe déjà : elle sera corrigée, pas doublée.':'');
+  document.getElementById('stHint').textContent=`Lot ${d.lot} · ${d.recipe.name} · ${d.brassins.length} brassin${d.brassins.length>1?'s':''} — total des quantités réelles. Un même ingrédient utilisé plusieurs fois (ex. houblon en ébullition et en dry hop) tient sur une ligne ; l'eau n'est pas déduite.`+(prev?' Une sortie existe déjà : elle sera corrigée, pas doublée.':'');
   document.getElementById('stGo').textContent=prev?'Mettre à jour la sortie':'Déduire';
   stRender();document.getElementById('stockOv').classList.add('show');
 }
@@ -826,7 +830,7 @@ function stRender(){
   let miss=0,over=0,n=0;
   document.getElementById('stBody').innerHTML=stRows.length?`<table class="st"><thead><tr><th>Ingrédient</th><th>Article du stock</th><th class="hm" style="text-align:right">En stock</th><th style="text-align:right">À déduire</th></tr></thead><tbody>
     ${stRows.map((r,i)=>{const c=stCalc(r);if(!r.sel)miss++;else if(r.sel!=='__skip'&&c.q>0)n++;if(c.over)over++;
-      return `<tr class="${c.over?'over':''}"><td><b>${esc(r.n)}</b><small>${stRound(r.q,r.u)} ${esc(r.u)}</small></td>
+      return `<tr class="${c.over?'over':''}"${r.q>0?'':' style="opacity:.55"'}><td><b>${esc(r.n)}</b><small>${stRound(r.q,r.u)} ${esc(r.u)}${r.sub?' · '+esc(r.sub):''}${r.q>0?'':' · quantité nulle'}</small></td>
       <td><select class="in${r.sel?'':' unmapped'}" onchange="stRows[${i}].sel=this.value;stRows[${i}].ov=null;stRender()">${stOptions(r)}</select></td>
       <td class="n hm">${c.stock!=null?stRound(c.stock,c.unit)+' '+esc(c.unit):'—'}</td>
       <td class="n">${r.sel==='__skip'?'—':`<input class="in" type="number" min="0" step="any" inputmode="decimal" value="${c.q}" oninput="stRows[${i}].ov=Math.max(0,parseFloat(this.value)||0);stSum()"> ${esc(c.unit)}`}</td></tr>`;}).join('')}</tbody></table>`
