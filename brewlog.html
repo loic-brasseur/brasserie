@@ -170,6 +170,17 @@
     .ps-stat .s{font-family:var(--sans);font-size:8.5px;color:#8a7a64;margin-top:4px}
     .ps-swatch{display:inline-block;width:22px;height:11px;border-radius:3px;vertical-align:middle;margin-left:5px;border:1px solid rgba(0,0,0,.18)}
     .ps-note{font-family:var(--sans);font-size:9.5px;color:#8a7a64;margin:0 0 18px;line-height:1.5}
+    .ps-p1 .ps-head{margin-bottom:14px;padding-bottom:9px}
+    .ps-p1 .ps-head h1{font-size:25px}
+    .ps-p1 .ps-stat{padding:8px 5px 7px}.ps-p1 .ps-stat .v{font-size:16px;margin-top:3px}
+    .ps-p1 .ps-note{margin:0 0 11px}
+    .ps-p1 .ps-sec{margin-bottom:10px}
+    .ps-p1 .ps-sec h3{font-size:10px;margin-bottom:4px;padding-bottom:3px}
+    .ps-p1 .ps-table{font-size:9.5px}
+    .ps-p1 .ps-table th{padding:3px 7px;font-size:7.5px}
+    .ps-p1 .ps-table td{padding:2.5px 7px}
+    .ps-p1 .ps-table td.k{font-size:8px}
+    .ps-p1 .ps-table .pv{display:inline;margin-left:4px}
     .ps-brassin{break-before:page}
     
     .ps-bh{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 12px;padding-bottom:6px;border-bottom:1.5px solid #1c140d}
@@ -880,6 +891,13 @@ function printSheet(){
     ${srow('Date',x=>fmtD(x.b.date||d.date))}
     ${srow('Vol. fermenteur',x=>val(x.b.m.vFerm,'L'),r.vol?r.vol+' L':'')}
     ${srow('DI',x=>val(x.b.m.pPost,'°P'),T.ogP!=null?T.ogP+' °P':'')}
+    ${srow('Vol. avant ébullition',x=>val(x.b.m.vPre,'L'))}
+    ${srow('Densité avant éb.',x=>val(x.b.m.pPre,'°P'))}
+    ${srow('Vol. fin d\'ébullition',x=>val(x.b.m.vPost,'L'))}
+    ${srow('Pertes trub / whirlpool',x=>x.c.lossL!=null?Math.round(x.c.lossL)+' L':'—')}
+    ${srow('pH empâtage / moût',x=>val(x.b.m.ph)+' / '+val(x.b.m.phFerm))}
+    ${srow('T° ensemencement',x=>val(x.b.m.tFerm,'°C'),(r.process.ferm||[]).find(f=>f.a==='ens')?((r.process.ferm||[]).find(f=>f.a==='ens').t+' °C'):'')}
+    ${srow('Brassage',x=>{const a=x.b.ev.mashIn,z=x.b.ev.coolEnd;if(!a||!z)return a?hhmm(a)+' → —':'—';const mn=Math.round((new Date(z)-new Date(a))/6e4);return hhmm(a)+' → '+hhmm(z)+' ('+Math.floor(mn/60)+' h '+String(mn%60).padStart(2,'0')+')';})}
     ${srow('Rendement',x=>x.c.effPre!=null?x.c.effPre.toFixed(1)+' %':'—',r.eff?r.eff+' %':'')}
     ${srow('Évaporation',x=>x.c.evapL!=null?Math.round(x.c.evapL)+' L':'—')}
     ${srow('Couleur',x=>x.c.ebc!=null?Math.round(x.c.ebc)+' EBC':'—',c0.ebcPlan!=null?Math.round(c0.ebcPlan)+' EBC':'')}
@@ -887,7 +905,7 @@ function printSheet(){
     ${srow('Alcool estimé',x=>x.c.abv!=null?x.c.abv.toFixed(1)+' %':'—',c0.abvPlan!=null?(+c0.abvPlan).toFixed(1)+' %':'')}
     ${srow('Note moyenne',x=>{const a=avgScore(x.b);return a!=null?a.toFixed(1)+' / 5':'—';})}
     </tbody></table></div>
-    ${r.notes?`<div class="ps-sec"><h3>Consignes de la recette</h3><div style="font-family:var(--sans);font-size:10.5px;white-space:pre-wrap;background:#fcf8ef;border:1px solid #e6d8bd;border-left:3px solid #cf982b;border-radius:8px;padding:9px 12px">${esc(r.notes)}</div></div>`:''}`;
+`;
   const per=d.brassins.map((b,bi)=>{const c=C[bi].c,m=b.m;
     const ev=[['Empâtage',b.ev.mashIn],['Filtration',b.ev.lautStart],['Fin filtr.',b.ev.lautEnd],['Ébullition',b.ev.boilStart],['Fin éb.',b.ev.boilEnd],['Whirlpool',b.ev.wp],['Refroid.',b.ev.coolStart],['Fin refroid.',b.ev.coolEnd]].filter(x=>x[1]);
     const ing=ingredientRows(d,b).map(x=>`<tr><td>${x.t}${x.extra?' <i>(ajouté)</i>':''}</td><td>${esc(x.n)}${x.typ==='hop'?' · '+esc(x.a)+' % α':''}${x.changed?`<span class="pv">prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)}${x.typ==='hop'?' · '+esc(x.pa)+' % α':''}</span>`:''}</td><td class="num">${esc(x.qty)} ${esc(String(x.u).replace(' (cold steep)',''))}</td><td>${esc((b.lots||{})[x.k]||'—')}</td></tr>`).join('');
@@ -916,7 +934,35 @@ function printSheet(){
         ${STEPS.map(([k,l])=>`<tr><td>${l}</td><td>${stars(score(d,b,k))}</td><td>${esc(b.notes[k].c||'')}</td></tr>`).join('')}</tbody></table></div>
       </div>
     </div>`;}).join('');
-  document.getElementById('printSheet').innerHTML=head+synth+per+
+    // matières premières du lot : prévu (recette × nb de brassins) vs réel (somme des brassins)
+  const agg=new Map();
+  d.brassins.forEach(b=>ingredientRows(d,b).forEach(x=>{const key=x.extra?'x|'+x.typ+'|'+String(x.n).toLowerCase():x.k;
+    const o=agg.get(key)||{t:x.t,n:x.n,u:String(x.u).replace(' (cold steep)',''),plan:0,real:0,names:new Set(),lots:new Set(),extra:x.extra};
+    if(!x.extra)o.plan+=num(x.pq)||0;o.real+=num(x.qty)||0;o.names.add(x.n);const l=((b.lots||{})[x.k]||'').trim();if(l)o.lots.add(l);agg.set(key,o);}));
+  const fq=(v,u)=>(u==='g'?Math.round(v):Math.round(v*10)/10).toLocaleString('fr-FR')+' '+u;
+  const mp=`<div class="ps-sec"><h3>Matières premières du lot</h3><table class="ps-table"><colgroup><col style="width:12%"><col style="width:30%"><col style="width:15%"><col style="width:15%"><col style="width:10%"><col style="width:18%"></colgroup>
+    <thead><tr><th>Type</th><th>Ingrédient</th><th class="num">Prévu</th><th class="num">Utilisé</th><th class="num">Écart</th><th>N° de lot</th></tr></thead><tbody>
+    ${[...agg.values()].map(o=>{const dv=o.real-o.plan;return `<tr><td>${o.t}</td><td>${[...o.names].map(esc).join(' / ')}${o.extra?' <i>(ajouté)</i>':''}</td><td class="num">${o.extra?'—':fq(o.plan,o.u)}</td><td class="num">${fq(o.real,o.u)}</td>
+      <td class="num" style="${Math.abs(dv)>1e-9&&!o.extra?'color:#a8541b;font-weight:700':''}">${o.extra||Math.abs(dv)<1e-9?'—':(dv>0?'+':'')+fq(dv,o.u)}</td><td>${[...o.lots].map(esc).join(', ')||'—'}</td></tr>`;}).join('')}</tbody></table></div>`;
+  // cuve, cibles et protocole de fermentation
+  const tv=ld(CUVES_KEY,{tanks:[]}).tanks.find(t=>t.batch&&t.batch.lot===d.lot);
+  const ferm=(r.process.ferm||[]).slice().sort((a,b)=>(+a.d||0)-(+b.d||0));
+  const FA={ens:'Ensemencement',dh:'Houblonnage à cru',purge:'Purge de levure',dia:'Repos diacétyle',cold:'Refroidissement',sout:'Soutirage',autre:'Autre'};
+  const cave=`<div class="ps-2col">
+    <div class="ps-sec"><h3>Mise en cuve &amp; cibles</h3><table class="ps-table"><tbody>
+      <tr><td class="k">Cuve</td><td class="num">${d.sent?esc(d.sent.tankName):'non envoyé'}</td></tr>
+      <tr><td class="k">Envoyé le</td><td class="num">${d.sent?fmtD(d.sent.at.slice(0,10)):'—'}</td></tr>
+      <tr><td class="k">Volume en cuve</td><td class="num">${tv?tv.batch.volume+' HL':vTot?(vTot/100).toFixed(1)+' HL':'—'}</td></tr>
+      <tr><td class="k">DF cible</td><td class="num">${T.fg!=null?(+T.fg).toFixed(1)+' ± '+T.fgTol+' °P':'—'}</td></tr>
+      <tr><td class="k">Atténuation cible</td><td class="num">${T.att!=null?Math.round(T.att)+' ± '+T.attTol+' %':'—'}</td></tr>
+      <tr><td class="k">CO₂ / O₂</td><td class="num">${T.co2??'—'} g/L · ≤ ${T.o2??'—'} ppb</td></tr>
+      <tr><td class="k">Stock</td><td class="num">${d.stock?'déduit le '+fmtD(d.stock.at.slice(0,10)):'non déduit'}</td></tr>
+    </tbody></table></div>
+    <div class="ps-sec"><h3>Protocole de fermentation</h3><table class="ps-table"><colgroup><col style="width:14%"><col style="width:22%"><col style="width:44%"><col style="width:20%"></colgroup>
+      <thead><tr><th>Jour</th><th>Date</th><th>Action</th><th class="num">T°</th></tr></thead><tbody>
+      ${ferm.map(f=>`<tr><td>J+${f.d}</td><td>${new Date(addDays(d.date,+f.d||0)+'T00:00:00').toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'})}</td><td>${FA[f.a]||esc(f.a)}${f.note?`<span class="pv" style="color:#8a7a64">${esc(f.note)}</span>`:''}</td><td class="num">${f.t!==''&&f.t!=null?f.t+' °C':''}</td></tr>`).join('')||'<tr><td colspan="4">—</td></tr>'}
+    </tbody></table></div></div>`;
+  document.getElementById('printSheet').innerHTML='<div class="ps-p1">'+head+synth+mp+cave+'</div>'+per+
     `<div class="ps-foot"><span>Brew Log — imprimé le ${new Date().toLocaleString('fr-FR')}</span><span>${esc(r.name)} · lot ${esc(d.lot)}</span></div>`;
   window.print();
 }
