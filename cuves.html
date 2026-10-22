@@ -148,6 +148,13 @@
   table.t td{padding:.38rem .35rem;border-bottom:1px solid var(--line)}
   table.t td.n{font-family:var(--mono);text-align:right}
   table.t th.n{text-align:right}
+  .rcharts{display:flex;flex-direction:column;gap:2px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 8px}
+  .rchart{width:100%;height:auto;display:block}
+  .rc-legend{display:flex;gap:14px;flex-wrap:wrap;font:600 11px var(--sans);padding:2px 2px 4px}
+  .rc-leg{display:inline-flex;align-items:center;gap:6px}.rc-leg i{display:inline-block;width:18px;height:3px;border-radius:2px}
+  .rc-u,.rc-t{font:500 9px var(--mono);fill:#7A6F5C}
+  .rc-v{font:700 10px var(--mono)}
+  .rc-ax{stroke:rgba(26,22,18,.3);stroke-width:1}.rc-g{stroke:rgba(26,22,18,.07);stroke-width:1}
   table.t th.n,table.t td.n{min-width:64px;padding-left:16px}
   table.t td,table.t th{white-space:nowrap}
   table.t td.w,table.t th.w{white-space:normal;width:100%}
@@ -644,6 +651,7 @@ function sheetHTML(t,b,printing){
   <div class="sec"><h3>Protocole de fermentation</h3>${prot.length?`<table class="t"><thead><tr><th>Date</th><th>Jour</th><th>Action</th><th class="n">T°</th><th class="w">Consigne</th><th>Fait</th></tr></thead><tbody>
     ${prot.map(p=>`<tr class="${p.done?'tr-done':p.date<todayStr()?'tr-late':''}"><td>${fmtDate(p.date)}</td><td>J+${p.d}</td><td>${FERM_ACT[p.a]||p.a}</td><td class="n">${p.t!==''&&p.t!=null?p.t+' °C':''}</td><td class="w">${esc(p.note)}</td>
       <td>${printing?(p.done?fmtDate(p.done):''):`<input type="checkbox" class="chk" ${p.done?'checked':''} onchange="markStep('${t.id}','${p.id}',this.checked)"> ${p.done?fmtDate(p.done):''}`}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun protocole. '+(printing?'':'<button class="mini" onclick="relink()">Installer depuis la recette</button>')+'</p>'}</div>
+  ${relChart(b,rs)}
   <div class="sec"><h3>Relevés (${rs.length})</h3>${rs.length?`<table class="t"><thead><tr><th>Date</th><th class="n">J+</th><th class="n">°P</th><th class="n">T° (°C)</th><th class="n">pH</th><th class="w">Note</th></tr></thead><tbody>
     ${rs.map(r=>`<tr><td>${fmtDate(r.date)}</td><td class="n">${b.start?daysBetween(b.start,r.date):''}</td><td class="n">${r.plato!=null?(+r.plato).toFixed(1):'—'}</td><td class="n">${r.temp!=null?(+r.temp).toFixed(1):'—'}</td><td class="n">${r.ph!=null?(+r.ph).toFixed(2):'—'}</td><td class="w">${esc(r.note||'')}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun relevé.</p>'}</div>
   <div class="sec"><h3>Note fermentation</h3>
@@ -651,6 +659,38 @@ function sheetHTML(t,b,printing){
       <span class="meta">${b.note&&b.note.s!=null?'manuelle':fs!=null?'auto (DF vs cible)':''}</span>
       <textarea class="input" style="font-family:var(--sans);min-height:54px;flex:1;min-width:220px" placeholder="Déroulé de la fermentation, écarts…" oninput="setFermNote(null,this.value)">${esc((b.note&&b.note.c)||'')}</textarea></div>`}
   </div>`;
+}
+/* Courbe des relevés : densité, température et pH sur le même graphique (une couleur et une échelle par mesure).
+   Axe gauche = °P, axe droit = °C, pH : valeurs inscrites sur la courbe. */
+function relChart(b,rs){
+  const S=[{k:'plato',l:'Densité',u:'°P',c:'#A8541B',dg:1,min:1},{k:'temp',l:'Température',u:'°C',c:'#C9A227',dg:1,min:2},{k:'ph',l:'pH',u:'',c:'#4F6B2F',dg:2,min:0.3}];
+  const day=r=>b.start?daysBetween(b.start,r.date):0;
+  const all=rs.filter(r=>S.some(x=>r[x.k]!=null));if(!all.length)return '';
+  const xs=all.map(day),x0=Math.min(0,...xs),x1=Math.max(x0+1,...xs);
+  const W=640,H=230,L=40,R=40,T=14,B=22;const X=v=>L+(v-x0)/(x1-x0)*(W-L-R);
+  const step=x1-x0<=10?1:x1-x0<=21?2:x1-x0<=45?5:7;const ticks=[];for(let v=Math.ceil(x0/step)*step;v<=x1;v+=step)ticks.push(v);
+  const fg=b.targets&&b.targets.fg!=null?+b.targets.fg:null;
+  const ser=S.map(sr=>{const pts=rs.filter(r=>r[sr.k]!=null).map(r=>({x:day(r),y:+r[sr.k]})).sort((a,c)=>a.x-c.x);if(!pts.length)return null;
+    let lo=Math.min(...pts.map(p=>p.y)),hi=Math.max(...pts.map(p=>p.y));if(sr.k==='plato'&&fg!=null){lo=Math.min(lo,fg);hi=Math.max(hi,fg);}
+    if(hi-lo<sr.min){const m=(hi+lo)/2;lo=m-sr.min/2;hi=m+sr.min/2;}const pad=(hi-lo)*0.1;lo-=pad;hi+=pad;
+    return {...sr,pts,lo,hi,Y:v=>T+(1-(v-lo)/(hi-lo))*(H-T-B)};}).filter(Boolean);
+  const axis=(sr,side)=>{if(!sr)return '';const n=4;let h='';for(let i=0;i<=n;i++){const v=sr.lo+(sr.hi-sr.lo)*i/n;const y=sr.Y(v);
+      h+=`<text x="${side==='l'?L-5:W-R+5}" y="${y+3}" class="rc-t" text-anchor="${side==='l'?'end':'start'}" fill="${sr.c}">${v.toFixed(sr.k==='temp'?0:1)}</text>`;}
+    return h+`<text x="${side==='l'?L-5:W-R+5}" y="${T-3}" class="rc-u" text-anchor="${side==='l'?'end':'start'}" fill="${sr.c}">${sr.u}</text>`;};
+  const sP=ser.find(x=>x.k==='plato'),sT=ser.find(x=>x.k==='temp');
+  const grid=[0,1,2,3,4].map(i=>{const y=T+i/4*(H-T-B);return `<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" class="rc-g"/>`;}).join('');
+  const lines=ser.map(sr=>{const d=sr.pts.map((p,i)=>(i?'L':'M')+X(p.x).toFixed(1)+' '+sr.Y(p.y).toFixed(1)).join(' ');
+    return `<path d="${d}" fill="none" stroke="${sr.c}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"${sr.k==='ph'?' stroke-dasharray="6 3"':''}/>`+
+      sr.pts.map((p,i)=>`<circle cx="${X(p.x).toFixed(1)}" cy="${sr.Y(p.y).toFixed(1)}" r="3.2" fill="#fff" stroke="${sr.c}" stroke-width="1.8"><title>J${p.x} · ${sr.l} ${p.y.toFixed(sr.dg)} ${sr.u}</title></circle>`+
+        (sr.k==='ph'?`<text x="${X(p.x).toFixed(1)}" y="${(sr.Y(p.y)-7).toFixed(1)}" class="rc-v" text-anchor="middle" fill="${sr.c}">${p.y.toFixed(2)}</text>`:'')).join('');}).join('');
+  const fgl=sP&&fg!=null?`<line x1="${L}" x2="${W-R}" y1="${sP.Y(fg)}" y2="${sP.Y(fg)}" stroke="${sP.c}" stroke-dasharray="3 4" stroke-width="1" opacity=".55"/><text x="${L+4}" y="${sP.Y(fg)-4}" class="rc-t" fill="${sP.c}">DF cible ${fg.toFixed(1)} °P</text>`:'';
+  const legend=ser.map(sr=>{const l=sr.pts[sr.pts.length-1];return `<span class="rc-leg"><i style="background:${sr.c}${sr.k==='ph'?';background:repeating-linear-gradient(90deg,'+sr.c+' 0 6px,transparent 6px 9px)':''}"></i>${sr.l} <b style="color:${sr.c}">${l.y.toFixed(sr.dg)}${sr.u?' '+sr.u:''}</b></span>`;}).join('');
+  return `<div class="sec"><h3>Courbe des relevés</h3><div class="rcharts"><div class="rc-legend">${legend}</div>
+    <svg viewBox="0 0 ${W} ${H}" class="rchart" role="img" aria-label="Courbe densité, température et pH">
+      ${grid}<line x1="${L}" x2="${W-R}" y1="${H-B}" y2="${H-B}" class="rc-ax"/>
+      ${ticks.map(v=>`<text x="${X(v)}" y="${H-6}" class="rc-t" text-anchor="middle">J${v}</text>`).join('')}
+      ${axis(sP,'l')}${axis(sT,'r')}${fgl}${lines}
+    </svg></div></div>`;
 }
 function renderSheet(){
   const t=tank(sheetId);if(!t||!t.batch){closeSheet();return;}const b=t.batch;
