@@ -238,7 +238,8 @@
     <h2>Nouveau brassage</h2>
     <div class="mhint">La recette est chargée avec ses consignes (plan d'empâtage, houblons, protocole de fermentation, cibles).</div>
     <div class="form">
-      <label class="f">Recette<select class="in" id="n_recipe"></select></label>
+      <label class="f">Recette<select class="in" id="n_recipe" onchange="fillVersions()"></select></label>
+      <label class="f">Version<select class="in" id="n_ver"></select></label>
       <div class="g g2">
         <label class="f">Date<input class="in" id="n_date" type="date" onchange="lotAuto()"></label>
         <label class="f">N° de lot<input class="in" id="n_lot" inputmode="numeric" oninput="this.dataset.manual='1'"></label>
@@ -370,12 +371,53 @@ function openNew(){
   const rs=recipes();
   if(!rs.length){alert("Aucune recette bière enregistrée.\nEnregistre d'abord une recette dans le Carnet de brassage (recettes.html).");return;}
   document.getElementById('n_recipe').innerHTML=rs.sort((a,b)=>String(a.name).localeCompare(b.name,'fr')).map(r=>`<option value="${r.ts}">${esc(r.name)} — v${r.rev||1}</option>`).join('');
+  fillVersions();
   document.getElementById('n_date').value=today();
   const nl=document.getElementById('n_lot');nl.dataset.manual='';nl.value=nextLot(document.getElementById('n_date').value);
   document.getElementById('n_count').value='1';
   document.getElementById('newOv').classList.add('show');
 }
+/* versions d'une recette (Carnet de brassage) : actuelle + archivées */
+function recipeVersions(r){
+  if(!r)return [];const cur={...r};delete cur.versions;
+  return [cur,...(r.versions||[])].map(v=>({v,rev:v.rev||1,ts:v.ts})).sort((a,b)=>b.rev-a.rev||b.ts-a.ts);
+}
+const verLabel=x=>'v'+x.rev+' — '+new Date(x.ts).toLocaleDateString('fr-FR')+(x.v.calc?' · '+x.v.calc.ogP+' °P · '+x.v.calc.ebc+' EBC · '+Math.round(x.v.calc.ibu)+' IBU':'');
+function fillVersions(){
+  const r=recipes().find(x=>x.ts===+document.getElementById('n_recipe').value);
+  document.getElementById('n_ver').innerHTML=recipeVersions(r).map((x,i)=>`<option value="${i}">${esc(verLabel(x))}${i===0?' (actuelle)':''}</option>`).join('');
+}
 function closeOv(id){document.getElementById(id).classList.remove('show');}
+function verSelect(d){
+  const r0=ld(REC_KEY,[]).find(x=>bNorm(x.name)===bNorm(d.recipe.name));const L=recipeVersions(r0);
+  const cur=d.recipe.rev||1;
+  if(L.length<2&&(!L.length||L[0].rev===cur))return `<span style="font-size:.9rem;color:var(--ink-soft)">v${cur}</span>`;
+  return `<select class="in" style="width:auto;display:inline-block;font-size:.8rem;min-height:30px;padding:.2rem .4rem;vertical-align:middle" title="Version de la recette utilisée pour ce lot" onchange="switchVersion(+this.value)">
+    ${L.map((x,i)=>`<option value="${i}"${x.rev===cur&&(x.ts===d.recipe.ts||!L.some(y=>y.rev===cur&&y.ts===d.recipe.ts))?' selected':''}>${esc(verLabel(x))}</option>`).join('')}
+    ${L.some(x=>x.rev===cur)?'':`<option selected disabled>v${cur} (version d'origine)</option>`}</select>`;
+}
+/* change la version de recette d'un lot ; les saisies (quantités, noms, α, lots) suivent l'ingrédient par son nom */
+function switchVersion(i){
+  const d=day();const r0=ld(REC_KEY,[]).find(x=>bNorm(x.name)===bNorm(d.recipe.name));const x=recipeVersions(r0)[i];if(!x)return;
+  if(!confirm('Passer le lot '+d.lot+' sur la version v'+x.rev+' de '+d.recipe.name+' ?\nTes saisies (quantités, ingrédients changés, n° de lot, mesures) sont conservées.')){renderSheet();return;}
+  const old=d.recipe,nw=JSON.parse(JSON.stringify(x.v));delete nw.versions;
+  if(!nw.calc&&(nw.malts||[]).length)nw.calc=recipeCalc(nw);
+  if(!nw.process)nw.process={mash:[{n:'Empâtage',t:+nw.mash||67,min:60}],boil:60,ferm:[],targets:{}};
+  const keysOf=r=>{const k=[];const nm=v=>String(v||'').trim().toLowerCase();
+    (r.malts||[]).forEach((m,j)=>k.push(['m'+j,'m|'+nm(m.n)]));(r.hops||[]).forEach((h,j)=>k.push(['h'+j,'h|'+nm(h.n)+'|'+hopUse(h)+'|'+(+h.time||0)]));
+    if(r.yeast)k.push(['y','y']);(r.soft||[]).forEach((x,j)=>k.push(['s'+j,'s|'+nm(x.n)]));return k;};
+  const oldK=keysOf(old),newK=keysOf(nw);
+  d.brassins.forEach(b=>{
+    const subs={},lots={};const used=new Set();
+    newK.forEach(([nk,id])=>{let o=oldK.find(([ok,oid])=>oid===id&&!used.has(ok));
+      if(!o&&id.startsWith('h|')){const base=id.split('|').slice(0,2).join('|');o=oldK.find(([ok,oid])=>oid.startsWith(base+'|')&&!used.has(ok));}
+      if(o){used.add(o[0]);if(b.subs&&b.subs[o[0]])subs[nk]=b.subs[o[0]];if(b.lots&&b.lots[o[0]])lots[nk]=b.lots[o[0]];}});
+    Object.keys(b.lots||{}).forEach(k=>{if(k[0]==='x')lots[k]=b.lots[k];});
+    b.subs=subs;b.lots=lots;
+    const mash=(nw.process.mash||[]).map((p,j)=>b.mash[j]||{tReel:'',ts:''});b.mash=mash;
+  });
+  d.recipe=nw;save();renderSheet();renderList();
+}
 function lastDate(d){return d.brassins.map(b=>b.date||d.date).sort().slice(-1)[0];}
 function newBrassin(r,n,date){
   return {n, date, subs:{}, extra:[], lots:{}, ev:{}, mash:(r.process&&r.process.mash||[]).map(m=>({tReel:'',ts:''})), hops:{},
@@ -384,7 +426,8 @@ function newBrassin(r,n,date){
 }
 function createDay(){
   const ts=+document.getElementById('n_recipe').value;
-  const r=recipes().find(x=>x.ts===ts);if(!r)return;
+  const r0=recipes().find(x=>x.ts===ts);if(!r0)return;
+  const r=(recipeVersions(r0)[+document.getElementById('n_ver').value||0]||{}).v||r0;
   const lot=document.getElementById('n_lot').value.trim()||nextLot(document.getElementById('n_date').value);
   if(days.some(d=>d.lot===lot)&&!confirm('Le lot '+lot+' existe déjà. Continuer ?'))return;
   const snap=JSON.parse(JSON.stringify(r));delete snap.versions;if(!snap.calc&&(snap.malts||[]).length)snap.calc=recipeCalc(snap);
@@ -554,7 +597,7 @@ function renderSheet(){
   S.innerHTML=`
   <div class="card"><div class="card-b">
     <div class="head-sheet">
-      <div><div class="ttl">${esc(r.name)} <span style="font-size:.9rem;color:var(--ink-soft)">v${r.rev||1}</span></div>
+      <div><div class="ttl">${esc(r.name)} ${verSelect(d)}</div>
         <div class="meta">Lot <b>${esc(d.lot)}</b> · ${fmtD(d.date)} · ${esc(r.style||'')} · ${(num(r.vol)/100||0).toFixed(1)} HL / brassin · DI cible ${T.ogP!=null?T.ogP+' °P':'—'} · rendement recette ${r.eff||'—'} %</div></div>
       <div class="toolbar">
         <button class="btn-ghost btn-sm" onclick="printSheet()">PDF</button>
