@@ -147,6 +147,10 @@
   table.t th{text-align:left;font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);padding:.3rem .35rem;border-bottom:1px solid var(--line)}
   table.t td{padding:.38rem .35rem;border-bottom:1px solid var(--line)}
   table.t td.n{font-family:var(--mono);text-align:right}
+  table.t th.n{text-align:right}
+  table.t th.n,table.t td.n{min-width:64px;padding-left:16px}
+  table.t td,table.t th{white-space:nowrap}
+  table.t td.w,table.t th.w{white-space:normal;width:100%}
   .chk{width:22px;height:22px;accent-color:var(--green)}
   .tr-done td{color:var(--ink-soft)}
   .tr-late td:first-child{color:var(--red);font-weight:700}
@@ -155,7 +159,7 @@
   .print{display:none}
   @media print{@page{size:A4 portrait;margin:14mm}body{background:#fff!important;padding:0}.wrap,.overlay,#backHome{display:none!important}
     .print{display:block;font-size:10.5px}.print h1{font-family:var(--serif);font-size:20px;margin:0}.print h2{font-family:var(--serif);font-size:13px;border-bottom:1.5px solid #cf982b;margin:12px 0 4px}
-    .print table{width:100%;border-collapse:collapse}.print td,.print th{border-bottom:1px solid #e6d8bd;padding:3px 4px;text-align:left}}
+    .print table{width:100%;border-collapse:collapse}.print td,.print th{border-bottom:1px solid #e6d8bd;padding:3px 6px;text-align:left}.print td.n,.print th.n{text-align:right;font-family:var(--mono);padding-left:14px}.print td.w,.print th.w{width:100%}}
   footer{margin-top:2rem;text-align:center;color:var(--ink-soft);font-size:.74rem}
   .hidden{display:none!important}
   @media(max-width:560px){.summary{gap:.5rem}.stat{flex:1;min-width:0}.grid{grid-template-columns:1fr}}
@@ -443,7 +447,7 @@ function render(){
     <div class="stat"><div class="n">${occ}/${total}</div><div class="l">Cuves occupées</div></div>
     <div class="stat"><div class="n">${total-occ}</div><div class="l">Cuves libres</div></div>
     <div class="stat"><div class="n">${ready}</div><div class="l">À traiter / prêtes</div></div>
-    <div class="stat"><div class="n">${capUse}<small style="font-size:.55em;color:var(--ink-soft)"> / ${capTot} HL</small></div><div class="l">Volume en cuve</div></div>
+    <div class="stat"><div class="n">${Math.round(capUse*100)/100}<small style="font-size:.55em;color:var(--ink-soft)"> / ${capTot} HL</small></div><div class="l">Volume en cuve</div></div>
     <div class="stat"><div class="n">${allDue().length}</div><div class="l">Étapes à faire</div></div>`;
   const due=allDue(),td=document.getElementById('todo');
   td.classList.toggle('hidden',!due.length);
@@ -485,7 +489,7 @@ function render(){
         <div class="figs">
           <div class="fig"><div class="v">${cur!=null?cur.toFixed(1):'—'}<small> °P</small></div><div class="k">Densité</div></div>
           <div class="fig"><div class="v">${lr&&lr.temp!=null?parseFloat(lr.temp).toFixed(0):'—'}<small> °C</small></div><div class="k">Temp.</div></div>
-          <div class="fig"><div class="v">${b.volume||t.cap}<small> HL</small></div><div class="k">Volume</div></div>
+          <div class="fig"><div class="v">${Math.round((b.volume||t.cap)*100)/100}<small> HL</small></div><div class="k">Volume</div></div>
         </div>
         ${og!=null&&cur!=null?`<div><div class="gauge"><span style="width:${prog.toFixed(0)}%"></span></div></div>`:''}
         ${(b.readings&&b.readings.length>=2)?sparkline(b.readings):''}
@@ -632,16 +636,16 @@ function sheetHTML(t,b,printing){
   const rs=[...(b.readings||[])].sort((x,y)=>x.date<y.date?-1:1);
   const fs=fermScore(b);
   return `
-  <div class="sec"><h3>Cibles qualité</h3>${T?`<table class="t"><thead><tr><th></th><th>Cible</th><th>Actuel</th><th>Écart</th></tr></thead><tbody>
+  <div class="sec"><h3>Cibles qualité</h3>${T?`<table class="t"><thead><tr><th class="w"></th><th class="n">Cible</th><th class="n">Actuel</th><th class="n">Écart</th></tr></thead><tbody>
     <tr><td>Densité finale</td><td class="n">${T.fg!=null?(+T.fg).toFixed(1)+' ± '+T.fgTol+' °P':'—'}</td><td class="n">${F.cur!=null?F.cur.toFixed(1)+' °P':'—'}</td><td class="n">${F.cur!=null&&T.fg!=null?(F.cur-T.fg>=0?'+':'')+(F.cur-T.fg).toFixed(1):'—'}</td></tr>
     <tr><td>Atténuation apparente</td><td class="n">${T.att!=null?Math.round(T.att)+' ± '+T.attTol+' %':'—'}</td><td class="n">${F.att!=null?F.att.toFixed(0)+' %':'—'}</td><td class="n">${F.att!=null&&T.att!=null?(F.att-T.att>=0?'+':'')+(F.att-T.att).toFixed(0):'—'}</td></tr>
     <tr><td>Degré d'alcool (estimé)</td><td class="n">${T.abv!=null?(+T.abv).toFixed(1)+' ± '+T.abvTol+' %':'—'}</td><td class="n">${F.abv!=null?F.abv.toFixed(1)+' %':'—'}</td><td class="n">${F.abv!=null&&T.abv!=null?(F.abv-T.abv>=0?'+':'')+(F.abv-T.abv).toFixed(1):'—'}</td></tr>
     </tbody></table>`:'<p class="meta">Pas de cibles : la recette n\'est pas liée. '+(printing?'':'<button class="mini" onclick="relink()">Lier à la recette</button>')+'</p>'}</div>
-  <div class="sec"><h3>Protocole de fermentation</h3>${prot.length?`<table class="t"><thead><tr><th>Date</th><th>Jour</th><th>Action</th><th>T°</th><th>Consigne</th><th>Fait</th></tr></thead><tbody>
-    ${prot.map(p=>`<tr class="${p.done?'tr-done':p.date<todayStr()?'tr-late':''}"><td>${fmtDate(p.date)}</td><td>J+${p.d}</td><td>${FERM_ACT[p.a]||p.a}</td><td class="n">${p.t!==''&&p.t!=null?p.t+' °C':''}</td><td>${esc(p.note)}</td>
+  <div class="sec"><h3>Protocole de fermentation</h3>${prot.length?`<table class="t"><thead><tr><th>Date</th><th>Jour</th><th>Action</th><th class="n">T°</th><th class="w">Consigne</th><th>Fait</th></tr></thead><tbody>
+    ${prot.map(p=>`<tr class="${p.done?'tr-done':p.date<todayStr()?'tr-late':''}"><td>${fmtDate(p.date)}</td><td>J+${p.d}</td><td>${FERM_ACT[p.a]||p.a}</td><td class="n">${p.t!==''&&p.t!=null?p.t+' °C':''}</td><td class="w">${esc(p.note)}</td>
       <td>${printing?(p.done?fmtDate(p.done):''):`<input type="checkbox" class="chk" ${p.done?'checked':''} onchange="markStep('${t.id}','${p.id}',this.checked)"> ${p.done?fmtDate(p.done):''}`}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun protocole. '+(printing?'':'<button class="mini" onclick="relink()">Installer depuis la recette</button>')+'</p>'}</div>
-  <div class="sec"><h3>Relevés (${rs.length})</h3>${rs.length?`<table class="t"><thead><tr><th>Date</th><th>J+</th><th>°P</th><th>T°</th><th>pH</th><th>Note</th></tr></thead><tbody>
-    ${rs.map(r=>`<tr><td>${fmtDate(r.date)}</td><td class="n">${b.start?daysBetween(b.start,r.date):''}</td><td class="n">${r.plato!=null?(+r.plato).toFixed(1):'—'}</td><td class="n">${r.temp!=null?(+r.temp).toFixed(1):'—'}</td><td class="n">${r.ph!=null?(+r.ph).toFixed(2):''}</td><td>${esc(r.note||'')}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun relevé.</p>'}</div>
+  <div class="sec"><h3>Relevés (${rs.length})</h3>${rs.length?`<table class="t"><thead><tr><th>Date</th><th class="n">J+</th><th class="n">°P</th><th class="n">T° (°C)</th><th class="n">pH</th><th class="w">Note</th></tr></thead><tbody>
+    ${rs.map(r=>`<tr><td>${fmtDate(r.date)}</td><td class="n">${b.start?daysBetween(b.start,r.date):''}</td><td class="n">${r.plato!=null?(+r.plato).toFixed(1):'—'}</td><td class="n">${r.temp!=null?(+r.temp).toFixed(1):'—'}</td><td class="n">${r.ph!=null?(+r.ph).toFixed(2):'—'}</td><td class="w">${esc(r.note||'')}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun relevé.</p>'}</div>
   <div class="sec"><h3>Note fermentation</h3>
     ${printing?`<p>${fs!=null?fs+'/5':'—'} ${esc((b.note&&b.note.c)||'')}</p>`:`<div style="display:flex;gap:.6rem;align-items:flex-start;flex-wrap:wrap"><div class="stars">${[1,2,3,4,5].map(i=>`<button class="${fs!=null&&i<=fs?'on':''}" onclick="setFermNote(${i})">★</button>`).join('')}</div>
       <span class="meta">${b.note&&b.note.s!=null?'manuelle':fs!=null?'auto (DF vs cible)':''}</span>
@@ -651,7 +655,7 @@ function sheetHTML(t,b,printing){
 function renderSheet(){
   const t=tank(sheetId);if(!t||!t.batch){closeSheet();return;}const b=t.batch;
   document.getElementById('shTitle').textContent=t.name+' — '+(b.recipe||'Brassin');
-  document.getElementById('shHint').textContent=[b.style,b.lot?'lot '+b.lot:'',(b.volume||t.cap)+' HL','mise en cuve '+fmtDate(b.start),b.og!=null?'DI '+b.og+' °P':'',b.recipeRev?'recette v'+b.recipeRev:''].filter(Boolean).join(' · ');
+  document.getElementById('shHint').textContent=[b.style,b.lot?'lot '+b.lot:'',Math.round((b.volume||t.cap)*100)/100+' HL','mise en cuve '+fmtDate(b.start),b.og!=null?'DI '+b.og+' °P':'',b.recipeRev?'recette v'+b.recipeRev:''].filter(Boolean).join(' · ');
   document.getElementById('shBody').innerHTML=sheetHTML(t,b,false);
 }
 function setFermNote(s,c){
@@ -697,7 +701,7 @@ document.getElementById('outSave').onclick=()=>{
 const ho=document.getElementById('histOverlay');
 document.getElementById('btnHist').onclick=()=>{
   const A=[...state.archive].sort((a,b)=>a.closed.date<b.closed.date?1:-1);
-  document.getElementById('histBody').innerHTML=A.length?`<table class="t"><thead><tr><th>Lot</th><th>Bière</th><th>Cuve</th><th>Mise en cuve</th><th>Soutirage</th><th>DI</th><th>DF</th><th>Att.</th><th>Vol. in → out</th><th>Note</th></tr></thead><tbody>
+  document.getElementById('histBody').innerHTML=A.length?`<table class="t"><thead><tr><th>Lot</th><th>Bière</th><th>Cuve</th><th>Mise en cuve</th><th>Soutirage</th><th class="n">DI</th><th class="n">DF</th><th class="n">Att.</th><th class="n">Vol. in → out</th><th class="n">Note</th></tr></thead><tbody>
     ${A.map(a=>{const og=a.og!=null?+a.og:null,fg=a.closed.fg;const att=og&&fg!=null?((og-fg)/og*100).toFixed(0)+' %':'—';
       return `<tr><td>${esc(a.lot||'')}</td><td>${esc(a.recipe)}</td><td>${esc(a.tankName)}</td><td>${fmtDate(a.start)}</td><td>${fmtDate(a.closed.date)}</td><td class="n">${og!=null?og.toFixed(1):'—'}</td><td class="n">${fg!=null?fg.toFixed(1):'—'}</td><td class="n">${att}</td><td class="n">${a.volume||'—'} → ${a.closed.volHL??'—'} HL</td><td class="n">${a.fermScore!=null?a.fermScore+'/5':'—'}</td></tr>`;}).join('')}</tbody></table>`:'<p class="meta">Aucun lot clôturé pour l\'instant. Utilise « Soutirer » sur une cuve pour archiver un lot.</p>';
   ho.classList.add('show');
