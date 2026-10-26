@@ -51,6 +51,8 @@
   .btn-copper:hover{box-shadow:0 6px 18px rgba(168,84,27,.32)}
 
   .summary{display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
+  .lowbar{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;background:rgba(168,57,43,.07);border:1px solid rgba(168,57,43,.3);border-radius:12px;padding:.65rem .9rem;margin-bottom:1rem;font-size:.88rem}
+  .lowbar span{flex:1;min-width:200px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:.7rem .95rem;box-shadow:var(--shadow);min-width:110px}
   .stat.alert{border-color:rgba(168,57,43,.4);background:linear-gradient(180deg,rgba(168,57,43,.06),var(--card))}
   .stat .n{font-family:var(--serif);font-size:1.55rem;line-height:1;font-weight:500}
@@ -257,6 +259,7 @@
   </header>
 
   <div class="summary" id="summary"></div>
+  <div class="lowbar hidden" id="lowbar"></div>
 
   <div class="controls">
     <div class="search"><input class="input" id="search" placeholder="Rechercher un article…"></div>
@@ -374,7 +377,7 @@
       <input class="input qtyin" id="ord_qty" type="number" step="any" inputmode="decimal" placeholder="Qté">
       <button class="btn-copper addbtn" id="ord_add">+ Ajouter</button>
     </div>
-    <div class="fromrec"><button class="btn-ghost" id="ord_fromrec">+ Depuis une recette</button></div>
+    <div class="fromrec"><button class="btn-ghost" id="ord_fromrec">+ Depuis mes prochaines recettes</button></div>
     <div class="recv-summary" id="ord_summary"></div>
     <div class="recv-list" id="ord_list"></div>
     <div class="modal-actions">
@@ -390,10 +393,8 @@
   <div class="modal xwide">
     <h2 id="rq_h2">Commande depuis une recette</h2>
     <div class="form" style="padding-bottom:.5rem">
-      <div class="two">
-        <label style="flex:2">Recette<select class="input" id="rq_rec"></select></label>
-        <label>Volume (L)<input class="input" id="rq_vol" type="number" min="1" step="any" inputmode="decimal"></label>
-      </div>
+      <div id="rq_recs"></div>
+      <button class="btn-ghost" id="rq_more" style="align-self:flex-start">+ Ajouter une recette</button>
       <label class="rq-opts" id="rq_netwrap"><input type="checkbox" id="rq_net" checked> Déduire le stock actuel (ne commander que ce qui manque)</label>
     </div>
     <div class="recv-summary" id="rq_sum"></div>
@@ -503,10 +504,25 @@ function save(){localStorage.setItem(STORE,JSON.stringify(state));}
 function cat(id){return CATS.find(c=>c.id===id);}
 const num=n=>{const v=Number(n);return Number.isInteger(v)?v.toLocaleString('fr-FR'):v.toLocaleString('fr-FR',{maximumFractionDigits:2});};
 const isLow=it=>it.min!=null&&it.min!==''&&Number(it.qty)<=Number(it.min);
+/* article déjà sur une commande en attente : on ne le repropose pas */
+const onOrder=id=>(state.orders||[]).some(o=>o.status==='pending'&&o.lines.some(l=>l.id===id));
+const toOrder=()=>state.items.filter(it=>isLow(it)&&!onOrder(it.id));
+const lowSnap=()=>new Set(state.items.filter(isLow).map(i=>i.id));
+const suggestQty=it=>{const min=Number(it.min)||0,q=Number(it.qty)||0;return Math.ceil(Math.max(min*2-q,1));};
+/* après un mouvement : si des articles viennent d'atteindre leur seuil, proposer de les commander */
+function proposeOrder(before){
+  const fresh=toOrder().filter(it=>!before.has(it.id));if(!fresh.length)return;
+  const txt=fresh.map(it=>`• ${it.name} : ${num(it.qty)} ${it.unit||''} (seuil ${num(it.min)})`).join('\n');
+  if(confirm((fresh.length>1?'Ces articles ont atteint leur seuil d\'alerte':'Cet article a atteint son seuil d\'alerte')+' :\n'+txt+'\n\nLes mettre en commande ?'))openOrder(null,fresh.map(i=>i.id));
+}
 
 function render(){
   const items=state.items;
   const lowN=items.filter(isLow).length;
+  const tod=toOrder(),lb=document.getElementById('lowbar');
+  lb.classList.toggle('hidden',!tod.length);
+  lb.innerHTML=tod.length?`<span><b>${tod.length} article${tod.length>1?'s':''} au seuil d'alerte</b> · ${tod.slice(0,6).map(i=>esc(i.name)).join(', ')}${tod.length>6?'…':''}${(()=>{const k=state.items.filter(i=>isLow(i)&&onOrder(i.id)).length;return k?` <small style="color:var(--ink-soft)">(${k} autre${k>1?'s':''} déjà en commande)</small>`:'';})()}</span><button class="btn-copper" id="lowOrder">Mettre en commande</button>`:'';
+  if(tod.length)document.getElementById('lowOrder').onclick=()=>openOrder();
   document.getElementById('summary').innerHTML=`
     <div class="stat"><div class="n">${items.length}</div><div class="l">Articles suivis</div></div>
     <div class="stat ${lowN?'alert':''}"><div class="n">${lowN}</div><div class="l">Sous le seuil</div></div>
@@ -594,7 +610,7 @@ document.getElementById('mSave').onclick=()=>{
   else{created={id:uid(),...data};state.items.push(created);}
   const cb=afterCreate;afterCreate=null;
   save();render();closeModal();
-  if(created&&cb)cb(created);
+  if(created&&cb)cb(created);  // seuils modifiés : pas de fenêtre, le bandeau « au seuil d'alerte » s'en charge
 };
 document.getElementById('mDelete').onclick=()=>{
   if(confirm('Supprimer cet article ?')){state.items=state.items.filter(i=>i.id!==editId);save();render();closeModal();}
@@ -610,8 +626,10 @@ document.getElementById('list').addEventListener('click',e=>{
   // smart step: 1 for small stocks, else 10
   const base=Math.abs(Number(it.qty))>=200?10:1;
   if(act==='plus')it.qty=Number(it.qty)+base;
+  const before=lowSnap();
   if(act==='minus')it.qty=Math.max(0,Number(it.qty)-base);
   save();render();
+  if(act==='minus')proposeOrder(before);
 });
 
 // ---- chips & search ----
@@ -757,6 +775,7 @@ function closeUse(){uov.classList.remove('show');}
 $('use_cancel').onclick=closeUse;
 uov.addEventListener('click',e=>{if(e.target===uov)closeUse();});
 $('use_save').onclick=()=>{
+  const before=lowSnap();
   const newLines=ENTRY.use.lines.map(l=>({id:l.id,qty:parseFloat(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
   if(useEditId){
     const idx=(state.moves||[]).findIndex(x=>x.id===useEditId);
@@ -768,21 +787,34 @@ $('use_save').onclick=()=>{
     if(newLines.length){state.moves=state.moves||[];state.moves.push({id:genId('m'),type:'usage',date:$('use_date').value||today(),party:$('use_reason').value.trim(),lines:newLines,createdAt:Date.now()});}
   }
   save();render();closeUse();
+  setTimeout(()=>proposeOrder(before),50);
 };
 $('btnUse').onclick=()=>openUse();
 
 /* ---- Bon de commande (+ édition depuis l'historique) ---- */
 let ordEditId=null;
-function openOrder(edit){
+/* lignes ajoutées automatiquement selon le fournisseur (ex. Brewpark : 5 × X5S) */
+function autoRules(){if(!Array.isArray(state.autoLines))state.autoLines=[{supplier:'Brewpark',name:'X5S',qty:5,unit:'u'}];return state.autoLines;}
+function applyAutoLines(){
+  const sup=rqNorm($('ord_supplier').value);const L=ENTRY.ord.lines;let ch=false;
+  for(let i=L.length-1;i>=0;i--){const l=L[i];if(l.auto&&!autoRules().some(r=>r.name===l.auto&&sup&&sup.includes(rqNorm(r.supplier)))){L.splice(i,1);ch=true;}}
+  autoRules().forEach(r=>{if(!sup||!sup.includes(rqNorm(r.supplier)))return;
+    let it=state.items.find(x=>rqNorm(x.name)===rqNorm(r.name));
+    if(!it){it={id:uid(),cat:'conso',name:r.name,unit:r.unit||'u',qty:0,min:'',note:'ajouté automatiquement aux commandes '+r.supplier};state.items.push(it);save();}
+    const ex=L.find(l=>l.id===it.id);
+    if(!ex){L.push({id:it.id,qty:String(r.qty),auto:r.name});ch=true;}});
+  return ch;
+}
+function openOrder(edit,ids){
   ENTRY.ord.lines=[];ENTRY.ord.need={};pickSel.ord=null;ordEditId=edit?edit.id:null;
   if(edit){ENTRY.ord.lines=edit.lines.filter(l=>itById(l.id)).map(l=>({id:l.id,qty:String(l.qty)}));}
-  else{state.items.forEach(it=>{if(isLow(it)){const min=Number(it.min)||0,q=Number(it.qty)||0;ENTRY.ord.lines.push({id:it.id,qty:String(Math.ceil(Math.max(min*2-q,1)))});}});}
+  else{(ids?ids.map(itById).filter(Boolean):toOrder()).forEach(it=>ENTRY.ord.lines.push({id:it.id,qty:String(suggestQty(it)),seuil:true}));}
   $('ord_h2').textContent=edit?'Modifier la commande':'Bon de commande';
   $('ord_done').textContent=edit?'Enregistrer les modifications':'Enregistrer';
   $('ord_date').value=(edit&&edit.date)||today();
   $('ord_supplier').value=(edit&&edit.supplier)||'';
   $('ord_pick').value='';$('ord_qty').value='';$('ord_results').classList.remove('show');
-  renderBasket('ord');cov.classList.add('show');setTimeout(()=>$('ord_pick').focus(),60);
+  applyAutoLines();renderBasket('ord');cov.classList.add('show');setTimeout(()=>$('ord_pick').focus(),60);
 }
 function closeOrder(){cov.classList.remove('show');}
 $('ord_cancel').onclick=closeOrder;
@@ -793,6 +825,7 @@ $('ord_print').onclick=()=>{
   printOrder(o);
 };
 $('ord_done').onclick=()=>{
+  applyAutoLines();
   const lines=ENTRY.ord.lines.map(l=>({id:l.id,qty:parseFloat(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
   if(!lines.length){alert('Aucune ligne à enregistrer.');return;}
   if(ordEditId){const o=(state.orders||[]).find(x=>x.id===ordEditId);if(o){o.lines=lines;o.date=$('ord_date').value||today();o.supplier=$('ord_supplier').value.trim();}}
@@ -802,6 +835,7 @@ $('ord_done').onclick=()=>{
   alert(wasEdit?'Commande modifiée.':'Commande enregistrée — tu pourras la réceptionner depuis « Réception ».');
 };
 $('btnOrder').onclick=()=>openOrder();
+$('ord_supplier').addEventListener('input',()=>{if(applyAutoLines())renderBasket('ord');});
 
 /* ============== Commande depuis une recette (lit brasserie_recettes_v1) ============== */
 const RECKEY='brasserie_recettes_v1',rqov=$('rqov');
@@ -869,28 +903,42 @@ function rqRender(){
       <td class="n ord">${r.sel==='__skip'?'—':`<input class="rq-q" type="number" min="0" step="any" inputmode="decimal" data-q="${i}" value="${c.ord}"> ${esc(c.unit)}`}</td></tr>`;}).join('')}</tbody></table>`;
   sum.innerHTML=(miss?`<span style="color:var(--red)">${miss} ingrédient(s) à associer à un article</span> · `:'')+(over?`<span style="color:var(--red)">${over} au-delà du stock</span> · `:'')+`<b>${n}</b> ligne(s) ${rqMode==='ord'?'à ajouter au bon':'à déduire du stock'}`;
 }
+/* plusieurs recettes à la fois : besoins additionnés (recette × volume × nb de brassins) */
+let rqSel=[];
+function rqRecsRender(){
+  const recs=rqRecipes();
+  $('rq_recs').innerHTML=rqSel.map((x,k)=>`<div class="two rq-rec" style="align-items:flex-end;margin-bottom:.5rem">
+    <label style="flex:2">Recette ${rqSel.length>1?k+1:''}<select class="input" data-rk="${k}" data-f="i">${recs.map((r,i)=>`<option value="${i}"${i===x.i?' selected':''}>${esc(r.name)}${r.vol?' — '+num(r.vol)+' L':''}</option>`).join('')}</select></label>
+    <label>Volume / brassin (L)<input class="input" data-rk="${k}" data-f="vol" type="number" min="1" step="any" inputmode="decimal" value="${x.vol}"></label>
+    <label style="max-width:110px">Brassins<input class="input" data-rk="${k}" data-f="n" type="number" min="1" step="1" inputmode="numeric" value="${x.n}"></label>
+    ${rqSel.length>1?`<button class="btn-ghost" data-rdel="${k}" title="Retirer" style="padding:.55rem .7rem">×</button>`:''}</div>`).join('');
+}
 function rqLoad(){
-  const recs=rqRecipes(),r=recs[parseInt($('rq_rec').value,10)];
-  if(!r){rqRows=[];rqRender();return;}
-  const vol=parseFloat($('rq_vol').value)||parseFloat(r.vol)||0;
-  const prevSel={};rqRows.forEach(x=>prevSel[x.key]=x.sel);
-  rqRows=rqIngredients(r,vol).map(i=>({...i,sel:prevSel[i.key]!=null?prevSel[i.key]:rqGuess(i)}));
+  const recs=rqRecipes();
+  const prevSel={};rqRows.forEach(x=>{prevSel[x.key]=x.sel;});
+  const g={};
+  rqSel.forEach(x=>{const r=recs[x.i];if(!r)return;const vol=(parseFloat(x.vol)||parseFloat(r.vol)||0)*(parseInt(x.n,10)||1);
+    rqIngredients(r,vol).forEach(i=>{if(g[i.key]){g[i.key].q+=rqConv(i.q,i.u,g[i.key].u);if(!g[i.key].from.includes(r.name))g[i.key].from.push(r.name);}
+      else g[i.key]={...i,from:[r.name]};});});
+  rqRows=Object.values(g).map(i=>({...i,sub:rqSel.length>1?(i.sub?i.sub+' · ':'')+i.from.join(' + '):i.sub,sel:prevSel[i.key]!=null?prevSel[i.key]:rqGuess(i)}));
   rqRender();
 }
 function openFromRecipe(mode){
   rqMode=mode||'ord';
-  $('rq_h2').textContent=rqMode==='ord'?'Commande depuis une recette':'Sortie depuis une recette';
+  $('rq_h2').textContent=rqMode==='ord'?'Commande depuis des recettes':'Sortie depuis des recettes';
   $('rq_add').textContent=rqMode==='ord'?'Ajouter au bon':'Ajouter à la sortie';
   $('rq_netwrap').classList.toggle('hidden',rqMode!=='ord');
   const recs=rqRecipes();
   if(!recs.length){alert('Aucune recette enregistrée trouvée.\nEnregistre d’abord tes recettes dans l’app Recettes (même site).');return;}
-  $('rq_rec').innerHTML=recs.map((r,i)=>`<option value="${i}">${esc(r.name)}${r.vol?' — '+num(r.vol)+' L':''}</option>`).join('');
-  $('rq_vol').value=recs[0].vol||'';rqRows=[];rqLoad();rqov.classList.add('show');
+  rqSel=[{i:0,vol:recs[0].vol||'',n:1}];rqRecsRender();
+  rqRows=[];rqLoad();rqov.classList.add('show');
 }
 $('ord_fromrec').onclick=()=>openFromRecipe('ord');
 $('use_fromrec').onclick=()=>openFromRecipe('use');
-$('rq_rec').onchange=()=>{const r=rqRecipes()[parseInt($('rq_rec').value,10)];$('rq_vol').value=r&&r.vol||'';rqRows=[];rqLoad();};
-$('rq_vol').oninput=()=>{rqRows.forEach(r=>r.ov=null);rqLoad();};
+$('rq_recs').addEventListener('change',e=>{const el=e.target.closest('[data-rk]');if(!el||el.dataset.f!=='i')return;const x=rqSel[+el.dataset.rk];x.i=+el.value;const r=rqRecipes()[x.i];x.vol=r&&r.vol||'';rqRecsRender();rqRows.forEach(r=>r.ov=null);rqLoad();});
+$('rq_recs').addEventListener('input',e=>{const el=e.target.closest('[data-rk]');if(!el||el.dataset.f==='i')return;rqSel[+el.dataset.rk][el.dataset.f]=el.value;rqRows.forEach(r=>r.ov=null);rqLoad();});
+$('rq_recs').addEventListener('click',e=>{const b=e.target.closest('[data-rdel]');if(!b)return;rqSel.splice(+b.dataset.rdel,1);rqRecsRender();rqRows.forEach(r=>r.ov=null);rqLoad();});
+$('rq_more').onclick=()=>{const recs=rqRecipes();const used=new Set(rqSel.map(x=>x.i));const i=recs.findIndex((r,j)=>!used.has(j));const k=i<0?0:i;rqSel.push({i:k,vol:recs[k]&&recs[k].vol||'',n:1});rqRecsRender();rqRows.forEach(r=>r.ov=null);rqLoad();};
 $('rq_net').onchange=()=>{rqRows.forEach(r=>r.ov=null);rqRender();};
 $('rq_body').addEventListener('change',e=>{const s=e.target.closest('select[data-i]');if(!s)return;rqRows[+s.dataset.i].sel=s.value;rqRows[+s.dataset.i].ov=null;rqRender();});
 $('rq_body').addEventListener('input',e=>{const q=e.target.closest('input[data-q]');if(!q)return;const v=parseFloat(q.value);rqRows[+q.dataset.q].ov=isNaN(v)?0:Math.max(0,v);});
@@ -913,7 +961,7 @@ $('rq_add').onclick=()=>{
     if(ex)ex.qty=String(rqRound((parseFloat(ex.qty)||0)+c.ord,c.unit));else E.lines.push({id:r.sel,qty:String(c.ord)});
     added++;
   });
-  if(rqMode==='use'&&!$('use_reason').value.trim()){const r=rqRecipes()[parseInt($('rq_rec').value,10)];if(r)$('use_reason').value='Brassin '+r.name+' — '+num(parseFloat($('rq_vol').value)||r.vol)+' L';}
+  if(rqMode==='use'&&!$('use_reason').value.trim()){const recs=rqRecipes();$('use_reason').value='Brassin '+rqSel.map(x=>{const r=recs[x.i];return r?r.name+' — '+num((parseFloat(x.vol)||r.vol)*(parseInt(x.n,10)||1))+' L':'';}).filter(Boolean).join(' + ');}
   save();render();renderBasket(rqMode);rqov.classList.remove('show');
   if(!added)alert(rqMode==='ord'?'Rien à commander : le stock couvre déjà cette recette.':'Aucune ligne ajoutée.');
 };
