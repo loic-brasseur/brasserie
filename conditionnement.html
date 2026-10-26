@@ -138,6 +138,9 @@
 </style>
 <style>
   .mark{background:var(--green)!important}
+  .stockline{display:grid;grid-template-columns:1fr 1fr auto;gap:.6rem;margin-top:.4rem;padding-top:.8rem;border-top:1px dashed var(--line-strong)}
+  @media(max-width:700px){.stockline{grid-template-columns:1fr}}
+  .hint{font-size:.76rem;color:var(--ink-soft);margin-top:.4rem}
   .fmt-row{display:grid;grid-template-columns:1.3fr .8fr .8fr .8fr 30px;gap:.45rem;align-items:center;margin-bottom:.4rem}
   .fmt-row .tot{font-family:var(--mono);font-size:.85rem;text-align:right}
   .fmt-head{display:grid;grid-template-columns:1.3fr .8fr .8fr .8fr 30px;gap:.45rem;font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:700;margin-bottom:.3rem}
@@ -203,7 +206,7 @@ function recipeTargets(r){
 const FORMATS={'33cl':{l:'Bouteille 33 cl',v:.33},'44cl':{l:'Canette 44 cl',v:.44},'75cl':{l:'Bouteille 75 cl',v:.75},'1.5L':{l:'Magnum 1,5 L',v:1.5},
   '10L':{l:'Fût 10 L',v:10},'20L':{l:'Fût 20 L',v:20},'30L':{l:'Fût 30 L',v:30},'autre':{l:'Autre',v:1}};
 let S=ld(KEY,[]);let curId=null;
-S.forEach(x=>{if(!x.code)x.code=sCode(x);});
+S.forEach(x=>{if(!x.code)x.code=sCode(x);if(!x.ref)x.ref=newRef();if(!x.ref.map)x.ref.map={};});
 function save(){sv(KEY,S);}
 function cur(){return S.find(x=>x.id===curId);}
 function closeOv(id){document.getElementById(id).classList.remove('show');}
@@ -215,10 +218,31 @@ function lotSources(){
   const add=(lot,o)=>{if(!lot)return;const k=lot;out.set(k,{...(out.get(k)||{}),...o,lot});};
   ld(BREW_KEY,[]).forEach(d=>add(d.lot,{recipe:d.recipe.name,targets:recipeTargets(d.recipe),brewId:d.id}));
   (cv.archive||[]).forEach(a=>add(a.lot,{recipe:a.recipe,tank:a.tankName,volHL:a.closed&&a.closed.volHL,targets:a.targets||(out.get(a.lot)||{}).targets,fg:a.closed&&a.closed.fg,og:a.og}));
-  (cv.tanks||[]).forEach(t=>{if(t.batch)add(t.batch.lot,{recipe:t.batch.recipe,tank:t.name,volHL:t.batch.volume,targets:t.batch.targets||(out.get(t.batch.lot)||{}).targets,og:t.batch.og,active:true});});
+  const lastR=b=>[...(b.readings||[])].sort((x,y)=>x.date<y.date?-1:1).reverse();
+  (cv.tanks||[]).forEach(t=>{if(t.batch){const rs=lastR(t.batch),rp=rs.find(r=>r.plato!=null),rt=rs.find(r=>r.temp!=null),rph=rs.find(r=>r.ph!=null);
+    add(t.batch.lot,{recipe:t.batch.recipe,tank:t.name,volHL:t.batch.volume,targets:t.batch.targets||(out.get(t.batch.lot)||{}).targets,og:t.batch.og,active:true,
+      fg:rp&&rs.length>1?rp.plato:null,temp:rt?rt.temp:null,ph:rph?rph.ph:null});}});
   out.forEach(v=>{if(!v.targets){const r=recs.find(x=>bNorm(x.name)===bNorm(v.recipe));if(r)v.targets=recipeTargets(r);}});
   return [...out.values()];
 }
+/* ---- valeurs reprises automatiquement des autres apps (seulement dans les champs vides) ---- */
+function platoToSG(p){return 1+p/(258.6-(p/258.2)*227.1);}
+function carboLast(lot){
+  const c=ld('brasserie_carbo_v1',null);if(!c||!Array.isArray(c.hist))return null;
+  const re=new RegExp('(^|[^0-9])'+String(lot).replace(/[^0-9A-Za-z-]/g,'')+'([^0-9]|$)');
+  return c.hist.find(h=>re.test(String(h.lot||'')))||null; // historique : la plus récente en premier
+}
+function autoFill(s,force){
+  const src=lotSources().find(l=>l.lot===s.lot)||{},a=s.a,got=[];s.auto=s.auto||{};
+  const put=(k,v,from)=>{if(v==null||v===''||isNaN(+v))return;if(force||a[k]===''||a[k]==null){a[k]=String(v);s.auto[k]=from;got.push(k);}};
+  if(src.volHL!=null)put('vol',Math.round(src.volHL*100),'cuve');
+  if(src.og!=null&&src.fg!=null)put('abv',((platoToSG(+src.og)-platoToSG(+src.fg))*131.25).toFixed(2),'cuve (DI / DF)');
+  const cb=carboLast(s.lot);
+  if(cb){put('co2',cb.gl,'carbonatation');put('temp',cb.t,'carbonatation');}
+  put('temp',src.temp,'cuve');put('ph',src.ph,'cuve');
+  return got;
+}
+function refillAuto(){const s=cur();const g=autoFill(s,true);save();render();if(!g.length)alert('Aucune valeur disponible dans le Suivi des cuves ou l\'app Carbonatation pour ce lot.');}
 function openNew(){
   const L=lotSources();
   if(!L.length){alert("Aucun lot trouvé. Les lots viennent du Brew Log et du Suivi des cuves.");return;}
@@ -240,6 +264,7 @@ function createSession(){
     dil:{target:src.targets&&src.targets.abv!=null?String(src.targets.abv):'',water:''},
     formats:[{f:'33cl',units:'',rej:''}],w:{f:'33cl',target:'',tol:'5',samples:[]},
     note:{s:null,c:''}};
+  s.ref=newRef();autoFill(s,false);
   s.code=nextCode(lot);S.push(s);save();closeOv('newOv');open_(s.id);
 }
 function open_(id){curId=id;renderList();render();window.scrollTo(0,0);}
@@ -248,6 +273,32 @@ function renderList(){
   if(!S.length){L.innerHTML='<div class="empty" style="padding:1.5rem 1rem">Aucune session.</div>';return;}
   L.innerHTML=[...S].sort((a,b)=>b.date.localeCompare(a.date)).map(s=>{const c=calc(s);
     return `<div class="bd${s.id===curId?' on':''}" onclick="open_('${s.id}')"><b>${esc(sCode(s))} · ${esc(s.recipe)}</b><small>Lot ${esc(s.lot)} · ${fmtD(s.date)} · ${c.outL?Math.round(c.outL)+' L':'—'}</small></div>`;}).join('');
+}
+
+/* ---- refermentation (sucre + levure) ---- */
+const SUGARS={sac:{l:'Saccharose (sucre blanc)',co2:0.514,eth:0.538},dex:{l:'Dextrose (glucose monohydraté)',co2:0.444,eth:0.465},glu:{l:'Glucose anhydre',co2:0.489,eth:0.511}};
+const VPC=1.963; // g/L de CO2 pour 1 volume
+function newRef(){return {on:false,type:'sac',co2t:'',ghl:'5',sugarKg:'',yeastG:'',map:{},move:null};}
+/* CO2 encore dissous dans la bière à la température donnée (volumes), formule usuelle des calculateurs de priming */
+function residualCO2(T){return (3.0378-0.050062*T+0.00026555*T*T)*VPC;}
+function refCalc(s,c){
+  const R=s.ref||newRef(),T=s.targets||{},sg=SUGARS[R.type]||SUGARS.sac;
+  const target=num(R.co2t)??(T.co2!=null?+T.co2:5);
+  const co2m=num(s.a.co2),tt=num(s.a.temp);
+  const resid=co2m!=null?co2m:(tt!=null?residualCO2(tt):null);
+  const residFrom=co2m!=null?'CO₂ mesuré':tt!=null?'estimé à '+tt+' °C':'';
+  const delta=resid!=null?Math.max(0,target-resid):null;
+  const gL=delta!=null?delta/sg.co2:null;
+  const V=c.volAfter;
+  const sugarKgCalc=gL!=null&&V?gL*V/1000:null;
+  const ghl=num(R.ghl)??5,yeastGCalc=V?ghl*V/100:null;
+  const sugarKg=num(R.sugarKg)??sugarKgCalc,yeastG=num(R.yeastG)??yeastGCalc;
+  const gLreal=sugarKg!=null&&V?sugarKg*1000/V:gL;
+  const co2Final=resid!=null&&gLreal!=null?resid+gLreal*sg.co2:null;
+  const dAbv=gLreal!=null?gLreal*sg.eth/7.89:null;
+  const abvFinal=c.abvAfter!=null&&dAbv!=null?c.abvAfter+dAbv:null;
+  const perUnit=s.formats.map(f=>{const v=f.f==='autre'?(num(f.vu)||0):FORMATS[f.f].v;return {f:f.f,l:FORMATS[f.f].l,v,sugar:gLreal!=null?gLreal*v:null,yeast:V&&yeastG!=null?yeastG/V*v:null};});
+  return {on:R.on,sg,target,resid,residFrom,delta,gL,sugarKgCalc,yeastGCalc,sugarKg,yeastG,gLreal,co2Final,dAbv,abvFinal,perUnit,ghl};
 }
 
 /* ---- calculs ---- */
@@ -267,9 +318,11 @@ function calc(s){
   const ws=s.w.samples.map(num).filter(v=>v!=null),wt=num(s.w.target),wtol=num(s.w.tol)||0;
   const wMean=ws.length?ws.reduce((x,y)=>x+y,0)/ws.length:null;
   const wOut=ws.filter(v=>wt!=null&&Math.abs(v-wt)>wtol).length;
-  const chk={co2:co2!=null&&T.co2!=null?(Math.abs(co2-T.co2)<=T.co2Tol?'ok':Math.abs(co2-T.co2)<=T.co2Tol*2?'warn':'bad'):'',
+  // refermentation : on juge le CO2 final attendu, pas celui de la cuve avant sucrage
+  const rf=s.ref&&s.ref.on?refCalc(s,{volAfter,abvAfter}):null;const co2J=rf&&rf.co2Final!=null?rf.co2Final:(rf?null:co2);const abvJ=rf&&rf.abvFinal!=null?rf.abvFinal:abvAfter;
+  const chk={co2:co2J!=null&&T.co2!=null?(Math.abs(co2J-T.co2)<=T.co2Tol?'ok':Math.abs(co2J-T.co2)<=T.co2Tol*2?'warn':'bad'):'',
     o2:o2!=null&&T.o2!=null?(o2<=T.o2?'ok':o2<=T.o2*1.5?'warn':'bad'):'',
-    abv:abvAfter!=null&&T.abv!=null?(Math.abs(abvAfter-T.abv)<=T.abvTol?'ok':Math.abs(abvAfter-T.abv)<=T.abvTol*2?'warn':'bad'):''};
+    abv:abvJ!=null&&T.abv!=null?(Math.abs(abvJ-T.abv)<=T.abvTol?'ok':Math.abs(abvJ-T.abv)<=T.abvTol*2?'warn':'bad'):''};
   let auto=null;
   if(yieldPct!=null){auto=yieldPct>=97?5:yieldPct>=94?4:yieldPct>=90?3:2;
     const bad=Object.values(chk).filter(v=>v==='bad').length+(ws.length&&wOut/ws.length>.1?1:0);auto=Math.max(1,auto-bad);}
@@ -277,7 +330,7 @@ function calc(s){
 }
 
 /* ---- saisie ---- */
-function setA(k,v){cur().a[k]=v;save();refresh();}
+function setA(k,v){const s=cur();s.a[k]=v;if(s.auto)delete s.auto[k];save();refresh();}
 function setD(k,v){cur().dil[k]=v;save();refresh();}
 function setF(i,k,v){cur().formats[i][k]=v;save();if(k==='f')render();else refresh();}
 function addF(){cur().formats.push({f:'75cl',units:'',rej:''});save();render();}
@@ -287,6 +340,45 @@ function addSample(){const e=document.getElementById('wIn');const v=num(e.value)
 function delSample(i){cur().w.samples.splice(i,1);save();render();}
 function setNote(s,c){const n=cur().note;if(s!=null){n.s=n.s===s?null:s;save();render();}else{n.c=c;save();}}
 function applyWater(){const c=calc(cur());cur().dil.water=c.waterAdvice?c.waterAdvice.toFixed(0):'';save();render();}
+function setR(k,v){const s=cur();s.ref=s.ref||newRef();s.ref[k]=v;save();if(k==='on'||k==='type')render();else refresh();}
+function applyRef(){const s=cur(),c=calc(s),r=refCalc(s,c);s.ref.sugarKg=r.sugarKgCalc!=null?r.sugarKgCalc.toFixed(2):'';s.ref.yeastG=r.yeastGCalc!=null?String(Math.round(r.yeastGCalc)):'';save();render();}
+/* ---- déduction du stock (app Stock : brasserie_stock_v2) ---- */
+const STOCK_KEY='brasserie_stock_v2',PREF_KEY='brasserie_packaging_prefs';
+const sNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+function stockItems(){const st=ld(STOCK_KEY,null);return st&&Array.isArray(st.items)?st.items:[];}
+function guessItem(cat,kind){
+  const pref=ld(PREF_KEY,{})[kind];const it=stockItems();if(pref&&it.some(i=>i.id===pref))return pref;
+  if(kind==='sugar'){const m=it.find(i=>/sucre|saccharose|dextrose|glucose/.test(sNorm(i.name)));return m?m.id:'';}
+  const m=it.filter(i=>i.cat==='levure');return m.length===1?m[0].id:'';
+}
+function stockOptions(cat,sel){
+  const it=stockItems();if(!it.length)return '<option value="">— Stock non initialisé —</option>';
+  const kind=cat==='levure'?'yeast':'sugar';if(!sel)sel=guessItem(cat,kind);
+  const s=cur();if(s&&s.ref&&!s.ref.map[kind]&&sel){s.ref.map[kind]=sel;save();}
+  const L=[...it].sort((a,b)=>(a.cat===cat?0:1)-(b.cat===cat?0:1)||a.name.localeCompare(b.name,'fr'));
+  return `<option value="">— Choisir —</option><option value="__skip"${sel==='__skip'?' selected':''}>Ne pas déduire</option>`+L.map(i=>`<option value="${i.id}"${i.id===sel?' selected':''}>${esc(i.name)} · ${i.qty} ${esc(i.unit||'')}</option>`).join('');
+}
+function setMap(kind,v){const s=cur();s.ref.map[kind]=v;save();const p=ld(PREF_KEY,{});p[kind]=v;sv(PREF_KEY,p);}
+const UNIT={g:1,kg:1000};
+function toUnit(qG,unit){const k=UNIT[String(unit||'').toLowerCase()];return k?qG/k:qG/1000;}
+function deductStock(){
+  const s=cur(),c=calc(s),r=refCalc(s,c);const st=ld(STOCK_KEY,null);
+  if(!st||!Array.isArray(st.items)){alert("Le stock n'est pas encore initialisé : ouvre une fois l'app Stock, puis reviens ici.");return;}
+  const lines=[],miss=[];
+  const add=(kind,qG,label)=>{const id=s.ref.map[kind];if(id==='__skip'||!(qG>0))return;const it=st.items.find(i=>i.id===id);if(!it){miss.push(label);return;}
+    lines.push({id,qty:String(Math.round(toUnit(qG,it.unit)*1000)/1000)});};
+  add('sugar',r.sugarKg!=null?r.sugarKg*1000:null,'sucre');add('yeast',r.yeastG,'levure');
+  if(miss.length&&!confirm('Aucun article de stock choisi pour : '+miss.join(', ')+'. Continuer sans ?'))return;
+  if(!lines.length&&!s.ref.move){alert('Rien à déduire : saisis les quantités de sucre et de levure.');return;}
+  st.moves=st.moves||[];const prev=s.ref.move&&st.moves.find(m=>m.id===s.ref.move.id);
+  const delta={};(prev?prev.lines:[]).forEach(l=>delta[l.id]=(delta[l.id]||0)+(parseFloat(l.qty)||0));lines.forEach(l=>delta[l.id]=(delta[l.id]||0)-(parseFloat(l.qty)||0));
+  Object.keys(delta).forEach(id=>{const it=st.items.find(i=>i.id===id);if(it)it.qty=Math.max(0,(Number(it.qty)||0)+delta[id]);});
+  const party='Conditionnement '+sCode(s)+' — '+s.recipe+' (sucre + levure de refermentation)';
+  if(prev){prev.lines=lines;prev.party=party;prev.date=s.date;}
+  else{const m={id:'m'+Math.random().toString(36).slice(2,9),type:'usage',date:s.date,party,lines,lot:s.lot,packId:s.id,createdAt:Date.now()};st.moves.push(m);s.ref.move={id:m.id};}
+  s.ref.move.at=new Date().toISOString();sv(STOCK_KEY,st);save();render();
+  alert((prev?'Sortie de stock mise à jour':'Stock déduit')+' : '+lines.map(l=>{const it=st.items.find(i=>i.id===l.id);return it.name+' '+l.qty+' '+(it.unit||'');}).join(' · '));
+}
 function delSession(){if(!confirm('Supprimer cette session ?'))return;S=S.filter(x=>x.id!==curId);curId=null;save();renderList();render();}
 
 function inA(k,label,unit,step){return `<label class="f">${label}${unit?' ('+unit+')':''}<input class="in" type="number" step="${step}" inputmode="decimal" value="${esc(cur().a[k])}" oninput="setA('${k}',this.value)"></label>`;}
@@ -302,7 +394,10 @@ function render(){
 
   <div class="card"><div class="card-h"><h2><span class="n">01</span>Analyses de la cuve de garde</h2>
     <span class="sub" style="margin:0">Cibles : CO₂ ${T.co2??'—'} ± ${T.co2Tol??'—'} g/L · O₂ ≤ ${T.o2??'—'} ppb · ${T.abv!=null?(+T.abv).toFixed(1):'—'} ± ${T.abvTol??'—'} % vol</span></div>
-    <div class="card-b"><div class="g g3">${inA('vol','Volume en cuve','L',1)}${inA('co2','CO₂','g/L',0.01)}${inA('o2','O₂ dissous','ppb',1)}${inA('abv','Degré d\'alcool','% vol',0.01)}${inA('temp','Température','°C',0.1)}${inA('ph','pH','',0.01)}</div>
+    <div class="card-b"><div style="display:flex;justify-content:space-between;gap:.5rem;align-items:center;margin-bottom:.6rem;flex-wrap:wrap">
+      <span class="hint" style="margin:0">${s.auto&&Object.keys(s.auto).length?'Repris automatiquement : '+Object.entries(s.auto).map(([k,v])=>({vol:'volume',abv:'alcool',co2:'CO₂',temp:'température',ph:'pH'}[k]||k)+' ('+esc(v)+')').join(', '):'Les champs vides se remplissent depuis le Suivi des cuves et l\'app Carbonatation.'}</span>
+      <button class="btn-ghost btn-sm" onclick="refillAuto()">Reprendre les valeurs</button></div>
+      <div class="g g3">${inA('vol','Volume en cuve','L',1)}${inA('co2','CO₂','g/L',0.01)}${inA('o2','O₂ dissous','ppb',1)}${inA('abv','Degré d\'alcool','% vol',0.01)}${inA('temp','Température','°C',0.1)}${inA('ph','pH','',0.01)}</div>
     <div class="kpis">${kpi('co2','CO₂ vs cible')}${kpi('o2','O₂ vs max')}${kpi('abv','Alcool après dilution')}</div></div></div>
 
   <div class="card"><div class="card-h"><h2><span class="n">02</span>Dilution</h2></div>
@@ -312,7 +407,31 @@ function render(){
       <div class="kpi" style="align-self:end"><div class="v" id="k_wadv">—</div><div class="k">Eau calculée</div><div class="d"><button class="btn-ghost btn-sm" style="margin-top:.3rem" onclick="applyWater()">Appliquer</button></div></div>
     </div></div></div>
 
-  <div class="card"><div class="card-h"><h2><span class="n">03</span>Formats conditionnés</h2><span class="sub" style="margin:0">Bouteilles, canettes et fûts dans la même session</span></div>
+  <div class="card"><div class="card-h"><h2><span class="n">03</span>Refermentation</h2>
+      <label style="display:flex;gap:.45rem;align-items:center;font-size:.85rem;font-weight:600"><input type="checkbox" ${s.ref&&s.ref.on?'checked':''} onchange="setR('on',this.checked)"> Sucre et levure ajoutés</label></div>
+    ${s.ref&&s.ref.on?`<div class="card-b">
+      <div class="g g3">
+        <label class="f">Sucre<select class="in" onchange="setR('type',this.value)">${Object.entries(SUGARS).map(([k,o])=>`<option value="${k}"${s.ref.type===k?' selected':''}>${o.l}</option>`).join('')}</select></label>
+        <label class="f">CO₂ visé (g/L)<input class="in" type="number" step="0.05" value="${esc(s.ref.co2t)}" placeholder="${T.co2??5}" oninput="setR('co2t',this.value)"></label>
+        <label class="f">Dose de levure (g/hL)<input class="in" type="number" step="0.5" value="${esc(s.ref.ghl)}" oninput="setR('ghl',this.value)"></label>
+      </div>
+      <div class="kpis">${kpi('rres','CO₂ déjà dissous')}${kpi('rgl','Sucre à ajouter')}${kpi('rsk','Sucre total')}${kpi('ryg','Levure totale')}</div>
+      <div class="g g3">
+        <label class="f">Sucre réellement ajouté (kg)<input class="in" id="r_sugar" type="number" step="0.01" value="${esc(s.ref.sugarKg)}" oninput="setR('sugarKg',this.value)"></label>
+        <label class="f">Levure réellement ajoutée (g)<input class="in" id="r_yeast" type="number" step="1" value="${esc(s.ref.yeastG)}" oninput="setR('yeastG',this.value)"></label>
+        <div style="align-self:end"><button class="btn-ghost btn-sm" onclick="applyRef()">Reprendre les quantités calculées</button></div>
+      </div>
+      <div class="kpis">${kpi('rco2','CO₂ final attendu')}${kpi('rabv','Alcool final attendu')}${kpi('rpu','Sucre par contenant')}</div>
+      <div class="stockline">
+        <label class="f">Article sucre (stock)<select class="in" onchange="setMap('sugar',this.value)">${stockOptions('conso',s.ref.map.sugar)}</select></label>
+        <label class="f">Article levure (stock)<select class="in" onchange="setMap('yeast',this.value)">${stockOptions('levure',s.ref.map.yeast)}</select></label>
+        <div style="align-self:end;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><button class="btn-copper" onclick="deductStock()">${s.ref.move?'Mettre à jour la sortie de stock':'Déduire du stock'}</button>
+          ${s.ref.move?`<span class="pill cave">déduit le ${fmtD(s.ref.move.at.slice(0,10))}</span>`:''}</div>
+      </div>
+      <div class="hint" id="r_hint"></div>
+    </div>`:''}</div>
+
+  <div class="card"><div class="card-h"><h2><span class="n">04</span>Formats conditionnés</h2><span class="sub" style="margin:0">Bouteilles, canettes et fûts dans la même session</span></div>
     <div class="card-b"><div class="fmt-head"><span>Format</span><span>Unités</span><span>Rebuts</span><span class="u" style="text-align:right">Litres</span><span></span></div>
       ${s.formats.map((f,i)=>`<div class="fmt-row"><select class="in" onchange="setF(${i},'f',this.value)">${Object.entries(FORMATS).map(([k,o])=>`<option value="${k}"${f.f===k?' selected':''}>${o.l}</option>`).join('')}</select>
         <input class="in" type="number" min="0" value="${esc(f.units)}" oninput="setF(${i},'units',this.value)" placeholder="${f.f==='autre'?'unités':''}">
@@ -322,7 +441,7 @@ function render(){
       <button class="btn-ghost btn-sm" onclick="addF()">+ Format</button>
       <div class="kpis">${kpi('out','Volume conditionné')}${kpi('yield','Rendement de conditionnement')}${kpi('loss','Pertes')}</div></div></div>
 
-  <div class="card"><div class="card-h"><h2><span class="n">04</span>Contrôle du poids de remplissage</h2></div>
+  <div class="card"><div class="card-h"><h2><span class="n">05</span>Contrôle du poids de remplissage</h2></div>
     <div class="card-b"><div class="g g3">
       <label class="f">Format<select class="in" onchange="setW('f',this.value)">${Object.entries(FORMATS).map(([k,o])=>`<option value="${k}"${s.w.f===k?' selected':''}>${o.l}</option>`).join('')}</select></label>
       <label class="f">Poids cible (g)<input class="in" type="number" step="0.1" value="${esc(s.w.target)}" oninput="setW('target',this.value)"></label>
@@ -340,9 +459,20 @@ function render(){
 function setK(id,v,dt,cls){const e=document.getElementById('k_'+id);if(e)e.innerHTML=v;const d=document.getElementById('d_'+id);if(d){d.textContent=dt||'';d.className='d '+(cls||'');}}
 function refresh(){
   const s=cur();if(!s)return;const c=calc(s),T=s.targets||{},a=s.a;
-  setK('co2',a.co2!==''?f1(num(a.co2))+'<small> g/L</small>':'—',T.co2!=null&&a.co2!==''?'cible '+T.co2+' ± '+T.co2Tol:'',c.chk.co2);
+  setK('co2',a.co2!==''?f1(num(a.co2))+'<small> g/L</small>':'—',s.ref&&s.ref.on?'avant refermentation':T.co2!=null&&a.co2!==''?'cible '+T.co2+' ± '+T.co2Tol:'',s.ref&&s.ref.on?'':c.chk.co2);
   setK('o2',a.o2!==''?Math.round(num(a.o2))+'<small> ppb</small>':'—',T.o2!=null?'max '+T.o2+' ppb':'',c.chk.o2);
   setK('abv',c.abvAfter!=null?c.abvAfter.toFixed(2)+'<small> %</small>':'—',T.abv!=null?'cible '+(+T.abv).toFixed(1)+' ± '+T.abvTol:'',c.chk.abv);
+  if(s.ref&&s.ref.on){const r=refCalc(s,c);const f2=(v,d)=>v==null?'—':v.toFixed(d);
+    setK('rres',r.resid!=null?f2(r.resid,2)+'<small> g/L</small>':'—',r.residFrom||'saisis le CO₂ ou la température');
+    setK('rgl',r.gL!=null?f2(r.gL,1)+'<small> g/L</small>':'—',r.delta!=null?'+'+f2(r.delta,2)+' g/L de CO₂ → '+f2(r.target,2):'');
+    setK('rsk',r.sugarKgCalc!=null?f2(r.sugarKgCalc,2)+'<small> kg</small>':'—',c.volAfter?'pour '+Math.round(c.volAfter)+' L':'volume manquant');
+    setK('ryg',r.yeastGCalc!=null?Math.round(r.yeastGCalc)+'<small> g</small>':'—',r.ghl+' g/hL');
+    setK('rco2',r.co2Final!=null?f2(r.co2Final,2)+'<small> g/L</small>':'—',r.co2Final!=null?f2(r.co2Final/VPC,2)+' vol':'',r.co2Final==null||T.co2==null?'':Math.abs(r.co2Final-T.co2)<=T.co2Tol?'ok':'warn');
+    setK('rabv',r.abvFinal!=null?f2(r.abvFinal,2)+'<small> %</small>':'—',r.dAbv!=null?'+'+f2(r.dAbv,2)+' % par la refermentation':'',r.abvFinal==null||T.abv==null?'':Math.abs(r.abvFinal-T.abv)<=T.abvTol?'ok':'warn');
+    setK('rpu',r.perUnit.length?r.perUnit.map(u=>`${u.sugar!=null?(u.v>=5?f2(u.sugar,0):f2(u.sugar,2)):'—'}<small> g · ${esc(FORMATS[u.f].l.replace(/^(Bouteille|Canette|Fût|Magnum) /,''))}</small>`).join('<br>'):'—','sucre par unité');
+    const ri=document.getElementById('r_sugar');if(ri)ri.placeholder=r.sugarKgCalc!=null?f2(r.sugarKgCalc,2):'';
+    const yi=document.getElementById('r_yeast');if(yi)yi.placeholder=r.yeastGCalc!=null?String(Math.round(r.yeastGCalc)):'';
+  }
   setK('wadv',c.waterAdvice?Math.round(c.waterAdvice)+'<small> L</small>':'0<small> L</small>');
   s.formats.forEach((f,i)=>{const e=document.getElementById('fl_'+i);if(e){const v=f.f==='autre'?(num(f.vu)||0):FORMATS[f.f].v;e.textContent=((num(f.units)||0)*v).toFixed(1)+' L';}});
   setK('out',c.outL?c.outL.toFixed(0)+'<small> L</small>':'—',c.units?c.units+' unités':'');
@@ -364,6 +494,10 @@ function printS(){
   document.getElementById('printSheet').innerHTML=`<h1>${esc(s.recipe)} — ${esc(sCode(s))}</h1><div>Conditionnement du ${fmtD(s.date)}${s.tank?' · '+esc(s.tank):''}${s.op?' · '+esc(s.op):''}</div>
   <h2>Analyses</h2><table><tr><th>Volume</th><td>${s.a.vol||'—'} L</td><th>CO₂</th><td>${s.a.co2||'—'} g/L (cible ${T.co2??'—'})</td><th>O₂</th><td>${s.a.o2||'—'} ppb (max ${T.o2??'—'})</td></tr>
   <tr><th>Alcool</th><td>${s.a.abv||'—'} %</td><th>Eau ajoutée</th><td>${c.water} L</td><th>Alcool final</th><td>${c.abvAfter!=null?c.abvAfter.toFixed(2):'—'} %</td></tr></table>
+  ${s.ref&&s.ref.on?(()=>{const r=refCalc(s,c);const f2=(v,d)=>v==null?'—':v.toFixed(d);return `<h2>Refermentation</h2><table>
+    <tr><th>Sucre</th><td>${r.sg.l}</td><th>CO₂ visé</th><td>${f2(r.target,2)} g/L</td><th>CO₂ déjà dissous</th><td>${f2(r.resid,2)} g/L (${r.residFrom})</td></tr>
+    <tr><th>Sucre calculé</th><td>${f2(r.gL,1)} g/L · ${f2(r.sugarKgCalc,2)} kg</td><th>Sucre ajouté</th><td>${f2(r.sugarKg,2)} kg</td><th>Levure ajoutée</th><td>${r.yeastG!=null?Math.round(r.yeastG):'—'} g (${r.ghl} g/hL)</td></tr>
+    <tr><th>CO₂ final attendu</th><td>${f2(r.co2Final,2)} g/L</td><th>Alcool final attendu</th><td>${f2(r.abvFinal,2)} %</td><th>Stock</th><td>${s.ref.move?'déduit':'non déduit'}</td></tr></table>`;})():''}
   <h2>Formats</h2><table><tr><th>Format</th><th class="r">Unités</th><th class="r">Rebuts</th><th class="r">Litres</th></tr>${s.formats.map(f=>{const v=f.f==='autre'?(num(f.vu)||0):FORMATS[f.f].v;return `<tr><td>${FORMATS[f.f].l}</td><td class="r">${f.units||0}</td><td class="r">${f.rej||0}</td><td class="r">${((num(f.units)||0)*v).toFixed(1)}</td></tr>`;}).join('')}
   <tr><th>Total</th><th class="r">${c.units}</th><th></th><th class="r">${c.outL.toFixed(1)}</th></tr></table>
   <p>Rendement de conditionnement : <b>${c.yieldPct!=null?c.yieldPct.toFixed(1)+' %':'—'}</b> · pertes ${c.lossL!=null?Math.round(c.lossL)+' L':'—'}</p>
