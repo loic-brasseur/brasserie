@@ -81,6 +81,9 @@ header::after{content:"";position:absolute;bottom:-1px;left:0;width:120px;height
 
 .row{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:18px}
 .fld{display:flex;flex-direction:column;gap:8px}
+.measrow{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 14px}
+.ht td,.ht th{white-space:nowrap}
+.ht td.com{color:var(--mut);font-style:italic;min-width:220px;white-space:normal}
 .fld label{font-size:12px;color:var(--mut);letter-spacing:.3px;font-weight:500;text-transform:uppercase}
 input[type=text],input[type=number],select{
   background:var(--bg2);border:1px solid var(--line2);border-radius:var(--radius-s);
@@ -245,6 +248,26 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
     <div class="card sec">
       <div class="lab">CO₂ total lot</div>
       <div class="val"><span id="kg_val">—</span> <span class="u">kg</span></div>
+    </div>
+  </div>
+
+  <!-- Fût mesuré + commentaire -->
+  <div class="measrow">
+    <div class="fld" style="flex:1;min-width:120px;max-width:180px">
+      <label for="fut">N° du fût</label>
+      <input type="text" id="fut" placeholder="ex. F-112" autocomplete="off">
+    </div>
+    <div class="fld" style="flex:1;min-width:120px;max-width:170px">
+      <label for="pav">Pression fût avant (bar)</label>
+      <input type="number" id="pav" step="0.01" inputmode="decimal" placeholder="ex. 1.20">
+    </div>
+    <div class="fld" style="flex:1;min-width:120px;max-width:170px">
+      <label for="pap">Pression fût après (bar)</label>
+      <input type="number" id="pap" step="0.01" inputmode="decimal" placeholder="ex. 1.05">
+    </div>
+    <div class="fld" style="flex:3;min-width:200px">
+      <label for="com">Commentaire</label>
+      <input type="text" id="com" placeholder="ex. après 48 h au froid, mousse fine…" autocomplete="off">
     </div>
   </div>
 
@@ -456,6 +479,7 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
     calc();
   });
   ['temp','pres','target','lot','tstore'].forEach(id=>$(id).oninput=calc);
+  $('fut').oninput=()=>persist();
   $('vol').onchange=calc;
   bSel.onchange=()=>{
     if(bSel.value==='__new__'){
@@ -472,12 +496,14 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
 
   // Historique
   let hist=[];
+  const fav=r=>(r.pav||r.pap)?(r.pav||'—')+' → '+(r.pap||'—'):'—';
   function renderHist(){
     const box=$('histbox'),t=$('histtable');
     if(!hist.length){box.classList.add('hidden');return;}
     box.classList.remove('hidden');
-    let h='<tr>'+['Heure','Bière / lot','Contenant','T (°C)','P (kPa)','g/L','vol','kg'].map(x=>`<th>${x}</th>`).join('')+'</tr>';
-    hist.forEach(r=>{h+='<tr>'+[r.time,r.lot,r.cont,r.t,r.p,r.gl,r.vol,r.kg].map(x=>`<td>${x}</td>`).join('')+'</tr>';});
+    const e=v=>String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    let h='<tr>'+['Heure','Bière / lot','Fût','Contenant','T (°C)','P (kPa)','g/L','vol','kg','P. fût av → ap (bar)','Commentaire'].map(x=>`<th>${x}</th>`).join('')+'</tr>';
+    hist.forEach(r=>{h+='<tr>'+[r.time,r.lot,r.fut||'—',r.cont,r.t,r.p,r.gl,r.vol,r.kg,fav(r)].map(x=>`<td>${e(x)}</td>`).join('')+`<td class="com">${e(r.com||'')}</td></tr>`;});
     t.innerHTML=h;
   }
   $('btn_save').onclick=()=>{
@@ -490,7 +516,10 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
     const d=new Date();
     hist.unshift({time:d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}),
       lot:lotName(),cont:contLabel(),t:T.toFixed(1),p:Pk.toFixed(0),
-      gl:co2.toFixed(2),vol:(co2/VPC).toFixed(2),kg:(V*co2/1000).toFixed(3)});
+      gl:co2.toFixed(2),vol:(co2/VPC).toFixed(2),kg:(V*co2/1000).toFixed(3),
+      fut:$('fut').value.trim(),com:$('com').value.trim(),
+      pav:$('pav').value?(+$('pav').value).toFixed(2):'',pap:$('pap').value?(+$('pap').value).toFixed(2):''});
+    ['com','pav','pap'].forEach(id=>$(id).value=''); // le commentaire est propre à chaque mesure ; le n° de fût reste pour la suivante
     renderHist();persist();
   };
   $('btn_clear').onclick=()=>{hist=[];renderHist();persist();};
@@ -579,7 +608,7 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
 
       // ===== Tableau historique =====
       sectionTitle('Historique des mesures');
-      const cols=[['Heure',26],['T (C)',24],['P (kPa)',28],['g/L',28],['vol',28],['kg',CW-26-24-28-28-28]];
+      const cols=[['Heure',18],['Fut',22],['T (C)',18],['P (kPa)',22],['g/L',20],['vol',18],['kg',22],['Fut av>ap bar',CW-18-22-18-22-20-18-22]];
       const rh=9, hh=10;
       // en-tête
       doc.setFillColor(238,230,212);doc.setDrawColor.apply(doc,C.line);doc.setLineWidth(.4);
@@ -591,20 +620,22 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
       y+=hh;
       // lignes
       setF(9.5,'normal');
+      const asc=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\x20-\x7E]/g,''); // police PDF de base sans accents
+      let tblTop=y-hh,segTop=tblTop;
+      const frame=()=>{doc.setDrawColor.apply(doc,C.line);doc.setLineWidth(.4);doc.rect(M,segTop,CW,y-segTop,'S');};
       hist.forEach((r,i)=>{
-        if(y+rh>284){doc.addPage();y=20;}
-        if(i%2)doc.setFillColor(247,243,234),doc.rect(M,y,CW,rh,'F');
-        x=M;const cells=[r.time,r.t,r.p,r.gl,r.vol,r.kg];
+        const com=asc(r.com);setF(8.5,'italic');const cl=com?doc.splitTextToSize(com,CW-8):[];setF(9.5,'normal');
+        const h=rh+cl.length*4.2;
+        if(y+h>284){frame();doc.addPage();y=20;segTop=y;}
+        if(i%2)doc.setFillColor(247,243,234),doc.rect(M,y,CW,h,'F');
+        x=M;const cells=[r.time,asc(r.fut)||'-',r.t,r.p,r.gl,r.vol,r.kg,(r.pav||r.pap)?(r.pav||'-')+' > '+(r.pap||'-'):'-'];
         doc.setTextColor.apply(doc,C.ink);
         cells.forEach((c,j)=>{doc.text(String(c),x+cols[j][1]/2,y+6,{align:'center'});x+=cols[j][1];});
-        doc.setDrawColor.apply(doc,C.lineSoft);doc.setLineWidth(.3);doc.line(M,y+rh,M+CW,y+rh);
-        y+=rh;
+        if(cl.length){doc.setTextColor.apply(doc,C.mut);setF(8.5,'italic');doc.text(cl,M+4,y+rh+2.2);setF(9.5,'normal');}
+        doc.setDrawColor.apply(doc,C.lineSoft);doc.setLineWidth(.3);doc.line(M,y+h,M+CW,y+h);
+        y+=h;
       });
-      // cadre + lignes verticales
-      const tblTop=y-hist.length*rh-hh;
-      doc.setDrawColor.apply(doc,C.line);doc.setLineWidth(.4);
-      doc.rect(M,tblTop,CW,hist.length*rh+hh,'S');
-      x=M;cols.slice(0,-1).forEach(([,w])=>{x+=w;doc.line(x,tblTop,x,y);});
+      frame();
     } else {
       doc.setFillColor.apply(doc,C.panel);doc.setDrawColor.apply(doc,C.line);doc.setLineWidth(.4);
       doc.roundedRect(M,y,CW,16,2.5,2.5,'FD');
@@ -628,7 +659,7 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
   function persist(){
     try{
       localStorage.setItem(PSTORE,JSON.stringify({unit,mode,hist,f:{
-        biere:bSel.value,lot:$('lot').value,vol:vSel.value,temp:$('temp').value,
+        biere:bSel.value,lot:$('lot').value,fut:$('fut').value,vol:vSel.value,temp:$('temp').value,
         pres:$('pres').value,target:$('target').value,tstore:$('tstore').value,
         style:sel.value,cible:$('cible').value
       }}));
@@ -644,7 +675,7 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
       if(f.biere!=null)bSel.value=f.biere;
       if(f.vol!=null)vSel.value=f.vol;
       if(f.style!=null)sel.value=f.style;
-      ['lot','temp','pres','target','tstore','cible'].forEach(k=>{if(f[k]!=null)$(k).value=f[k];});
+      ['lot','fut','temp','pres','target','tstore','cible'].forEach(k=>{if(f[k]!=null)$(k).value=f[k];});
       document.querySelectorAll('#mode button').forEach(b=>b.classList.toggle('on',b.dataset.m===mode));
       document.querySelectorAll('#punit button').forEach(b=>b.classList.toggle('on',b.dataset.u===unit));
     }catch(e){}
