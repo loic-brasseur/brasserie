@@ -207,6 +207,8 @@
 
   /* ============ COÛT DE REVIENT ============ */
   .proc-panel{margin-top:14px}
+  .pack-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px 14px}
+  .pack-grid .field{margin:0}
   .proc-sub{font-size:12px;color:var(--ink-soft)}
   .proc-grid{display:grid;grid-template-columns:1fr 1.35fr 1fr;gap:0}
   .proc-col{padding:12px 16px 16px;border-right:1px solid var(--line)}
@@ -526,6 +528,13 @@
         <div id="procTargets"></div>
       </div>
     </div>
+  </div>
+
+  <!-- MATÉRIEL DE CONDITIONNEMENT -->
+  <div class="panel proc-panel" id="packPanel">
+    <div class="panel-h"><h2>Matériel de conditionnement</h2><span class="proc-sub">Articles du Stock déduits automatiquement par le Packaging Log</span></div>
+    <div class="panel-b"><div class="pack-grid" id="packGrid"></div>
+      <p class="hint" id="packHint" style="margin-top:8px"></p></div>
   </div>
 
   <!-- COÛT DE REVIENT -->
@@ -956,7 +965,7 @@ function colorName(ebc){
 }
 
 /* ============================ STATE ============================ */
-let state={mode:'biere',malts:[],hops:[],yeast:null,soft:[],process:null};
+let state={mode:'biere',malts:[],hops:[],yeast:null,soft:[],process:null,pack:{}};
 /* Ajout houblon : boil = ébullition (min), wp = whirlpool (min de contact), dh = dry hop (jours de contact) */
 const HOPUSE={boil:{l:'Ébullition',u:'min',def:60},wp:{l:'Whirlpool',u:'min',def:20},dh:{l:'Dry hop',u:'j',def:3}};
 const hopUse=h=>HOPUSE[h&&h.use]?h.use:'boil';
@@ -1447,7 +1456,7 @@ function snapshot(){
     name:val('rName'),style:val('rStyle'),notes:val('rNotes'),
     vol:val('pVol'),eff:val('pEff'),mash:val('pMash'),
     mode:state.mode,malts:state.malts,hops:state.hops,yeast:state.yeast,soft:state.soft,
-    process:procGet(),calc:calcSnap(),rev:curRev,ts:Date.now()
+    process:procGet(),pack:state.pack||{},calc:calcSnap(),rev:curRev,ts:Date.now()
   };
 }
 function val(id){return document.getElementById(id).value;}
@@ -1462,6 +1471,7 @@ function loadInto(r){
   state.mode=r.mode||'biere';
   state.malts=r.malts||[];state.hops=r.hops||[];state.yeast=r.yeast||null;state.soft=r.soft||[];
   state.process=r.process?JSON.parse(JSON.stringify(r.process)):null;
+  state.pack=r.pack?JSON.parse(JSON.stringify(r.pack)):{};
   curRev=r.rev||null;
   switchMode(state.mode);renderProcess();
 }
@@ -1521,7 +1531,7 @@ function delSaved(t){const r=getAll().find(x=>x.ts===t);if(!r)return;if(confirm(
   renderSaved();}}
 function newRecipe(){if(confirm("Nouvelle recette ? La composition actuelle non enregistrée sera perdue.")){
   const m=state.mode;
-  state={mode:m,malts:[],hops:[],yeast:null,soft:[],process:null};curRev=null;
+  state={mode:m,malts:[],hops:[],yeast:null,soft:[],process:null,pack:{}};curRev=null;
   ['rName','rStyle','rNotes'].forEach(id=>document.getElementById(id).value="");
   document.getElementById('pVol').value=2000;document.getElementById('pEff').value=77.85;document.getElementById('pMash').value=67;
   switchMode(m);renderProcess();}}
@@ -2085,6 +2095,7 @@ function renderTargetHints(){
   [['fg',c.fgP],['att',c.att],['abv',c.abv]].forEach(([k,v])=>{const e=document.getElementById('tgt_'+k);if(e)e.placeholder=v!=null?String(v):'';});
 }
 function renderProcess(){
+  renderPack();
   const p=procGet(), e=hEsc;
   document.getElementById('procMashCol').style.display=state.mode==='biere'?'':'none';
   document.getElementById('procMash').innerHTML=`<div class="proc-head mash"><span>Palier</span><span>°C</span><span>min</span><span></span></div>`+
@@ -2118,6 +2129,24 @@ function procPrintHTML(CG){
     <div class="ps-sec"><h2>Protocole de fermentation</h2><table class="ps-table">${CG}<thead><tr><th>Jour</th><th>Action</th><th class="num">T°</th><th colspan="2">Consigne</th></tr></thead><tbody>${ferm||'<tr><td colspan="5">—</td></tr>'}</tbody></table></div>
     <div class="ps-sec"><h2>Cibles qualité</h2><div class="ps-params"><span>DF ${fmtN(T.fg,1)} ± ${T.fgTol} °P</span><span>Atténuation ${T.att} ± ${T.attTol} %</span><span>Alcool ${fmtN(T.abv,1)} ± ${T.abvTol} %</span><span>CO₂ ${T.co2} ± ${T.co2Tol} g/L</span><span>O₂ ≤ ${T.o2} ppb</span></div></div>`;
 }
+/* ---- matériel de conditionnement : liens vers les articles du Stock ---- */
+const PACK_KINDS=[['b33','Bouteille 33 cl'],['cap33','Capsule 33 cl (26 mm)'],['lab33','Étiquette 33 cl'],
+  ['b75','Bouteille 75 cl'],['cap75','Capsule / bouchon 75 cl'],['lab75','Étiquette 75 cl'],
+  ['can44','Canette 44 cl'],['lid44','Couvercle canette'],['capFut','Capsule de fût (couleur)']];
+function packItems(){try{const st=JSON.parse(localStorage.getItem('brasserie_stock_v2'));return st&&Array.isArray(st.items)?st.items:[];}catch(e){return[];}}
+function renderPack(){
+  const g=document.getElementById('packGrid');if(!g)return;
+  document.getElementById('packPanel').style.display=state.mode==='biere'?'':'none';
+  const it=packItems(),P=state.pack||{};
+  const opts=sel=>{const L=[...it].sort((a,b)=>(a.cat==='emballage'?0:1)-(b.cat==='emballage'?0:1)||a.name.localeCompare(b.name,'fr'));
+    return `<option value="">— Aucun —</option>`+L.map(i=>`<option value="${i.id}"${i.id===(sel&&sel.id)?' selected':''}>${hEsc(i.name)}</option>`).join('')+
+      (sel&&sel.id&&!it.some(i=>i.id===sel.id)?`<option value="${sel.id}" selected>${hEsc(sel.name||'article supprimé')} (absent du stock)</option>`:'');};
+  g.innerHTML=PACK_KINDS.map(([k,l])=>`<div class="field"><label>${l}</label><select onchange="setPack('${k}',this)">${opts(P[k])}</select></div>`).join('');
+  document.getElementById('packHint').textContent=it.length?(it.some(i=>i.cat==='emballage')?'':'Astuce : crée tes bouteilles, capsules et étiquettes dans l\'app Stock, catégorie « Emballages ».')
+    :'Le stock n\'est pas encore initialisé : ouvre une fois l\'app Stock.';
+}
+function setPack(k,sel){state.pack=state.pack||{};if(!sel.value)delete state.pack[k];else state.pack[k]={id:sel.value,name:sel.options[sel.selectedIndex].text};saveAuto();}
+
 /* ---- historique des versions ---- */
 function openVersions(ts){
   const r=getAll().find(x=>x.ts===ts);if(!r)return;
