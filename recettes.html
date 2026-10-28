@@ -2157,14 +2157,15 @@ function withXLSX(cb){if(window.XLSX)return cb();const sc=document.createElement
   sc.onload=cb;sc.onerror=()=>alert('Impossible de charger le lecteur Excel (pas de connexion ?).');document.head.appendChild(sc);}
 function readSheet(file,want,cb){withXLSX(()=>{const rd=new FileReader();rd.onload=()=>{try{const wb=XLSX.read(new Uint8Array(rd.result),{type:'array',cellDates:true});
   const nm=wb.SheetNames.find(n=>n.toLowerCase().startsWith(want.toLowerCase()))||wb.SheetNames.find(n=>!/mode|article/i.test(n))||wb.SheetNames[0];
-  cb(XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,defval:''}));}catch(e){alert('Fichier Excel illisible : '+e.message);}};rd.readAsArrayBuffer(file);});}
+  const all={};wb.SheetNames.forEach(n=>all[n]=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:''}));cb(all[nm],all);}catch(e){alert('Fichier Excel illisible : '+e.message);}};rd.readAsArrayBuffer(file);});}
 const xNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 /* trouve la ligne d'en-tête (celle qui contient le mot attendu) et renvoie des objets {entête: valeur} */
 function rowsFrom(aoa,key){const h=aoa.findIndex(r=>r.some(c=>xNorm(c)===xNorm(key)));if(h<0)return null;const H=aoa[h].map(c=>xNorm(c));
   return aoa.slice(h+1).filter(r=>r.some(c=>String(c).trim()!=='')).map(r=>{const o={};H.forEach((k,i)=>{if(k)o[k]=r[i];});return o;});}
 /* import du fichier Excel « Conditionnement » : une ligne par recette ; articles cherchés (ou créés) dans le Stock */
-function importPackRows(aoa){
-  const R=rowsFrom(aoa,'Recette');if(!R){alert("Colonne « Recette » introuvable : utilise le fichier modèle Conditionnement.");return;}
+function importPackRows(aoa,wbAll){
+  let R=rowsFrom(aoa,'Recette');if(!R&&wbAll){const a2=Object.values(wbAll).find(a=>rowsFrom(a,'Recette'));R=a2?rowsFrom(a2,'Recette'):null;}
+  if(!R){alert("Colonne « Recette » introuvable. Ce fichier n'est pas le fichier Conditionnement_par_recette.xlsx (le fichier Stock s'importe dans l'app Stock).");return;}
   const COL={b33:'bouteille 33 cl',cap33:'capsule 33 cl 26 mm',lab33:'etiquette 33 cl',crt33:'carton 33 cl',b75:'bouteille 75 cl',cap75:'capsule bouchon 75 cl',mus75:'muselet 75 cl',
     lab75:'etiquette 75 cl',crt75:'carton 75 cl',can44:'canette 44 cl',lid44:'couvercle canette',capFut:'capsule de fut couleur'};
   let st=null;try{st=JSON.parse(localStorage.getItem('brasserie_stock_v2'));}catch(e){}

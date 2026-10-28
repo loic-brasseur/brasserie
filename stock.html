@@ -677,14 +677,37 @@ function withXLSX(cb){if(window.XLSX)return cb();const sc=document.createElement
   sc.onload=cb;sc.onerror=()=>alert('Impossible de charger le lecteur Excel (pas de connexion ?).');document.head.appendChild(sc);}
 function readSheet(file,want,cb){withXLSX(()=>{const rd=new FileReader();rd.onload=()=>{try{const wb=XLSX.read(new Uint8Array(rd.result),{type:'array',cellDates:true});
   const nm=wb.SheetNames.find(n=>n.toLowerCase().startsWith(want.toLowerCase()))||wb.SheetNames.find(n=>!/mode|article/i.test(n))||wb.SheetNames[0];
-  cb(XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,defval:''}));}catch(e){alert('Fichier Excel illisible : '+e.message);}};rd.readAsArrayBuffer(file);});}
+  const all={};wb.SheetNames.forEach(n=>all[n]=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:''}));cb(all[nm],all);}catch(e){alert('Fichier Excel illisible : '+e.message);}};rd.readAsArrayBuffer(file);});}
 const xNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 /* trouve la ligne d'en-tête (celle qui contient le mot attendu) et renvoie des objets {entête: valeur} */
 function rowsFrom(aoa,key){const h=aoa.findIndex(r=>r.some(c=>xNorm(c)===xNorm(key)));if(h<0)return null;const H=aoa[h].map(c=>xNorm(c));
   return aoa.slice(h+1).filter(r=>r.some(c=>String(c).trim()!=='')).map(r=>{const o={};H.forEach((k,i)=>{if(k)o[k]=r[i];});return o;});}
 /* import du fichier Excel « Stock » : met à jour les articles (par ID ou par nom) et crée les nouveaux */
-function importStockRows(aoa){
-  const R=rowsFrom(aoa,'Article');if(!R){alert("Colonne « Article » introuvable : utilise le fichier modèle Stock.");return;}
+/* fichier Conditionnement importé depuis l'app Stock : met à jour le conditionnement des recettes */
+function importPackRowsStock(R){
+  const COL={b33:'bouteille 33 cl',cap33:'capsule 33 cl 26 mm',lab33:'etiquette 33 cl',crt33:'carton 33 cl',b75:'bouteille 75 cl',cap75:'capsule bouchon 75 cl',mus75:'muselet 75 cl',
+    lab75:'etiquette 75 cl',crt75:'carton 75 cl',can44:'canette 44 cl',lid44:'couvercle canette',capFut:'capsule de fut couleur'};
+  let recs=[];try{recs=JSON.parse(localStorage.getItem('brasserie_recettes_v1'))||[];}catch(e){}
+  const bN=n=>xNorm(n).replace(/^biere /,'');let done=0,empty=0,miss=[],created=[];
+  R.forEach(r=>{const nm=String(r['recette']||'').replace(/\s*\(soft\)\s*$/i,'').trim();if(!nm)return;
+    const rec=recs.find(x=>bN(x.name)===bN(nm));if(!rec){miss.push(nm);return;}
+    const P={};
+    Object.entries(COL).forEach(([k,h])=>{const v=String(r[h]||'').trim();if(!v)return;
+      let it=state.items.find(i=>xNorm(i.name)===xNorm(v));
+      if(!it){it={id:uid(),cat:'emballage',name:v,unit:'unité(s)',qty:0,min:'',note:'créé par import conditionnement'};state.items.push(it);created.push(v);}
+      P[k]={id:it.id,name:it.name};});
+    const p33=parseInt(r['bouteilles carton 33'],10),p75=parseInt(r['bouteilles carton 75'],10);
+    if(P.crt33&&p33>0&&p33!==24)P.crt33.per=p33;if(P.crt75&&p75>0&&p75!==12)P.crt75.per=p75;
+    if(!Object.keys(P).length){empty++;return;}rec.pack=P;done++;});
+  if(!recs.length){alert("Aucune recette trouvée : ouvre d'abord l'app Recettes.");state=load();return;}
+  if(!confirm(`Fichier Conditionnement détecté.\n\n${done} recette(s) mise(s) à jour`+(empty?`\n${empty} ligne(s) vide(s) : conditionnement actuel conservé`:'')+(created.length?`\n${created.length} article(s) créé(s) en Conditionnement (quantité 0) : ${[...new Set(created)].join(', ')}`:'')+(miss.length?`\nRecettes introuvables : ${miss.join(', ')}`:'')+'\n\nValider ?')){state=load();render();return;}
+  localStorage.setItem('brasserie_recettes_v1',JSON.stringify(recs));save();render();alert('Conditionnement des recettes importé.');
+}
+function importStockRows(aoa,all){
+  all=all||{};const sheets=Object.values(all);
+  const pk=sheets.map(a=>rowsFrom(a,'Recette')).find(x=>x);if(pk&&!rowsFrom(aoa,'Section')){importPackRowsStock(pk);return;}
+  let R=rowsFrom(aoa,'Article');if(!R||!rowsFrom(aoa,'Quantité')){const a2=sheets.find(a=>rowsFrom(a,'Article')&&rowsFrom(a,'Quantité'));R=a2?rowsFrom(a2,'Article'):null;}
+  if(!R){alert("Colonnes « Article » / « Quantité » introuvables : utilise le fichier modèle Stock_a_remplir.xlsx.");return;}
   const catOf=v=>{const n=xNorm(v);if(!n)return null;const c=CATS.find(c=>xNorm(c.label)===n||xNorm(c.label).startsWith(n)||n.startsWith(xNorm(c.label).split(' ')[0])||c.id===n);return c?c.id:null;};
   const numv=v=>{if(v===''||v==null)return null;const x=parseFloat(String(v).replace(',','.'));return isNaN(x)?null:x;};
   let up=0,cr=0,skip=0;const pendAlt=[];
