@@ -477,6 +477,14 @@ let state=load();
 let filter='all', search='', editId=null, afterCreate=null;
 
 function migrate(s){
+  let ch0=false;
+  // cartons (créés une seule fois, section Conditionnement)
+  if(!s.cartonsSeed){['Carton 33 Neutre','Carton 33 Marqué','Carton 75 Neutre','Carton 75 Marqué'].forEach(n=>{
+    if(!s.items.some(i=>String(i.name).toLowerCase()===n.toLowerCase()))s.items.push({id:uid(),cat:'emballage',name:n,unit:'u',qty:0,min:'',note:''});});
+    s.cartonsSeed=true;ch0=true;}
+  return migrateHops(s)||ch0;
+}
+function migrateHops(s){
   // Houblons en grammes (conversion unique kg -> g, ×1000), avec drapeau anti-rejeu
   let changed=false;
   if(!s.hopsG){
