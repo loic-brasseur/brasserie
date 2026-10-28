@@ -2142,7 +2142,7 @@ function renderPack(){
     return `<option value="">— Aucun —</option>`+L.map(i=>`<option value="${i.id}"${i.id===(sel&&sel.id)?' selected':''}>${hEsc(i.name)}</option>`).join('')+
       (sel&&sel.id&&!it.some(i=>i.id===sel.id)?`<option value="${sel.id}" selected>${hEsc(sel.name||'article supprimé')} (absent du stock)</option>`:'');};
   g.innerHTML=PACK_KINDS.map(([k,l])=>`<div class="field"><label>${l}</label><select onchange="setPack('${k}',this)">${opts(P[k])}</select></div>`).join('');
-  document.getElementById('packHint').textContent=it.length?(it.some(i=>i.cat==='emballage')?'':'Astuce : crée tes bouteilles, capsules et étiquettes dans l\'app Stock, catégorie « Emballages ».')
+  document.getElementById('packHint').textContent=it.length?(it.some(i=>i.cat==='emballage')?'':'Astuce : crée tes bouteilles, capsules et étiquettes dans l\'app Stock, section « Conditionnement ».')
     :'Le stock n\'est pas encore initialisé : ouvre une fois l\'app Stock.';
 }
 function setPack(k,sel){state.pack=state.pack||{};if(!sel.value)delete state.pack[k];else state.pack[k]={id:sel.value,name:sel.options[sel.selectedIndex].text};saveAuto();}
