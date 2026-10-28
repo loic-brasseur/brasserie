@@ -141,6 +141,7 @@
   .stockline{display:grid;grid-template-columns:1fr 1fr auto;gap:.6rem;margin-top:.4rem;padding-top:.8rem;border-top:1px dashed var(--line-strong)}
   @media(max-width:700px){.stockline{grid-template-columns:1fr}}
   .hint{font-size:.76rem;color:var(--ink-soft);margin-top:.4rem}
+  select.unm{border-color:var(--red)}
   .fmt-row{display:grid;grid-template-columns:1.3fr .8fr .8fr .8fr 30px;gap:.45rem;align-items:center;margin-bottom:.4rem}
   .fmt-row .tot{font-family:var(--mono);font-size:.85rem;text-align:right}
   .fmt-head{display:grid;grid-template-columns:1.3fr .8fr .8fr .8fr 30px;gap:.45rem;font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:700;margin-bottom:.3rem}
@@ -332,7 +333,7 @@ function calc(s){
 /* ---- saisie ---- */
 function setA(k,v){const s=cur();s.a[k]=v;if(s.auto)delete s.auto[k];save();refresh();}
 function setD(k,v){cur().dil[k]=v;save();refresh();}
-function setF(i,k,v){cur().formats[i][k]=v;save();if(k==='f')render();else refresh();}
+function setF(i,k,v){cur().formats[i][k]=v;save();if(k==='f')render();else{refresh();clearTimeout(window.__mt);window.__mt=setTimeout(()=>{const a=document.activeElement,id=a&&a.oninput?[...document.querySelectorAll('.fmt-row input')].indexOf(a):-1;render();if(id>=0){const n=document.querySelectorAll('.fmt-row input')[id];if(n){n.focus();n.setSelectionRange&&n.type==='text'&&n.setSelectionRange(99,99);}}},700);}}
 function addF(){cur().formats.push({f:'75cl',units:'',rej:''});save();render();}
 function delF(i){cur().formats.splice(i,1);save();render();}
 function setW(k,v){cur().w[k]=v;save();refresh();}
@@ -361,19 +362,34 @@ function stockOptions(cat,sel){
 function setMap(kind,v){const s=cur();s.ref.map[kind]=v;save();const p=ld(PREF_KEY,{});p[kind]=v;sv(PREF_KEY,p);}
 const UNIT={g:1,kg:1000};
 function toUnit(qG,unit){const k=UNIT[String(unit||'').toLowerCase()];return k?qG/k:qG/1000;}
+/* ---- matériel de conditionnement (bouteilles, capsules, étiquettes) : liens définis dans la recette ---- */
+const MAT=[['b33','Bouteilles 33 cl',['33cl']],['cap33','Capsules 33 cl',['33cl']],['lab33','Étiquettes 33 cl',['33cl']],
+  ['b75','Bouteilles 75 cl',['75cl']],['cap75','Capsules / bouchons 75 cl',['75cl']],['lab75','Étiquettes 75 cl',['75cl']],
+  ['can44','Canettes 44 cl',['44cl']],['lid44','Couvercles canette',['44cl']],['capFut','Capsules de fût',['10L','20L','30L']]];
+function recipePack(s){const r=ld(REC_KEY,[]).find(x=>bNorm(x.name)===bNorm(s.recipe));return (r&&r.pack)||{};}
+function matRows(s){
+  const P=recipePack(s);s.mat=s.mat||{};const it=stockItems();
+  return MAT.map(([k,l,fmts])=>{const auto=s.formats.filter(f=>fmts.includes(f.f)).reduce((a,f)=>a+(num(f.units)||0)+(num(f.rej)||0),0);
+    const o=s.mat[k]||{};const id=o.id!=null?o.id:(P[k]&&P[k].id)||'';const q=num(o.qty)??auto;
+    return {k,l,auto,id,q,fromRecipe:o.id==null&&!!(P[k]&&P[k].id),item:it.find(i=>i.id===id)};}).filter(r=>r.auto>0||(s.mat[r.k]&&s.mat[r.k].qty));
+}
+function setMat(k,f,v){const s=cur();s.mat=s.mat||{};s.mat[k]=s.mat[k]||{};s.mat[k][f]=v;if(f==='qty'&&v==='')delete s.mat[k].qty;save();if(f==='id')render();}
 function deductStock(){
   const s=cur(),c=calc(s),r=refCalc(s,c);const st=ld(STOCK_KEY,null);
   if(!st||!Array.isArray(st.items)){alert("Le stock n'est pas encore initialisé : ouvre une fois l'app Stock, puis reviens ici.");return;}
   const lines=[],miss=[];
   const add=(kind,qG,label)=>{const id=s.ref.map[kind];if(id==='__skip'||!(qG>0))return;const it=st.items.find(i=>i.id===id);if(!it){miss.push(label);return;}
     lines.push({id,qty:String(Math.round(toUnit(qG,it.unit)*1000)/1000)});};
-  add('sugar',r.sugarKg!=null?r.sugarKg*1000:null,'sucre');add('yeast',r.yeastG,'levure');
+  if(s.ref&&s.ref.on){add('sugar',r.sugarKg!=null?r.sugarKg*1000:null,'sucre');add('yeast',r.yeastG,'levure');}
+  matRows(s).forEach(m=>{if(!(m.q>0))return;if(!m.id||m.id==='__skip'){if(!m.id)miss.push(m.l.toLowerCase());return;}
+    if(!st.items.some(i=>i.id===m.id)){miss.push(m.l.toLowerCase());return;}
+    const ex=lines.find(l=>l.id===m.id);if(ex)ex.qty=String((parseFloat(ex.qty)||0)+m.q);else lines.push({id:m.id,qty:String(m.q)});});
   if(miss.length&&!confirm('Aucun article de stock choisi pour : '+miss.join(', ')+'. Continuer sans ?'))return;
-  if(!lines.length&&!s.ref.move){alert('Rien à déduire : saisis les quantités de sucre et de levure.');return;}
+  if(!lines.length&&!s.ref.move){alert('Rien à déduire : saisis les formats conditionnés (et le sucre / la levure si refermentation).');return;}
   st.moves=st.moves||[];const prev=s.ref.move&&st.moves.find(m=>m.id===s.ref.move.id);
   const delta={};(prev?prev.lines:[]).forEach(l=>delta[l.id]=(delta[l.id]||0)+(parseFloat(l.qty)||0));lines.forEach(l=>delta[l.id]=(delta[l.id]||0)-(parseFloat(l.qty)||0));
   Object.keys(delta).forEach(id=>{const it=st.items.find(i=>i.id===id);if(it)it.qty=Math.max(0,(Number(it.qty)||0)+delta[id]);});
-  const party='Conditionnement '+sCode(s)+' — '+s.recipe+' (sucre + levure de refermentation)';
+  const party='Conditionnement '+sCode(s)+' — '+s.recipe;
   if(prev){prev.lines=lines;prev.party=party;prev.date=s.date;}
   else{const m={id:'m'+Math.random().toString(36).slice(2,9),type:'usage',date:s.date,party,lines,lot:s.lot,packId:s.id,createdAt:Date.now()};st.moves.push(m);s.ref.move={id:m.id};}
   s.ref.move.at=new Date().toISOString();sv(STOCK_KEY,st);save();render();
@@ -425,8 +441,7 @@ function render(){
       <div class="stockline">
         <label class="f">Article sucre (stock)<select class="in" onchange="setMap('sugar',this.value)">${stockOptions('conso',s.ref.map.sugar)}</select></label>
         <label class="f">Article levure (stock)<select class="in" onchange="setMap('yeast',this.value)">${stockOptions('levure',s.ref.map.yeast)}</select></label>
-        <div style="align-self:end;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap"><button class="btn-copper" onclick="deductStock()">${s.ref.move?'Mettre à jour la sortie de stock':'Déduire du stock'}</button>
-          ${s.ref.move?`<span class="pill cave">déduit le ${fmtD(s.ref.move.at.slice(0,10))}</span>`:''}</div>
+        <div></div>
       </div>
       <div class="hint" id="r_hint"></div>
     </div>`:''}</div>
@@ -441,7 +456,22 @@ function render(){
       <button class="btn-ghost btn-sm" onclick="addF()">+ Format</button>
       <div class="kpis">${kpi('out','Volume conditionné')}${kpi('yield','Rendement de conditionnement')}${kpi('loss','Pertes')}</div></div></div>
 
-  <div class="card"><div class="card-h"><h2><span class="n">05</span>Contrôle du poids de remplissage</h2></div>
+  <div class="card"><div class="card-h"><h2><span class="n">05</span>Matériel &amp; sortie de stock</h2><span class="sub" style="margin:0">Articles définis dans la recette (Carnet de brassage)</span></div>
+    <div class="card-b">${(()=>{const M=matRows(s);const it=stockItems();
+      const opts=sel=>`<option value="">— Choisir —</option><option value="__skip"${sel==='__skip'?' selected':''}>Ne pas déduire</option>`+[...it].sort((a,b)=>(a.cat==='emballage'?0:1)-(b.cat==='emballage'?0:1)||a.name.localeCompare(b.name,'fr')).map(i=>`<option value="${i.id}"${i.id===sel?' selected':''}>${esc(i.name)}</option>`).join('');
+      return M.length?`<table class="t"><thead><tr><th>Matériel</th><th>Article du stock</th><th class="num">Quantité</th><th class="num">En stock</th></tr></thead><tbody>
+        ${M.map(m=>`<tr><td>${m.l}${m.fromRecipe?'':m.id?' <small style="color:var(--ink-soft)">(modifié)</small>':''}</td>
+          <td><select class="in${m.id?'':' unm'}" onchange="setMat('${m.k}','id',this.value)">${opts(m.id)}</select></td>
+          <td class="num"><input class="in" style="width:96px;text-align:right" type="number" min="0" step="1" value="${s.mat&&s.mat[m.k]&&s.mat[m.k].qty!=null?esc(s.mat[m.k].qty):''}" placeholder="${m.auto}" oninput="setMat('${m.k}','qty',this.value)"></td>
+          <td class="num">${m.item?(m.item.qty+' '+esc(m.item.unit||'')):'—'}</td></tr>`).join('')}</tbody></table>
+        <p class="hint">Quantités calculées depuis les formats (unités + rebuts). ${M.some(m=>!m.id)?'Choisis l\'article une fois dans le Carnet de brassage (« Matériel de conditionnement ») pour qu\'il soit repris à chaque lot.':''}</p>`
+      :'<p class="hint">Saisis les formats conditionnés pour calculer bouteilles, capsules et étiquettes.</p>';})()}
+      <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.8rem"><button class="btn-copper" onclick="deductStock()">${s.ref&&s.ref.move?'Mettre à jour la sortie de stock':'Déduire du stock'}</button>
+        <span class="hint" style="margin:0">${s.ref&&s.ref.on?'Matériel + sucre + levure':'Matériel'}</span>
+        ${s.ref&&s.ref.move?`<span class="pill cave">déduit le ${fmtD(s.ref.move.at.slice(0,10))}</span>`:''}</div>
+    </div></div>
+
+  <div class="card"><div class="card-h"><h2><span class="n">06</span>Contrôle du poids de remplissage</h2></div>
     <div class="card-b"><div class="g g3">
       <label class="f">Format<select class="in" onchange="setW('f',this.value)">${Object.entries(FORMATS).map(([k,o])=>`<option value="${k}"${s.w.f===k?' selected':''}>${o.l}</option>`).join('')}</select></label>
       <label class="f">Poids cible (g)<input class="in" type="number" step="0.1" value="${esc(s.w.target)}" oninput="setW('target',this.value)"></label>
@@ -498,6 +528,7 @@ function printS(){
     <tr><th>Sucre</th><td>${r.sg.l}</td><th>CO₂ visé</th><td>${f2(r.target,2)} g/L</td><th>CO₂ déjà dissous</th><td>${f2(r.resid,2)} g/L (${r.residFrom})</td></tr>
     <tr><th>Sucre calculé</th><td>${f2(r.gL,1)} g/L · ${f2(r.sugarKgCalc,2)} kg</td><th>Sucre ajouté</th><td>${f2(r.sugarKg,2)} kg</td><th>Levure ajoutée</th><td>${r.yeastG!=null?Math.round(r.yeastG):'—'} g (${r.ghl} g/hL)</td></tr>
     <tr><th>CO₂ final attendu</th><td>${f2(r.co2Final,2)} g/L</td><th>Alcool final attendu</th><td>${f2(r.abvFinal,2)} %</td><th>Stock</th><td>${s.ref.move?'déduit':'non déduit'}</td></tr></table>`;})():''}
+  ${(()=>{const M=matRows(s).filter(m=>m.q>0);return M.length?`<h2>Matériel</h2><table><tr><th>Matériel</th><th>Article</th><th class="r">Quantité</th></tr>${M.map(m=>`<tr><td>${m.l}</td><td>${m.item?esc(m.item.name):'—'}</td><td class="r">${m.q}</td></tr>`).join('')}</table>`:'';})()}
   <h2>Formats</h2><table><tr><th>Format</th><th class="r">Unités</th><th class="r">Rebuts</th><th class="r">Litres</th></tr>${s.formats.map(f=>{const v=f.f==='autre'?(num(f.vu)||0):FORMATS[f.f].v;return `<tr><td>${FORMATS[f.f].l}</td><td class="r">${f.units||0}</td><td class="r">${f.rej||0}</td><td class="r">${((num(f.units)||0)*v).toFixed(1)}</td></tr>`;}).join('')}
   <tr><th>Total</th><th class="r">${c.units}</th><th></th><th class="r">${c.outL.toFixed(1)}</th></tr></table>
   <p>Rendement de conditionnement : <b>${c.yieldPct!=null?c.yieldPct.toFixed(1)+' %':'—'}</b> · pertes ${c.lossL!=null?Math.round(c.lossL)+' L':'—'}</p>
