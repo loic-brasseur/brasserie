@@ -1035,7 +1035,7 @@ footer {
     <button class="ghost" id="recapPdfBtn">Récap PDF</button>
     <button class="ghost" id="recapXlsxBtn">Récap Excel</button>
     <button class="ghost danger" id="resetAllBtn">Tout effacer</button>
-    <input type="file" id="importFile" accept=".json" style="display:none">
+    <input type="file" id="importFile" accept=".json,.xlsx,.xls" style="display:none">
   </div>
 </footer>
 
@@ -1615,7 +1615,39 @@ function exportJSON() {
   URL.revokeObjectURL(url);
   toast('Export téléchargé');
 }
+/* import du fichier Excel « Inventaire » (une ligne par lot : bière, contenant, quantité, DDM, lot) */
+function handleImportXlsx(file){
+  const rd=new FileReader();rd.onload=()=>{try{
+    const wb=XLSX.read(new Uint8Array(rd.result),{type:'array',cellDates:true});
+    const nm=wb.SheetNames.find(n=>/^inventaire/i.test(n))||wb.SheetNames[0];
+    const aoa=XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,defval:''});
+    const N=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+    const h=aoa.findIndex(r=>r.some(c=>N(c)==='biere'));if(h<0)throw new Error('colonne « Bière » introuvable');
+    const H=aoa[h].map(N);const col=k=>H.findIndex(x=>x.startsWith(k));
+    const cB=col('biere'),cC=col('contenant'),cQ=col('quantite'),cM=col('ddm mois'),cY=col('ddm annee'),cL=col('n de lot')>=0?col('n de lot'):col('lot');
+    const out=[],bad=[];
+    aoa.slice(h+1).forEach((r,i)=>{if(!r.some(c=>String(c).trim()!=='')||r.some(c=>/exemple/i.test(String(c))))return;
+      let beer=String(r[cB]||'').trim();const nb=N(beer).replace(/^biere /,'');
+      const known=BEERS.find(b=>N(b[0]).replace(/^biere /,'')===nb||N(b[1])===N(beer));if(known)beer=known[0];
+      const c0=String(r[cC]||'').replace(/\s+/g,'').toLowerCase();const cont=/cl$/.test(c0)?c0:c0.replace(/l$/,'L');
+      const q=evalQuantity(r[cQ]);let m=parseInt(r[cM],10),y=parseInt(r[cY],10);
+      if(r[cM] instanceof Date){m=r[cM].getMonth()+1;y=r[cM].getFullYear();}
+      else if(isNaN(m)&&/^(\d{1,2})[\/\-.](\d{4})$/.test(String(r[cM]).trim())){const mm=String(r[cM]).trim().match(/^(\d{1,2})[\/\-.](\d{4})$/);m=+mm[1];y=+mm[2];}
+      else if(isNaN(m)){const k=MONTHS_FR.findIndex(x=>N(x)===N(r[cM]));if(k>=0)m=k+1;}
+      if(!beer||!CONTAINER_HL[cont]||!Number.isFinite(q)||q<=0||!(m>=1&&m<=12)||!(y>2000)){bad.push(h+i+2);return;}
+      out.push({id:'e_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6),beer,container:cont,quantity:q,ddm:ddmFromMonthYear(m,y),lot:String(r[cL]||'').trim(),createdAt:new Date().toISOString()});
+    });
+    if(!out.length){toast('Aucune ligne valide'+(bad.length?' (lignes '+bad.slice(0,8).join(', ')+')':''));return;}
+    const msg=`${out.length} ligne(s) valide(s)`+(bad.length?` — ${bad.length} ligne(s) ignorée(s) (n° ${bad.slice(0,10).join(', ')}) : bière, contenant (33cl, 44cl, 75cl, 20L, 30L), quantité ou DDM manquant`:'');
+    if(confirm(msg+'.\n\nOK : REMPLACER tout l\'inventaire actuel ('+entries.length+' entrée(s)) par le fichier.\nAnnuler : choisir d\'ajouter à la place.')){entries=out;}
+    else if(confirm('Ajouter les '+out.length+' ligne(s) à l\'inventaire actuel ?')){entries=entries.concat(out);}
+    else return;
+    out.forEach(e=>{if(!BEERS.some(b=>b[0]===e.beer)&&typeof bieresAdd==='function')bieresAdd(e.beer);});
+    saveEntries();render();toast('Import Excel effectué');
+  }catch(err){toast('Fichier Excel invalide : '+err.message);}};rd.readAsArrayBuffer(file);
+}
 function handleImport(file) {
+  if(/\.xlsx?$/i.test(file.name)){ if(window.XLSX)handleImportXlsx(file); else toast('Lecteur Excel non chargé (connexion ?)'); return; }
   const r = new FileReader();
   r.onload = (e) => {
     try {

@@ -534,7 +534,9 @@
   <div class="panel proc-panel" id="packPanel">
     <div class="panel-h"><h2>Matériel de conditionnement</h2><span class="proc-sub">Articles du Stock déduits automatiquement par le Packaging Log</span></div>
     <div class="panel-b"><div class="pack-grid" id="packGrid"></div>
-      <p class="hint" id="packHint" style="margin-top:8px"></p></div>
+      <p class="hint" id="packHint" style="margin-top:8px"></p>
+      <button class="btn-ghost" style="margin-top:8px;padding:7px 12px;font-size:12.5px" onclick="document.getElementById('packFile').click()">Importer le fichier Excel de conditionnement (toutes les recettes)</button>
+      <input type="file" id="packFile" accept=".xlsx,.xls" style="display:none" onchange="if(this.files[0])readSheet(this.files[0],'Conditionnement',importPackRows);this.value=''"></div>
   </div>
 
   <!-- COÛT DE REVIENT -->
@@ -2131,21 +2133,60 @@ function procPrintHTML(CG){
 }
 /* ---- matériel de conditionnement : liens vers les articles du Stock ---- */
 const PACK_KINDS=[['b33','Bouteille 33 cl'],['cap33','Capsule 33 cl (26 mm)'],['lab33','Étiquette 33 cl'],
-  ['b75','Bouteille 75 cl'],['cap75','Capsule / bouchon 75 cl'],['lab75','Étiquette 75 cl'],
+  ['b75','Bouteille 75 cl'],['cap75','Capsule / bouchon 75 cl'],['lab75','Étiquette 75 cl'],['mus75','Muselet 75 cl'],
+  ['crt33','Carton 33 cl'],['crt75','Carton 75 cl'],
   ['can44','Canette 44 cl'],['lid44','Couvercle canette'],['capFut','Capsule de fût (couleur)']];
+const PACK_PER={crt33:24,crt75:12}; // bouteilles par carton (modifiable par recette)
 function packItems(){try{const st=JSON.parse(localStorage.getItem('brasserie_stock_v2'));return st&&Array.isArray(st.items)?st.items:[];}catch(e){return[];}}
 function renderPack(){
   const g=document.getElementById('packGrid');if(!g)return;
   document.getElementById('packPanel').style.display=state.mode==='biere'?'':'none';
   const it=packItems(),P=state.pack||{};
-  const opts=sel=>{const L=[...it].sort((a,b)=>(a.cat==='emballage'?0:1)-(b.cat==='emballage'?0:1)||a.name.localeCompare(b.name,'fr'));
+  const opts=sel=>{const L=it.filter(i=>i.cat==='emballage').sort((a,b)=>a.name.localeCompare(b.name,'fr')); // uniquement la section Conditionnement du Stock
     return `<option value="">— Aucun —</option>`+L.map(i=>`<option value="${i.id}"${i.id===(sel&&sel.id)?' selected':''}>${hEsc(i.name)}</option>`).join('')+
       (sel&&sel.id&&!it.some(i=>i.id===sel.id)?`<option value="${sel.id}" selected>${hEsc(sel.name||'article supprimé')} (absent du stock)</option>`:'');};
-  g.innerHTML=PACK_KINDS.map(([k,l])=>`<div class="field"><label>${l}</label><select onchange="setPack('${k}',this)">${opts(P[k])}</select></div>`).join('');
-  document.getElementById('packHint').textContent=it.length?(it.some(i=>i.cat==='emballage')?'':'Astuce : crée tes bouteilles, capsules et étiquettes dans l\'app Stock, section « Conditionnement ».')
+  g.innerHTML=PACK_KINDS.map(([k,l])=>`<div class="field"><label>${l}</label><select onchange="setPack('${k}',this)">${opts(P[k])}</select>${PACK_PER[k]?`<div class="hint" style="margin-top:4px;display:flex;gap:6px;align-items:center"><input type="number" min="1" step="1" value="${(P[k]&&P[k].per)||PACK_PER[k]}" style="width:70px;padding:5px 7px" onchange="setPer('${k}',this.value)"> bouteilles par carton</div>`:''}</div>`).join('');
+  document.getElementById('packHint').textContent=it.length?(it.some(i=>i.cat==='emballage')?'Seuls les articles de la section « Conditionnement » du Stock sont proposés.':'Aucun article dans la section « Conditionnement » du Stock : crée-y tes bouteilles, capsules, étiquettes et cartons.')
     :'Le stock n\'est pas encore initialisé : ouvre une fois l\'app Stock.';
 }
-function setPack(k,sel){state.pack=state.pack||{};if(!sel.value)delete state.pack[k];else state.pack[k]={id:sel.value,name:sel.options[sel.selectedIndex].text};saveAuto();}
+function setPack(k,sel){state.pack=state.pack||{};const per=state.pack[k]&&state.pack[k].per;if(!sel.value)delete state.pack[k];else state.pack[k]={id:sel.value,name:sel.options[sel.selectedIndex].text,...(per?{per}:{})};saveAuto();}
+function setPer(k,v){state.pack=state.pack||{};const n=parseInt(v,10);if(!state.pack[k])state.pack[k]={};if(n>0)state.pack[k].per=n;else delete state.pack[k].per;saveAuto();}
+
+/* SheetJS chargé à la demande pour lire les fichiers Excel (connexion internet nécessaire pour ce chargement) */
+function withXLSX(cb){if(window.XLSX)return cb();const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  sc.onload=cb;sc.onerror=()=>alert('Impossible de charger le lecteur Excel (pas de connexion ?).');document.head.appendChild(sc);}
+function readSheet(file,want,cb){withXLSX(()=>{const rd=new FileReader();rd.onload=()=>{try{const wb=XLSX.read(new Uint8Array(rd.result),{type:'array',cellDates:true});
+  const nm=wb.SheetNames.find(n=>n.toLowerCase().startsWith(want.toLowerCase()))||wb.SheetNames.find(n=>!/mode|article/i.test(n))||wb.SheetNames[0];
+  cb(XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,defval:''}));}catch(e){alert('Fichier Excel illisible : '+e.message);}};rd.readAsArrayBuffer(file);});}
+const xNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+/* trouve la ligne d'en-tête (celle qui contient le mot attendu) et renvoie des objets {entête: valeur} */
+function rowsFrom(aoa,key){const h=aoa.findIndex(r=>r.some(c=>xNorm(c)===xNorm(key)));if(h<0)return null;const H=aoa[h].map(c=>xNorm(c));
+  return aoa.slice(h+1).filter(r=>r.some(c=>String(c).trim()!=='')).map(r=>{const o={};H.forEach((k,i)=>{if(k)o[k]=r[i];});return o;});}
+/* import du fichier Excel « Conditionnement » : une ligne par recette ; articles cherchés (ou créés) dans le Stock */
+function importPackRows(aoa){
+  const R=rowsFrom(aoa,'Recette');if(!R){alert("Colonne « Recette » introuvable : utilise le fichier modèle Conditionnement.");return;}
+  const COL={b33:'bouteille 33 cl',cap33:'capsule 33 cl 26 mm',lab33:'etiquette 33 cl',crt33:'carton 33 cl',b75:'bouteille 75 cl',cap75:'capsule bouchon 75 cl',mus75:'muselet 75 cl',
+    lab75:'etiquette 75 cl',crt75:'carton 75 cl',can44:'canette 44 cl',lid44:'couvercle canette',capFut:'capsule de fut couleur'};
+  let st=null;try{st=JSON.parse(localStorage.getItem('brasserie_stock_v2'));}catch(e){}
+  if(!st||!Array.isArray(st.items)){alert("Le stock n'est pas encore initialisé : ouvre une fois l'app Stock.");return;}
+  const all=getAll();let done=0,empty=0,miss=[],created=[];
+  R.forEach(r=>{const nm=String(r['recette']||'').replace(/\s*\(soft\)\s*$/i,'').trim();if(!nm)return;
+    const rec=all.find(x=>bNorm(x.name)===bNorm(nm));if(!rec){miss.push(nm);return;}
+    const P={};
+    Object.entries(COL).forEach(([k,h])=>{const v=String(r[h]||'').trim();if(!v)return;
+      let it=st.items.find(i=>xNorm(i.name)===xNorm(v));
+      if(!it){it={id:'a'+Math.random().toString(36).slice(2,9),cat:'emballage',name:v,unit:'unité(s)',qty:0,min:'',note:'créé par import conditionnement'};st.items.push(it);created.push(v);}
+      P[k]={id:it.id,name:it.name};});
+    const p33=parseInt(r['bouteilles carton 33'],10),p75=parseInt(r['bouteilles carton 75'],10);
+    if(P.crt33&&p33>0&&p33!==24)P.crt33.per=p33;if(P.crt75&&p75>0&&p75!==12)P.crt75.per=p75;
+    if(!Object.keys(P).length){empty++;return;}
+    rec.pack=P;done++;});
+  const sum=`${done} recette(s) mise(s) à jour`+(empty?`\n${empty} ligne(s) vide(s) : conditionnement actuel conservé`:'')+(created.length?`\n${created.length} article(s) créé(s) dans le Stock (section Conditionnement) : ${[...new Set(created)].slice(0,12).join(', ')}${created.length>12?'…':''}`:'')+(miss.length?`\nRecettes introuvables : ${miss.join(', ')}`:'');
+  if(!confirm(sum+'\n\nValider ?'))return;
+  localStorage.setItem(LSKEY,JSON.stringify(all));localStorage.setItem('brasserie_stock_v2',JSON.stringify(st));
+  const cur=all.find(x=>bNorm(x.name)===bNorm(val('rName')));if(cur){state.pack=JSON.parse(JSON.stringify(cur.pack||{}));}
+  renderPack();saveAuto();alert('Conditionnement importé.');
+}
 
 /* ---- historique des versions ---- */
 function openVersions(ts){
