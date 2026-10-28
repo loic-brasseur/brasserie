@@ -254,7 +254,7 @@
       <button class="btn-ghost" id="btnExport">Exporter</button>
       <button class="btn-ghost" id="btnImport">Importer</button>
       <button class="btn-ghost" id="btnSettings" title="En-tête / coordonnées de la brasserie">⚙ En-tête</button>
-      <input type="file" id="fileInput" accept="application/json" class="hidden">
+      <input type="file" id="fileInput" accept="application/json,.json,.xlsx,.xls" class="hidden">
     </div>
   </header>
 
@@ -666,10 +666,43 @@ document.getElementById('btnExport').onclick=()=>{
 };
 document.getElementById('btnImport').onclick=()=>document.getElementById('fileInput').click();
 document.getElementById('fileInput').onchange=e=>{
-  const f=e.target.files[0];if(!f)return;const rd=new FileReader();
+  const f=e.target.files[0];if(!f)return;e.target.value='';
+  if(/\.xlsx?$/i.test(f.name)){readSheet(f,'Stock',importStockRows);return;}
+  const rd=new FileReader();
   rd.onload=()=>{try{const s=JSON.parse(rd.result);if(s.items){state=s;migrate(state);save();render();}}catch(err){alert('Fichier invalide');}};
   rd.readAsText(f);
 };
+/* SheetJS chargé à la demande pour lire les fichiers Excel (connexion internet nécessaire pour ce chargement) */
+function withXLSX(cb){if(window.XLSX)return cb();const sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  sc.onload=cb;sc.onerror=()=>alert('Impossible de charger le lecteur Excel (pas de connexion ?).');document.head.appendChild(sc);}
+function readSheet(file,want,cb){withXLSX(()=>{const rd=new FileReader();rd.onload=()=>{try{const wb=XLSX.read(new Uint8Array(rd.result),{type:'array',cellDates:true});
+  const nm=wb.SheetNames.find(n=>n.toLowerCase().startsWith(want.toLowerCase()))||wb.SheetNames.find(n=>!/mode|article/i.test(n))||wb.SheetNames[0];
+  cb(XLSX.utils.sheet_to_json(wb.Sheets[nm],{header:1,defval:''}));}catch(e){alert('Fichier Excel illisible : '+e.message);}};rd.readAsArrayBuffer(file);});}
+const xNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+/* trouve la ligne d'en-tête (celle qui contient le mot attendu) et renvoie des objets {entête: valeur} */
+function rowsFrom(aoa,key){const h=aoa.findIndex(r=>r.some(c=>xNorm(c)===xNorm(key)));if(h<0)return null;const H=aoa[h].map(c=>xNorm(c));
+  return aoa.slice(h+1).filter(r=>r.some(c=>String(c).trim()!=='')).map(r=>{const o={};H.forEach((k,i)=>{if(k)o[k]=r[i];});return o;});}
+/* import du fichier Excel « Stock » : met à jour les articles (par ID ou par nom) et crée les nouveaux */
+function importStockRows(aoa){
+  const R=rowsFrom(aoa,'Article');if(!R){alert("Colonne « Article » introuvable : utilise le fichier modèle Stock.");return;}
+  const catOf=v=>{const n=xNorm(v);if(!n)return null;const c=CATS.find(c=>xNorm(c.label)===n||xNorm(c.label).startsWith(n)||n.startsWith(xNorm(c.label).split(' ')[0])||c.id===n);return c?c.id:null;};
+  const numv=v=>{if(v===''||v==null)return null;const x=parseFloat(String(v).replace(',','.'));return isNaN(x)?null:x;};
+  let up=0,cr=0,skip=0;const pendAlt=[];
+  R.forEach(r=>{const name=String(r['article']||'').trim();if(!name){skip++;return;}
+    let it=(r['id']&&state.items.find(i=>i.id===String(r['id']).trim()))||state.items.find(i=>xNorm(i.name)===xNorm(name));
+    const cat=catOf(r['section']);
+    if(!it){it={id:uid(),cat:cat||'conso',name,unit:'',qty:0,min:'',note:''};state.items.push(it);cr++;}else up++;
+    it.name=name;if(cat)it.cat=cat;
+    if(String(r['unite']||'').trim())it.unit=String(r['unite']).trim();
+    const q=numv(r['quantite']);if(q!=null)it.qty=q;
+    if('seuil d alerte' in r){const m=numv(r['seuil d alerte']);it.min=m==null?'':m;}
+    if(String(r['note']||'').trim())it.note=String(r['note']).trim();
+    const alt=String(r['remplacer par si epuise']||'').trim();if(alt)pendAlt.push([it,alt]);
+  });
+  pendAlt.forEach(([it,alt])=>{const a=state.items.find(i=>xNorm(i.name)===xNorm(alt));if(a&&a.id!==it.id)it.alt=a.id;});
+  if(!confirm(`Import du fichier Stock :\n• ${up} article(s) mis à jour\n• ${cr} article(s) créé(s)${skip?`\n• ${skip} ligne(s) sans nom ignorée(s)`:''}\n\nLes quantités saisies remplacent celles du stock (une case vide garde la quantité actuelle). Valider ?`)){state=load();render();return;}
+  save();render();alert('Stock mis à jour.');
+}
 
 /* ============== Saisie ligne par ligne — réception / utilisation / commande ============== */
 const rov=document.getElementById('rov'),uov=document.getElementById('uov'),cov=document.getElementById('cov');
