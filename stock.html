@@ -298,6 +298,9 @@
       <label>Note / fournisseur / lot (optionnel)
         <input class="input" id="f_note" placeholder="ex. Castle Malting · lot 2026-A">
       </label>
+      <label>Si épuisé, remplacer par (conditionnement)
+        <select class="input" id="f_alt"></select>
+      </label>
     </div>
     <div class="modal-actions">
       <button class="danger hidden" id="mDelete">Supprimer</button>
@@ -482,6 +485,11 @@ function migrate(s){
   if(!s.cartonsSeed){['Carton 33 Neutre','Carton 33 Marqué','Carton 75 Neutre','Carton 75 Marqué'].forEach(n=>{
     if(!s.items.some(i=>String(i.name).toLowerCase()===n.toLowerCase()))s.items.push({id:uid(),cat:'emballage',name:n,unit:'u',qty:0,min:'',note:''});});
     s.cartonsSeed=true;ch0=true;}
+  // capsules 26 mm Valmy / Orgemont : remplacées par la capsule noire quand elles sont épuisées ;
+  // muselet noir Orgemont : remplacé par le muselet noir neutre
+  if(!s.altSeed2){[[/capsule\s+(valmy|orgemont)\s+26/i,/capsule\s+noire\s+26/i],[/muselet\s+noir\s+orgemont/i,/muselet\s+noir\s+neutre/i]].forEach(([from,to])=>{
+      const t=s.items.find(i=>to.test(i.name));if(t)s.items.forEach(i=>{if(from.test(i.name)&&!i.alt)i.alt=t.id;});});
+    s.altSeed2=true;ch0=true;}
   return migrateHops(s)||ch0;
 }
 function migrateHops(s){
@@ -591,6 +599,7 @@ function openModal(id){
   document.getElementById('f_qty').value=it?.qty??'';
   document.getElementById('f_min').value=it?.min??'';
   document.getElementById('f_note').value=it?.note||'';
+  document.getElementById('f_alt').innerHTML='<option value="">— Aucun —</option>'+state.items.filter(i=>i.id!==id&&(!it||i.cat===it.cat)).sort((a,b)=>a.name.localeCompare(b.name,'fr')).map(i=>`<option value="${i.id}"${it&&it.alt===i.id?' selected':''}>${esc(i.name)}</option>`).join('');
   document.getElementById('mDelete').classList.toggle('hidden',!it);
   ov.classList.add('show');
   setTimeout(()=>document.getElementById('f_name').focus(),50);
@@ -613,7 +622,8 @@ document.getElementById('mSave').onclick=()=>{
     unit:document.getElementById('f_unit').value.trim(),
     qty:parseFloat(document.getElementById('f_qty').value)||0,
     min:document.getElementById('f_min').value!==''?parseFloat(document.getElementById('f_min').value):'',
-    note:document.getElementById('f_note').value.trim()
+    note:document.getElementById('f_note').value.trim(),
+    alt:document.getElementById('f_alt').value||''
   };
   let created=null;
   if(editId){Object.assign(state.items.find(i=>i.id===editId),data);}

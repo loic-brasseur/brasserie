@@ -142,6 +142,7 @@
   @media(max-width:700px){.stockline{grid-template-columns:1fr}}
   .hint{font-size:.76rem;color:var(--ink-soft);margin-top:.4rem}
   select.unm{border-color:var(--red)}
+  small.alt{display:block;font-size:.72rem;color:var(--amber);margin-top:.2rem}
   .fmt-row{display:grid;grid-template-columns:1.3fr .8fr .8fr .8fr 30px;gap:.45rem;align-items:center;margin-bottom:.4rem}
   .fmt-row .tot{font-family:var(--mono);font-size:.85rem;text-align:right}
   .fmt-head{display:grid;grid-template-columns:1.3fr .8fr .8fr .8fr 30px;gap:.45rem;font-size:.64rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:700;margin-bottom:.3rem}
@@ -364,7 +365,7 @@ const UNIT={g:1,kg:1000};
 function toUnit(qG,unit){const k=UNIT[String(unit||'').toLowerCase()];return k?qG/k:qG/1000;}
 /* ---- matériel de conditionnement (bouteilles, capsules, étiquettes) : liens définis dans la recette ---- */
 const MAT=[['b33','Bouteilles 33 cl',['33cl']],['cap33','Capsules 33 cl',['33cl']],['lab33','Étiquettes 33 cl',['33cl']],
-  ['b75','Bouteilles 75 cl',['75cl']],['cap75','Capsules / bouchons 75 cl',['75cl']],['lab75','Étiquettes 75 cl',['75cl']],
+  ['b75','Bouteilles 75 cl',['75cl']],['cap75','Capsules / bouchons 75 cl',['75cl']],['lab75','Étiquettes 75 cl',['75cl']],['mus75','Muselets 75 cl',['75cl']],
   ['crt33','Cartons 33 cl',['33cl']],['crt75','Cartons 75 cl',['75cl']],
   ['can44','Canettes 44 cl',['44cl']],['lid44','Couvercles canette',['44cl']],['capFut','Capsules de fût',['10L','20L','30L']]];
 function recipePack(s){const r=ld(REC_KEY,[]).find(x=>bNorm(x.name)===bNorm(s.recipe));return (r&&r.pack)||{};}
@@ -374,7 +375,11 @@ function matRows(s){
   return MAT.map(([k,l,fmts])=>{let auto=s.formats.filter(f=>fmts.includes(f.f)).reduce((a,f)=>a+(num(f.units)||0)+(PER[k]?0:(num(f.rej)||0)),0);
     if(PER[k]){const per=(P[k]&&+P[k].per)||PER[k];auto=Math.ceil(auto/per);l=l+' ('+per+' bt.)';}
     const o=s.mat[k]||{};const id=o.id!=null?o.id:(P[k]&&P[k].id)||'';const q=num(o.qty)??auto;
-    return {k,l,auto,id,q,fromRecipe:o.id==null&&!!(P[k]&&P[k].id),item:it.find(i=>i.id===id)};}).filter(r=>r.auto>0||(s.mat[r.k]&&s.mat[r.k].qty));
+    const item=it.find(i=>i.id===id);
+    // article épuisé : on prend ce qui reste, le complément sort sur l'article de remplacement (ex. capsule noire)
+    let split=null;if(item&&item.alt&&q>0){const have=Math.max(0,Number(item.qty)||0);const alt=it.find(i=>i.id===item.alt);
+      if(alt&&have<q)split=[{id:item.id,item,q:have},{id:alt.id,item:alt,q:q-have}].filter(x=>x.q>0);}
+    return {k,l,auto,id,q,split,fromRecipe:o.id==null&&!!(P[k]&&P[k].id),item};}).filter(r=>r.auto>0||(s.mat[r.k]&&s.mat[r.k].qty));
 }
 function setMat(k,f,v){const s=cur();s.mat=s.mat||{};s.mat[k]=s.mat[k]||{};s.mat[k][f]=v;if(f==='qty'&&v==='')delete s.mat[k].qty;save();if(f==='id')render();}
 function deductStock(){
@@ -386,7 +391,7 @@ function deductStock(){
   if(s.ref&&s.ref.on){add('sugar',r.sugarKg!=null?r.sugarKg*1000:null,'sucre');add('yeast',r.yeastG,'levure');}
   matRows(s).forEach(m=>{if(!(m.q>0))return;if(!m.id||m.id==='__skip'){if(!m.id)miss.push(m.l.toLowerCase());return;}
     if(!st.items.some(i=>i.id===m.id)){miss.push(m.l.toLowerCase());return;}
-    const ex=lines.find(l=>l.id===m.id);if(ex)ex.qty=String((parseFloat(ex.qty)||0)+m.q);else lines.push({id:m.id,qty:String(m.q)});});
+    (m.split||[{id:m.id,q:m.q}]).forEach(p=>{const ex=lines.find(l=>l.id===p.id);if(ex)ex.qty=String((parseFloat(ex.qty)||0)+p.q);else lines.push({id:p.id,qty:String(p.q)});});});
   if(miss.length&&!confirm('Aucun article de stock choisi pour : '+miss.join(', ')+'. Continuer sans ?'))return;
   if(!lines.length&&!s.ref.move){alert('Rien à déduire : saisis les formats conditionnés (et le sucre / la levure si refermentation).');return;}
   st.moves=st.moves||[];const prev=s.ref.move&&st.moves.find(m=>m.id===s.ref.move.id);
@@ -464,7 +469,7 @@ function render(){
       const opts=sel=>`<option value="">— Choisir —</option><option value="__skip"${sel==='__skip'?' selected':''}>Ne pas déduire</option>`+[...it].sort((a,b)=>(a.cat==='emballage'?0:1)-(b.cat==='emballage'?0:1)||a.name.localeCompare(b.name,'fr')).map(i=>`<option value="${i.id}"${i.id===sel?' selected':''}>${esc(i.name)}</option>`).join('');
       return M.length?`<table class="t"><thead><tr><th>Matériel</th><th>Article du stock</th><th class="num">Quantité</th><th class="num">En stock</th></tr></thead><tbody>
         ${M.map(m=>`<tr><td>${m.l}${m.fromRecipe?'':m.id?' <small style="color:var(--ink-soft)">(modifié)</small>':''}</td>
-          <td><select class="in${m.id?'':' unm'}" onchange="setMat('${m.k}','id',this.value)">${opts(m.id)}</select></td>
+          <td><select class="in${m.id?'':' unm'}" onchange="setMat('${m.k}','id',this.value)">${opts(m.id)}</select>${m.split?`<small class="alt">${m.split.map(p=>esc(p.item.name)+' : '+p.q).join(' + ')} — ${esc(m.item.name)} épuisé, remplacé automatiquement</small>`:''}</td>
           <td class="num"><input class="in" style="width:96px;text-align:right" type="number" min="0" step="1" value="${s.mat&&s.mat[m.k]&&s.mat[m.k].qty!=null?esc(s.mat[m.k].qty):''}" placeholder="${m.auto}" oninput="setMat('${m.k}','qty',this.value)"></td>
           <td class="num">${m.item?(m.item.qty+' '+esc(m.item.unit||'')):'—'}</td></tr>`).join('')}</tbody></table>
         <p class="hint">Quantités calculées depuis les formats : unités + rebuts (cartons : bonnes bouteilles ÷ bouteilles par carton, arrondi au supérieur). ${M.some(m=>!m.id)?'Choisis l\'article une fois dans le Carnet de brassage (« Matériel de conditionnement ») pour qu\'il soit repris à chaque lot.':''}</p>`
