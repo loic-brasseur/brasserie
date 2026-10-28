@@ -2134,7 +2134,7 @@ const PACK_KINDS=[['b33','Bouteille 33 cl'],['cap33','Capsule 33 cl (26 mm)'],['
   ['b75','Bouteille 75 cl'],['cap75','Capsule / bouchon 75 cl'],['lab75','Étiquette 75 cl'],
   ['crt33','Carton 33 cl'],['crt75','Carton 75 cl'],
   ['can44','Canette 44 cl'],['lid44','Couvercle canette'],['capFut','Capsule de fût (couleur)']];
-const PACK_PER={crt33:24,crt75:6}; // bouteilles par carton (modifiable par recette)
+const PACK_PER={crt33:24,crt75:12}; // bouteilles par carton (modifiable par recette)
 function packItems(){try{const st=JSON.parse(localStorage.getItem('brasserie_stock_v2'));return st&&Array.isArray(st.items)?st.items:[];}catch(e){return[];}}
 function renderPack(){
   const g=document.getElementById('packGrid');if(!g)return;

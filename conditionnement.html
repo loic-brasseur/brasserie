@@ -370,7 +370,7 @@ const MAT=[['b33','Bouteilles 33 cl',['33cl']],['cap33','Capsules 33 cl',['33cl'
 function recipePack(s){const r=ld(REC_KEY,[]).find(x=>bNorm(x.name)===bNorm(s.recipe));return (r&&r.pack)||{};}
 function matRows(s){
   const P=recipePack(s);s.mat=s.mat||{};const it=stockItems();
-  const PER={crt33:24,crt75:6};
+  const PER={crt33:24,crt75:12};
   return MAT.map(([k,l,fmts])=>{let auto=s.formats.filter(f=>fmts.includes(f.f)).reduce((a,f)=>a+(num(f.units)||0)+(PER[k]?0:(num(f.rej)||0)),0);
     if(PER[k]){const per=(P[k]&&+P[k].per)||PER[k];auto=Math.ceil(auto/per);l=l+' ('+per+' bt.)';}
     const o=s.mat[k]||{};const id=o.id!=null?o.id:(P[k]&&P[k].id)||'';const q=num(o.qty)??auto;
