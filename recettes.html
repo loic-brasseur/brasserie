@@ -2140,11 +2140,11 @@ function renderPack(){
   const g=document.getElementById('packGrid');if(!g)return;
   document.getElementById('packPanel').style.display=state.mode==='biere'?'':'none';
   const it=packItems(),P=state.pack||{};
-  const opts=sel=>{const L=[...it].sort((a,b)=>(a.cat==='emballage'?0:1)-(b.cat==='emballage'?0:1)||a.name.localeCompare(b.name,'fr'));
+  const opts=sel=>{const L=it.filter(i=>i.cat==='emballage').sort((a,b)=>a.name.localeCompare(b.name,'fr')); // uniquement la section Conditionnement du Stock
     return `<option value="">— Aucun —</option>`+L.map(i=>`<option value="${i.id}"${i.id===(sel&&sel.id)?' selected':''}>${hEsc(i.name)}</option>`).join('')+
       (sel&&sel.id&&!it.some(i=>i.id===sel.id)?`<option value="${sel.id}" selected>${hEsc(sel.name||'article supprimé')} (absent du stock)</option>`:'');};
   g.innerHTML=PACK_KINDS.map(([k,l])=>`<div class="field"><label>${l}</label><select onchange="setPack('${k}',this)">${opts(P[k])}</select>${PACK_PER[k]?`<div class="hint" style="margin-top:4px;display:flex;gap:6px;align-items:center"><input type="number" min="1" step="1" value="${(P[k]&&P[k].per)||PACK_PER[k]}" style="width:70px;padding:5px 7px" onchange="setPer('${k}',this.value)"> bouteilles par carton</div>`:''}</div>`).join('');
-  document.getElementById('packHint').textContent=it.length?(it.some(i=>i.cat==='emballage')?'':'Astuce : crée tes bouteilles, capsules et étiquettes dans l\'app Stock, section « Conditionnement ».')
+  document.getElementById('packHint').textContent=it.length?(it.some(i=>i.cat==='emballage')?'Seuls les articles de la section « Conditionnement » du Stock sont proposés.':'Aucun article dans la section « Conditionnement » du Stock : crée-y tes bouteilles, capsules, étiquettes et cartons.')
     :'Le stock n\'est pas encore initialisé : ouvre une fois l\'app Stock.';
 }
 function setPack(k,sel){state.pack=state.pack||{};const per=state.pack[k]&&state.pack[k].per;if(!sel.value)delete state.pack[k];else state.pack[k]={id:sel.value,name:sel.options[sel.selectedIndex].text,...(per?{per}:{})};saveAuto();}
