@@ -550,6 +550,9 @@ function importJSON(e){const f=e.target.files[0];if(!f)return;const rd=new FileR
   const ids=new Set(S.map(x=>x.id));let n=0;arr.forEach(x=>{if(!ids.has(x.id)){S.push(x);n++;}});save();renderList();alert(n+' session(s) importée(s).');}catch(err){alert('Fichier invalide');}};rd.readAsText(f);e.target.value='';}
 
 renderList();
+/* arrivée depuis le Suivi des cuves (« Soutirer & conditionner ») : nouvelle session pré-remplie pour ce lot */
+(function(){const lot=new URLSearchParams(location.search).get('lot');if(!lot)return;history.replaceState(null,'',location.pathname);
+  setTimeout(()=>{openNew();const sel=document.getElementById('n_lot');if([...sel.options].some(o=>o.value===lot)){sel.value=lot;codeHint();}},50);})();
 if(S.length)open_([...S].sort((a,b)=>b.date.localeCompare(a.date))[0].id);else render();
 </script>
 </body>

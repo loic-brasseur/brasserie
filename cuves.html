@@ -241,6 +241,7 @@
       </label>
     </div>
     <div class="modal-actions">
+      <button class="btn-ghost" id="batchClear" style="color:#B3261E;margin-right:auto;display:none">Vider la cuve</button>
       <button class="btn-ghost" id="batchCancel">Annuler</button>
       <button class="btn-copper" id="batchSave">Enregistrer</button>
     </div>
@@ -294,9 +295,28 @@
 </div>
 
 <!-- Modal soutirage / clôture -->
+<div class="overlay" id="trOverlay">
+  <div class="modal">
+    <h2>Transférer vers une autre cuve</h2>
+    <div class="mhint" id="trHint"></div>
+    <div class="form">
+      <label>Cuve de destination<select class="input" id="t_dest"></select></label>
+      <div class="two">
+        <label>Date<input class="input" id="t_date" type="date"></label>
+        <label>Volume transféré (HL)<input class="input" id="t_vol" type="number" step="0.1" inputmode="decimal"></label>
+      </div>
+      <label>Note<input class="input" id="t_note" style="font-family:var(--sans)" placeholder="ex. mise en garde, filtration…"></label>
+    </div>
+    <div class="mhint">Le lot (recette, relevés, protocole, cibles) passe dans la nouvelle cuve ; la cuve d'origine est libérée.</div>
+    <div class="modal-actions">
+      <button class="btn-ghost" id="trCancel">Annuler</button>
+      <button class="btn-copper" id="trSave">Transférer</button>
+    </div>
+  </div>
+</div>
 <div class="overlay" id="outOverlay">
   <div class="modal">
-    <h2>Soutirer &amp; clôturer</h2>
+    <h2>Soutirer &amp; conditionner</h2>
     <div class="mhint" id="outHint"></div>
     <div class="form">
       <div class="two">
@@ -305,12 +325,12 @@
       </div>
       <div class="two">
         <label>Densité finale (°P)<input class="input" id="o_fg" type="number" step="0.1" inputmode="decimal"></label>
-        <label>Destination<input class="input" id="o_dest" style="font-family:var(--sans)" placeholder="Cuve de garde, conditionnement…"></label>
+        <label>Destination<input class="input" id="o_dest" style="font-family:var(--sans)" placeholder="Conditionnement, fûts…"></label>
       </div>
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" id="outCancel">Annuler</button>
-      <button class="btn-copper" id="outSave">Clôturer le lot</button>
+      <button class="btn-copper" id="outSave">Soutirer et ouvrir le Packaging Log</button>
     </div>
   </div>
 </div>
@@ -512,7 +532,9 @@ function render(){
           <button class="btn-copper" data-act="read" data-id="${t.id}">+ Relevé</button>
           <button class="mini" data-act="sheet" data-id="${t.id}">Fiche</button>
           <button class="mini" data-act="edit" data-id="${t.id}">Modifier</button>
-          <button class="mini" data-act="out" data-id="${t.id}">Soutirer</button>
+          <button class="mini" data-act="tr" data-id="${t.id}">Transférer</button>
+          <button class="mini" data-act="out" data-id="${t.id}">Soutirer &amp; conditionner</button>
+          <button class="mini" data-act="clear" data-id="${t.id}" title="Vider la cuve sans archiver" style="color:#B3261E">Vider</button>
         </div>
       </div>`;
     }
@@ -535,10 +557,12 @@ function openBatch(id){
   document.getElementById('f_start').value=b?.start||todayStr();
   document.getElementById('f_end').value=b?.end||'';
   document.getElementById('f_pack').value=b?.pack||'';
+  document.getElementById('batchClear').style.display=b?'':'none';
   bo.classList.add('show');
 }
 function closeBatch(){bo.classList.remove('show');editId=null;}
 document.getElementById('batchCancel').onclick=closeBatch;
+document.getElementById('batchClear').onclick=()=>{if(editId)clearTank(editId);};
 bo.addEventListener('click',e=>{if(e.target===bo)closeBatch();});
 document.getElementById('batchSave').onclick=()=>{
   const t=tank(editId);if(!t)return;
@@ -621,7 +645,13 @@ document.getElementById('grid').addEventListener('click',e=>{
   else if(act==='read')openRead(id);
   else if(act==='sheet')openSheet(id);
   else if(act==='out')openOut(id);
+  else if(act==='clear')clearTank(id);
+  else if(act==='tr')openTr(id);
 });
+/* vide la cuve sans archiver (erreur de saisie, cuve libérée hors app…) */
+function clearTank(id){const t=tank(id);if(!t||!t.batch)return;
+  if(!confirm(`Vider ${t.name} ?\n\n« ${t.batch.recipe||'Brassin'}${t.batch.lot?' — lot '+t.batch.lot:''} » et ses relevés seront supprimés, sans archivage.\n(Pour garder l'historique, utilise plutôt « Soutirer & conditionner ».)`))return;
+  t.batch=null;save();render();if(typeof closeBatch==='function'&&editId===id)closeBatch();}
 document.getElementById('todo').addEventListener('click',e=>{
   const btn=e.target.closest('button[data-act="done"]');if(!btn)return;
   markStep(btn.dataset.id,btn.dataset.p,true);
@@ -734,7 +764,29 @@ document.getElementById('outSave').onclick=()=>{
   const sout=(b.protocol||[]).find(p=>p.a==='sout'&&!p.done);if(sout)sout.done=document.getElementById('o_date').value||todayStr();
   state.archive.push({...b,tankId:t.id,tankName:t.name,fermScore:fermScore(b),
     closed:{date:document.getElementById('o_date').value||todayStr(),volHL:parseFloat(document.getElementById('o_vol').value)||null,fg:fg!==''?parseFloat(fg):null,dest:document.getElementById('o_dest').value.trim()}});
-  t.batch=null;save();render();oo.classList.remove('show');
+  const lot=b.lot;t.batch=null;save();render();oo.classList.remove('show');
+  if(lot)location.href='conditionnement.html?lot='+encodeURIComponent(lot);
+  else alert("Lot archivé. Pas de n° de lot sur ce brassin : crée la session à la main dans le Packaging Log.");
+};
+
+// ---- transfert vers une autre cuve ----
+const tro=document.getElementById('trOverlay');let trId=null;
+function openTr(id){trId=id;const t=tank(id),b=t.batch;
+  const free=state.tanks.filter(x=>x.id!==id&&!x.batch);
+  if(!free.length){alert('Aucune cuve vide disponible pour le transfert.');return;}
+  document.getElementById('trHint').textContent=t.name+' · '+(b.recipe||'Brassin')+(b.lot?' · lot '+b.lot:'');
+  document.getElementById('t_dest').innerHTML=free.map(x=>`<option value="${x.id}">${x.name} (${x.cap} HL)</option>`).join('');
+  document.getElementById('t_date').value=todayStr();document.getElementById('t_vol').value=b.volume||t.cap;document.getElementById('t_note').value='';
+  tro.classList.add('show');}
+document.getElementById('trCancel').onclick=()=>tro.classList.remove('show');
+tro.addEventListener('click',e=>{if(e.target===tro)tro.classList.remove('show');});
+document.getElementById('trSave').onclick=()=>{
+  const t=tank(trId),d=tank(document.getElementById('t_dest').value);if(!t||!t.batch||!d||d.batch)return;
+  const b=t.batch,date=document.getElementById('t_date').value||todayStr(),vol=parseFloat(document.getElementById('t_vol').value)||b.volume||t.cap,note=document.getElementById('t_note').value.trim();
+  if(vol>d.cap&&!confirm(`${vol} HL dépasse la capacité de ${d.name} (${d.cap} HL). Continuer ?`))return;
+  (b.transfers=b.transfers||[]).push({date,from:t.name,to:d.name,volIn:b.volume||null,volOut:vol,note});
+  const lr=lastReading(b)||{};(b.readings=b.readings||[]).push({date,plato:lr.plato??null,temp:lr.temp??null,...(lr.ph!=null?{ph:lr.ph}:{}),note:`Transfert ${t.name} → ${d.name}`+(note?' — '+note:'')});
+  b.volume=vol;d.batch=b;t.batch=null;save();render();tro.classList.remove('show');
 };
 
 // ---- historique ----
@@ -743,7 +795,7 @@ document.getElementById('btnHist').onclick=()=>{
   const A=[...state.archive].sort((a,b)=>a.closed.date<b.closed.date?1:-1);
   document.getElementById('histBody').innerHTML=A.length?`<table class="t"><thead><tr><th>Lot</th><th>Bière</th><th>Cuve</th><th>Mise en cuve</th><th>Soutirage</th><th class="n">DI</th><th class="n">DF</th><th class="n">Att.</th><th class="n">Vol. in → out</th><th class="n">Note</th></tr></thead><tbody>
     ${A.map(a=>{const og=a.og!=null?+a.og:null,fg=a.closed.fg;const att=og&&fg!=null?((og-fg)/og*100).toFixed(0)+' %':'—';
-      return `<tr><td>${esc(a.lot||'')}</td><td>${esc(a.recipe)}</td><td>${esc(a.tankName)}</td><td>${fmtDate(a.start)}</td><td>${fmtDate(a.closed.date)}</td><td class="n">${og!=null?og.toFixed(1):'—'}</td><td class="n">${fg!=null?fg.toFixed(1):'—'}</td><td class="n">${att}</td><td class="n">${a.volume||'—'} → ${a.closed.volHL??'—'} HL</td><td class="n">${a.fermScore!=null?a.fermScore+'/5':'—'}</td></tr>`;}).join('')}</tbody></table>`:'<p class="meta">Aucun lot clôturé pour l\'instant. Utilise « Soutirer » sur une cuve pour archiver un lot.</p>';
+      return `<tr><td>${esc(a.lot||'')}</td><td>${esc(a.recipe)}</td><td>${esc(a.tankName)}</td><td>${fmtDate(a.start)}</td><td>${fmtDate(a.closed.date)}</td><td class="n">${og!=null?og.toFixed(1):'—'}</td><td class="n">${fg!=null?fg.toFixed(1):'—'}</td><td class="n">${att}</td><td class="n">${a.volume||'—'} → ${a.closed.volHL??'—'} HL</td><td class="n">${a.fermScore!=null?a.fermScore+'/5':'—'}</td></tr>`;}).join('')}</tbody></table>`:'<p class="meta">Aucun lot clôturé pour l\'instant. Utilise « Soutirer & conditionner » sur une cuve pour archiver un lot.</p>';
   ho.classList.add('show');
 };
 document.getElementById('histClose').onclick=()=>ho.classList.remove('show');
