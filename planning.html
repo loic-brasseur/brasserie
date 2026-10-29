@@ -1,434 +1,236 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon-180.png">
-<link rel="apple-touch-icon" sizes="167x167" href="apple-touch-icon-167.png">
-<link rel="apple-touch-icon" sizes="152x152" href="apple-touch-icon-152.png">
-<link rel="apple-touch-icon" sizes="120x120" href="apple-touch-icon-120.png">
-<link rel="apple-touch-icon" href="apple-touch-icon-180.png">
-<link rel="icon" type="image/png" href="favicon.png">
-
 <meta charset="UTF-8">
 <script src="sync.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Planning">
+<meta name="apple-mobile-web-app-title" content="Cuves">
 <meta name="theme-color" content="#FBF5EC">
-<title>Planning de production — Brasserie</title>
+<link rel="apple-touch-icon" href="apple-touch-icon-180.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<title>Planning des cuves</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Manrope:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --bg:#FBF5EC; --bg2:#F4ECDC; --card:#FFFDF7; --ink:#1A1612; --ink-soft:#7A6F5C;
-    --amber:#B8842F; --copper:#A8541B; --gold:#CF982B; --green:#4F6B2F; --red:#A8392B;
-    --line:rgba(26,22,18,.12); --line-strong:rgba(26,22,18,.24);
+    --bg:#FBF5EC;--bg2:#F4ECDC;--card:#FFFDF7;--ink:#1A1612;--ink-soft:#7A6F5C;
+    --copper:#A8541B;--gold:#CF982B;--green:#4F6B2F;--red:#B3261E;
+    --line:rgba(26,22,18,.12);--line-strong:rgba(26,22,18,.24);
     --shadow:0 1px 2px rgba(26,22,18,.05),0 8px 24px rgba(26,22,18,.09);
-    --serif:'Fraunces',Georgia,serif; --sans:'Manrope',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+    --serif:'Fraunces',Georgia,serif;--sans:'Manrope',system-ui,sans-serif;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;padding:0}
-  body{font-family:var(--sans);color:var(--ink);line-height:1.45;
-    background:radial-gradient(ellipse at top,#FBF5EC 0%,#F4ECDC 100%);background-attachment:fixed;
-    -webkit-font-smoothing:antialiased;min-height:100vh;
-    padding:max(1rem,env(safe-area-inset-top)) max(.9rem,env(safe-area-inset-right)) max(2.5rem,env(safe-area-inset-bottom)) max(.9rem,env(safe-area-inset-left));}
+  body{font-family:var(--sans);color:var(--ink);line-height:1.45;min-height:100vh;background:radial-gradient(ellipse at top,#FBF5EC 0%,#F4ECDC 100%);background-attachment:fixed;-webkit-font-smoothing:antialiased;
+    padding:max(1.4rem,env(safe-area-inset-top)) max(1rem,env(safe-area-inset-right)) 5rem max(1rem,env(safe-area-inset-left))}
   .wrap{max-width:1280px;margin:0 auto}
-  header.app{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;
-    padding-bottom:1rem;margin-bottom:1.1rem;border-bottom:1px solid var(--line)}
-  .brand{display:flex;align-items:center;gap:.85rem}
-  .brand .mark{width:42px;height:42px;flex:0 0 auto;border-radius:11px;background:var(--ink);color:#FBF5EC;
-    display:grid;place-items:center;font-family:var(--serif);font-size:1.4rem;font-weight:600}
-  h1{font-family:var(--serif);font-weight:500;font-size:clamp(1.7rem,5vw,2.3rem);letter-spacing:-.02em;line-height:1;margin:0}
-  .sub{font-family:var(--serif);font-style:italic;font-size:.92rem;color:var(--ink-soft);margin-top:.3rem}
-  .toolbar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
-  button{font-family:var(--sans);cursor:pointer;border:none;border-radius:10px;font-size:.85rem;font-weight:600;
-    padding:.6rem .9rem;transition:transform .12s,box-shadow .2s,background .2s}
-  button:active{transform:translateY(1px)}
-  .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line-strong)}
-  .btn-ghost:hover{background:rgba(26,22,18,.05)}
-  .btn-primary{background:var(--ink);color:#FBF5EC}
-  .btn-primary:hover{box-shadow:0 6px 18px rgba(26,22,18,.25)}
-  .btn-copper{background:var(--copper);color:#fff}
-  .btn-copper:hover{box-shadow:0 6px 18px rgba(168,84,27,.32)}
-
-  .bar-controls{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem}
-  .nav{display:flex;gap:.35rem;align-items:center}
-  .nav button{width:38px;height:38px;padding:0;display:grid;place-items:center;font-size:1.1rem;
-    border:1.5px solid var(--line-strong);background:transparent;border-radius:9px}
-  .nav .lbl{font-family:var(--serif);font-size:1rem;font-weight:600;min-width:150px;text-align:center}
-  .seg{display:flex;border:1.5px solid var(--line-strong);border-radius:9px;overflow:hidden}
-  .seg button{border:none;border-radius:0;background:transparent;padding:.5rem .75rem;font-size:.8rem}
-  .seg button.active{background:var(--ink);color:#FBF5EC}
-  .conflict-flag{margin-left:auto;font-size:.82rem;font-weight:700;color:var(--red);display:flex;align-items:center;gap:.4rem}
-  .conflict-flag.ok{color:var(--green)}
-
-  /* Gantt */
-  .gantt-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
-  .gantt{min-width:760px}
-  .grow{display:grid;align-items:stretch;border-bottom:1px solid var(--line)}
-  .grow:last-child{border-bottom:none}
-  .ghead{position:sticky;top:0;z-index:3;background:var(--bg2)}
-  .gcell{padding:.5rem .4rem;font-size:.7rem;text-align:center;color:var(--ink-soft);border-left:1px solid var(--line);
-    text-transform:uppercase;letter-spacing:.04em}
-  .gcell.today{background:rgba(184,132,47,.16);color:var(--amber);font-weight:700}
-  .rowlabel{position:sticky;left:0;z-index:2;background:var(--card);display:flex;align-items:center;gap:.5rem;
-    padding:.55rem .7rem;font-weight:700;font-size:.9rem;border-right:1px solid var(--line)}
-  .ghead .rowlabel{background:var(--bg2);font-family:var(--serif);font-weight:600}
-  .rowlabel .cap{font-family:var(--mono);font-size:.68rem;font-weight:500;color:var(--ink-soft)}
-  .track{position:relative;border-left:1px solid var(--line)}
-  .track .colsep{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
-  .track .todayline{position:absolute;top:0;bottom:0;width:2px;background:rgba(184,132,47,.55);z-index:1}
-  .bar{position:absolute;top:6px;bottom:6px;border-radius:8px;padding:.25rem .5rem;color:#fff;cursor:pointer;
-    overflow:hidden;display:flex;flex-direction:column;justify-content:center;z-index:2;box-shadow:0 2px 6px rgba(26,22,18,.18)}
-  .bar .bn{font-size:.78rem;font-weight:700;line-height:1.05;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bar .bd{font-size:.64rem;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bar.conflict{outline:2.5px solid var(--red);outline-offset:-1px}
-  .gantt .grow{position:relative}
-  .rowwrap{position:relative}
-
-  .legend{display:flex;gap:1rem;flex-wrap:wrap;margin-top:.8rem;font-size:.76rem;color:var(--ink-soft)}
-  .legend span{display:inline-flex;align-items:center;gap:.4rem}
-  .legend .sw{width:12px;height:12px;border-radius:4px}
-
-  /* upcoming list */
-  .upcoming{margin-top:1.6rem}
-  .upcoming h2{font-family:var(--serif);font-weight:600;font-size:1.15rem;margin:0 0 .6rem}
-  .ucard{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);
-    padding:.7rem .9rem;margin-bottom:.55rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;cursor:pointer}
-  .ucard.conflict{border-color:rgba(168,57,43,.45)}
-  .ucard .swatch{width:10px;height:34px;border-radius:5px;flex:0 0 auto}
-  .ucard .uinfo{flex:1;min-width:150px}
-  .ucard .un{font-weight:700;font-size:1rem}
-  .ucard .ud{font-size:.76rem;color:var(--ink-soft);font-family:var(--mono);margin-top:.15rem}
-  .ucard .utank{font-family:var(--mono);font-size:.8rem;font-weight:600;color:var(--copper)}
-  .miniconf{font-size:.66rem;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.05em}
-
-  /* Modal */
-  .overlay{position:fixed;inset:0;background:rgba(26,22,18,.42);backdrop-filter:blur(3px);display:none;
-    align-items:flex-start;justify-content:center;padding:1.2rem;z-index:50;overflow:auto}
-  .overlay.show{display:flex}
-  .modal{background:var(--card);border-radius:18px;box-shadow:0 20px 60px rgba(26,22,18,.3);width:100%;max-width:440px;margin:auto;
-    border:1px solid var(--line);overflow:hidden;animation:pop .2s ease}
-  @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
-  .modal h2{font-family:var(--serif);font-weight:500;font-size:1.35rem;margin:0;padding:1.1rem 1.2rem .2rem}
-  .form{padding:1rem 1.2rem 1.2rem;display:flex;flex-direction:column;gap:.8rem}
-  label{display:flex;flex-direction:column;gap:.3rem;font-size:.74rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);font-weight:600}
-  .input{font-family:var(--mono);font-size:1rem;padding:.6rem .7rem;background:rgba(255,255,255,.7);border:1px solid #E0D4BE;
-    border-radius:9px;color:var(--ink);width:100%;min-height:42px;-webkit-appearance:none;appearance:none}
-  .input:focus{outline:none;border-color:var(--amber);background:#fff;box-shadow:0 0 0 3px rgba(184,132,47,.12)}
-  select.input{font-family:var(--sans);font-weight:600}
-  .two{display:flex;gap:.6rem}.two>label{flex:1}
-  .swatches{display:flex;gap:.4rem;flex-wrap:wrap}
-  .swatches .s{width:28px;height:28px;border-radius:7px;cursor:pointer;border:2px solid transparent}
-  .swatches .s.sel{border-color:var(--ink);transform:scale(1.1)}
-  .conflict-note{font-size:.78rem;color:var(--red);font-weight:600;font-family:var(--sans);text-transform:none;letter-spacing:0;display:none}
-  .conflict-note.show{display:block}
-  .modal-actions{display:flex;gap:.5rem;padding:0 1.2rem 1.2rem}
-  .modal-actions button{flex:1}
-  .danger{color:var(--red);background:transparent;border:1.5px solid rgba(168,57,43,.4)}
-  .danger:hover{background:rgba(168,57,43,.07)}
-  footer{margin-top:2rem;text-align:center;color:var(--ink-soft);font-size:.74rem}
-  .hidden{display:none!important}
+  header{display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+  h1{font-family:var(--serif);font-weight:500;font-size:clamp(1.7rem,5vw,2.4rem);margin:0;letter-spacing:-.02em;line-height:1}
+  .sub{font-family:var(--serif);font-style:italic;color:var(--ink-soft);margin-top:.35rem}
+  .tools{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+  .seg{display:inline-flex;border:1px solid var(--line-strong);border-radius:10px;overflow:hidden;background:var(--card)}
+  .seg button{all:unset;cursor:pointer;padding:.45rem .7rem;font-size:.82rem;font-weight:600;color:var(--ink-soft)}
+  .seg button.on{background:var(--ink);color:#FBF5EC}
+  .btn{all:unset;cursor:pointer;padding:.48rem .8rem;border-radius:10px;border:1px solid var(--line-strong);background:var(--card);font-size:.82rem;font-weight:700}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);margin-bottom:1rem;overflow:hidden}
+  .card-h{display:flex;justify-content:space-between;align-items:baseline;gap:.6rem;flex-wrap:wrap;padding:.85rem 1.1rem;border-bottom:1px solid var(--line)}
+  .card-h h2{font-family:var(--serif);font-weight:600;font-size:1.15rem;margin:0}
+  .card-h .meta{font-size:.78rem;color:var(--ink-soft)}
+  .card-b{padding:.9rem 1.1rem}
+  /* frise */
+  .tl{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .grid{position:relative;min-width:100%}
+  .row{display:flex;border-bottom:1px solid var(--line);position:relative}
+  .row:last-child{border-bottom:0}
+  .lab{position:sticky;left:0;z-index:3;flex:0 0 118px;background:var(--card);padding:.55rem .7rem;border-right:1px solid var(--line);font-size:.86rem}
+  .lab b{display:block;font-family:var(--serif);font-weight:600;font-size:.98rem}
+  .lab small{color:var(--ink-soft);font-size:.72rem}
+  .lane{position:relative;flex:1;height:64px}
+  .hdr .lane{height:42px}
+  .wk{position:absolute;top:0;bottom:0;border-left:1px solid var(--line)}
+  .wk.alt{background:rgba(26,22,18,.025)}
+  .wkl{position:absolute;top:4px;font-size:.7rem;font-weight:700;color:var(--ink-soft);white-space:nowrap;padding-left:4px}
+  .wkl small{display:block;font-weight:500}
+  .today{position:absolute;top:0;bottom:0;width:2px;background:var(--red);z-index:2;pointer-events:none}
+  .today.lbl::after{content:'aujourd’hui';position:absolute;bottom:2px;left:4px;font-size:.62rem;font-weight:700;color:var(--red);white-space:nowrap}
+  .blk{position:absolute;top:9px;height:46px;border-radius:9px;padding:4px 7px;font-size:.74rem;line-height:1.2;overflow:hidden;cursor:pointer;z-index:1;
+    border:1.5px solid rgba(26,22,18,.18);box-shadow:0 1px 3px rgba(26,22,18,.12);white-space:nowrap;text-overflow:ellipsis}
+  .blk b{display:block;font-size:.78rem;overflow:hidden;text-overflow:ellipsis}
+  .blk.plan{background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.55) 0 6px,transparent 6px 12px);border-style:dashed}
+  .blk.past{opacity:.45}
+  .blk.late{box-shadow:inset 0 0 0 2px #CF982B}
+  .blk.conf{border:2px solid var(--red)!important;box-shadow:0 0 0 2px rgba(179,38,30,.18)}
+  .legend{display:flex;gap:1rem;flex-wrap:wrap;font-size:.76rem;color:var(--ink-soft);padding:.6rem 1.1rem;border-top:1px solid var(--line)}
+  .legend i{display:inline-block;width:22px;height:12px;border-radius:4px;vertical-align:-2px;margin-right:5px;border:1.5px solid rgba(26,22,18,.25);background:#E8D9BE}
+  .legend i.p{border-style:dashed;background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.6) 0 4px,transparent 4px 8px)}
+  .legend i.h{opacity:.45}.legend i.c{border:2px solid var(--red)}.legend i.l{box-shadow:inset 0 0 0 2px #CF982B}
+  /* alertes + disponibilités */
+  .alerts{display:flex;flex-direction:column;gap:.45rem}
+  .al{padding:.6rem .8rem;border-radius:11px;font-size:.86rem;border:1px solid}
+  .al.bad{background:rgba(179,38,30,.07);border-color:rgba(179,38,30,.3);color:#8C1D16}
+  .al.warn{background:rgba(207,152,43,.1);border-color:rgba(207,152,43,.4)}
+  .al.ok{background:rgba(79,107,47,.08);border-color:rgba(79,107,47,.3);color:#3d5424}
+  table.t{width:100%;border-collapse:collapse;font-size:.85rem}
+  table.t th{text-align:left;font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);padding:.4rem .5rem;border-bottom:1px solid var(--line-strong)}
+  table.t td{padding:.5rem .5rem;border-bottom:1px solid var(--line);vertical-align:top}
+  .pill{display:inline-block;font-size:.7rem;font-weight:700;padding:.12rem .45rem;border-radius:999px}
+  .pill.free{background:rgba(79,107,47,.14);color:#3d5424}.pill.busy{background:rgba(168,84,27,.13);color:var(--copper)}.pill.late{background:rgba(207,152,43,.2);color:#7a5410}
+  .tw{overflow-x:auto}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+  @media(max-width:860px){.two{grid-template-columns:1fr}.lab{flex-basis:92px}}
+  /* fenêtre détail */
+  .ov{position:fixed;inset:0;background:rgba(26,22,18,.45);display:none;align-items:center;justify-content:center;z-index:100;padding:1rem}
+  .ov.show{display:flex}
+  .modal{background:var(--card);border-radius:16px;max-width:440px;width:100%;padding:1.1rem 1.2rem;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .modal h3{font-family:var(--serif);margin:0 0 .4rem;font-size:1.25rem}
+  .modal dl{display:grid;grid-template-columns:auto 1fr;gap:.25rem .8rem;margin:.6rem 0;font-size:.88rem}.modal dt{color:var(--ink-soft)}.modal dd{margin:0;font-weight:600}
+  .modal .acts{display:flex;justify-content:flex-end;gap:.5rem;margin-top:.8rem}
+  .empty{padding:1.4rem;text-align:center;color:var(--ink-soft)}
+  @media print{@page{size:A4 landscape;margin:10mm}body{background:#fff;padding:0}.tools,#backHome,.ov,#bsync-pill{display:none!important}.card{box-shadow:none;break-inside:avoid}.tl{overflow:visible}}
 </style>
 </head>
 <body>
-<a href="index.html" id="backHome" aria-label="Retour à l'écran d'accueil" style="position:fixed;left:14px;bottom:14px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:#1A1612;color:#FBF5EC;font-family:'Manrope',system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;text-decoration:none;padding:10px 14px;border-radius:999px;box-shadow:0 4px 16px rgba(26,22,18,.28);-webkit-tap-highlight-color:transparent;"><span style="font-size:15px;line-height:1">←</span> Accueil</a>
-<style id="backHomePrint">@media print{#backHome{display:none!important}}</style>
-
+<a href="index.html" id="backHome" aria-label="Retour à l'écran d'accueil" style="position:fixed;left:14px;bottom:14px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:#1A1612;color:#FBF5EC;font-family:'Manrope',system-ui,sans-serif;font-size:13px;font-weight:600;text-decoration:none;padding:10px 14px;border-radius:999px;box-shadow:0 4px 16px rgba(26,22,18,.28)"><span style="font-size:15px;line-height:1">←</span> Accueil</a>
 <div class="wrap">
-  <header class="app">
-    <div class="brand">
-      <div class="mark">P</div>
-      <div>
-        <h1>Planning</h1>
-        <div class="sub">Occupation des cuves &amp; brassins à venir</div>
-      </div>
-    </div>
-    <div class="toolbar">
-      <button class="btn-copper" id="btnAdd">+ Brassin</button>
-      <button class="btn-ghost" id="btnExport">Exporter</button>
-      <button class="btn-ghost" id="btnImport">Importer</button>
-      <input type="file" id="fileInput" accept="application/json" class="hidden">
+  <header>
+    <div><h1>Planning des cuves</h1><div class="sub">Automatique : lots en cuve (Suivi des cuves) + brassins prévus (Planning de brassage)</div></div>
+    <div class="tools">
+      <div class="seg" id="range"><button data-w="8">8 sem.</button><button data-w="12" class="on">12 sem.</button><button data-w="26">6 mois</button></div>
+      <button class="btn" onclick="render()">Actualiser</button>
+      <button class="btn" onclick="window.print()">PDF</button>
     </div>
   </header>
 
-  <div class="bar-controls">
-    <div class="nav">
-      <button id="prev">‹</button>
-      <div class="lbl" id="rangeLbl"></div>
-      <button id="next">›</button>
-      <button class="btn-ghost" id="today" style="width:auto;height:38px;padding:0 .8rem">Aujourd'hui</button>
-    </div>
-    <div class="seg" id="zoom">
-      <button data-w="6">6 sem.</button>
-      <button data-w="10" class="active">10 sem.</button>
-      <button data-w="16">16 sem.</button>
-    </div>
-    <div class="conflict-flag ok" id="conflictFlag"></div>
+  <div class="card"><div class="card-h"><h2>Occupation</h2><span class="meta" id="fresh"></span></div>
+    <div class="tl"><div class="grid" id="grid"></div></div>
+    <div class="legend"><span><i></i>En cuve (Suivi des cuves)</span><span><i class="p"></i>Prévu (Planning de brassage)</span><span><i class="h"></i>Lot terminé</span><span><i class="l"></i>Conditionnement prévu dépassé</span><span><i class="c"></i>Conflit</span></div>
   </div>
 
-  <div class="gantt-scroll">
-    <div class="gantt" id="gantt"></div>
-  </div>
-  <div class="legend">
-    <span><span class="sw" style="background:rgba(184,132,47,.55)"></span>Aujourd'hui</span>
-    <span><span class="sw" style="background:var(--red)"></span>Conflit (2 brassins sur la même cuve)</span>
-    <span>Astuce : touche une barre pour la modifier.</span>
-  </div>
-
-  <div class="upcoming">
-    <h2>Brassins à venir</h2>
-    <div id="upList"></div>
-  </div>
-
-  <footer>Données enregistrées sur cet appareil (localStorage). Pense à exporter pour sauvegarder.</footer>
-</div>
-
-<datalist id="beerList"></datalist>
-
-<!-- Modal -->
-<div class="overlay" id="ov">
-  <div class="modal">
-    <h2 id="mTitle">Planifier un brassin</h2>
-    <div class="form">
-      <label>Recette / nom du brassin
-        <input class="input" id="f_name" list="beerList" placeholder="Choisis ou tape un nom">
-      </label>
-      <div class="two">
-        <label>Cuve
-          <select class="input" id="f_tank"></select>
-        </label>
-        <label>Style (optionnel)
-          <input class="input" id="f_style" placeholder="ex. IPA">
-        </label>
-      </div>
-      <div class="two">
-        <label>Mise en cuve
-          <input class="input" id="f_start" type="date">
-        </label>
-        <label>Durée (jours)
-          <input class="input" id="f_days" type="number" min="1" step="1" value="14">
-        </label>
-      </div>
-      <label>Couleur
-        <div class="swatches" id="swatches"></div>
-      </label>
-      <div class="conflict-note" id="confNote"></div>
-    </div>
-    <div class="modal-actions">
-      <button class="danger hidden" id="mDelete">Supprimer</button>
-      <button class="btn-ghost" id="mCancel">Annuler</button>
-      <button class="btn-copper" id="mSave">Enregistrer</button>
-    </div>
+  <div class="two">
+    <div class="card"><div class="card-h"><h2>À surveiller</h2></div><div class="card-b"><div class="alerts" id="alerts"></div></div></div>
+    <div class="card"><div class="card-h"><h2>Disponibilités</h2></div><div class="card-b tw" id="avail"></div></div>
   </div>
 </div>
+
+<div class="ov" id="ov"><div class="modal"><h3 id="m_t"></h3><div id="m_b"></div><div class="acts" id="m_a"></div></div></div>
 
 <script>
-const STORE='brasserie_planning_cuves_v1';   // clé propre (brasserie_planning_v1 appartient au Planning de brassage)
-try{if(!localStorage.getItem(STORE)){const o=JSON.parse(localStorage.getItem('brasserie_planning_v1'));if(o&&Array.isArray(o.brews))localStorage.setItem(STORE,JSON.stringify(o));}}catch(e){}
-const TANKS=[
-  {id:'c1',name:'Cuve 1',cap:60},{id:'c2',name:'Cuve 2',cap:60},
-  {id:'c3',name:'Cuve 3',cap:60},{id:'c4',name:'Cuve 4',cap:60},
-  {id:'c5',name:'Cuve 5',cap:20},
-  {id:'c6',name:'Cuve 6',cap:16},{id:'c7',name:'Cuve 7',cap:16}
-];
-const COLORS=['#A8541B','#4F6B2F','#B8842F','#7A6485','#3E6B7A','#A8392B','#8A6D3B','#5E7A4F'];
-const DAY=86400000;
-function uid(){return 'b'+Math.random().toString(36).slice(2,9);}
-function todayMid(){const d=new Date();d.setHours(0,0,0,0);return d;}
-function iso(d){return new Date(d).toISOString().slice(0,10);}
-function parse(s){return new Date(s+'T00:00:00');}
-function addDays(d,n){return new Date(+d+n*DAY);}
-function startOfWeek(d){const x=new Date(d);const day=(x.getDay()+6)%7;x.setHours(0,0,0,0);return addDays(x,-day);} // Monday
+'use strict';
+/* ---------- données ---------- */
+const DAY=864e5;
+const DEFAULT_TANKS=[{id:'c1',name:'Cuve 1',cap:60},{id:'c2',name:'Cuve 2',cap:60},{id:'c3',name:'Cuve 3',cap:60},{id:'c4',name:'Cuve 4',cap:60},{id:'c5',name:'Cuve 5',cap:20},{id:'c6',name:'Cuve 6',cap:16},{id:'c7',name:'Cuve 7',cap:16}];
+const ld=(k,d)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?d:v;}catch(e){return d;}};
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const mid=d=>{const x=new Date(d);x.setHours(0,0,0,0);return x;};
+const parse=s=>s?mid(new Date(String(s).slice(0,10)+'T00:00:00')):null;
+const add=(d,n)=>new Date(+d+n*DAY);
+const fmt=d=>d?d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'}):'—';
+const monday=d=>{const x=mid(d);return add(x,-((x.getDay()+6)%7));};
+function isoWeek(d){const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));const n=(t.getUTCDay()+6)%7;t.setUTCDate(t.getUTCDate()-n+3);const f=new Date(Date.UTC(t.getUTCFullYear(),0,4));return 1+Math.round(((t-f)/DAY-3+((f.getUTCDay()+6)%7))/7);}
+function colorFor(name){const n=String(name||'').toLowerCase();
+  if(n.includes('framboise'))return '#E9C7DA';if(n.includes('tutti'))return '#F1C9C9';if(n.includes('noël')||n.includes('noel'))return '#D6CBE6';if(n.includes('saison'))return '#F7D3A3';
+  if(n.includes('blanche'))return '#C9DDF0';if(n.includes('brune')||n.includes('stout')||n.includes('black'))return '#CDB394';if(n.includes('ambr'))return '#E6C49B';if(n.includes('triple'))return '#EFC4C4';
+  if(n.includes('ipa')||n.includes('neipa'))return '#D2E6C9';if(n.includes('blonde')||n.includes('pils')||n.includes('lager'))return '#F6E7B5';
+  let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))%360;return `hsl(${h} 45% 82%)`;}
+const short=n=>String(n||'').replace(/^Bi[eèé]re\s+/i,'').replace(/\s+BIO$/i,'');
 
-const BEERS=["Bière Valmy blonde BIO","Bière Valmy blanche BIO","Bière Valmy ambrée BIO","Bière Valmy IPA BIO","Bière Valmy Triple BIO","Bière Valmy Framboise BIO","Bière Valmy Noël BIO","Bière Orgemont blonde BIO","Bière Orgemont brune BIO","Bière Orgemont triple BIO","Bière Orgemont Saison BIO","Bière Orgemont IPA BIO","Bière Rèmes","Bière Tutti Berry BIO","Bière Trouble Jeu BIO","Bière Bouquet Final BIO","Bière Crème de la Crème BIO","Bière Légionnaire Blonde","Bière Légionnaire IPA","Bière Bayard / Baraquine blonde","Bière Bayard / Baraquine triple","Biére Muizon"];
-document.getElementById('beerList').innerHTML=BEERS.map(b=>`<option value="${b.replace(/"/g,'&quot;')}">`).join('');
-let state=load();
-let weeks=10;
-let viewStart=startOfWeek(todayMid());
-let editId=null, pickColor=COLORS[0];
-
-function seed(){
-  const mon=startOfWeek(todayMid());
-  return {brews:[
-    {id:uid(),name:'Blonde maison',style:'Pale Ale',tank:'c1',start:iso(addDays(mon,-2)),days:18,color:'#CF982B'},
-    {id:uid(),name:'IPA d\'été',style:'IPA',tank:'c2',start:iso(addDays(mon,3)),days:21,color:'#4F6B2F'},
-    {id:uid(),name:'Ambrée',style:'Amber',tank:'c5',start:iso(addDays(mon,1)),days:16,color:'#A8541B'},
-    {id:uid(),name:'Saison',style:'Saison',tank:'c6',start:iso(addDays(mon,7)),days:24,color:'#7A6485'},
-    {id:uid(),name:'Stout',style:'Stout',tank:'c2',start:iso(addDays(mon,20)),days:28,color:'#3E6B7A'}
-  ]};
+function collect(){
+  const today=mid(new Date());
+  const cv=ld('brasserie_cuves_v1',null);const tanks=(cv&&Array.isArray(cv.tanks)&&cv.tanks.length?cv.tanks:DEFAULT_TANKS);
+  const snap=ld('brasserie_brassins_v1',null);
+  const B=tanks.map(()=>[]);
+  // lots en cuve
+  tanks.forEach((t,i)=>{const b=t.batch;if(!b)return;
+    const s=parse(b.start)||today;let plannedEnd=parse(b.pack)||parse(b.end)||add(s,21);
+    const late=plannedEnd<today;const e=late?add(today,1):add(plannedEnd,1);
+    B[i].push({kind:'act',s,e,plannedEnd,late,name:b.recipe||'Brassin',lot:b.lot,vol:b.volume,batch:b,tank:t});});
+  // lots terminés (historique)
+  (cv&&cv.archive||[]).forEach(a=>{const i=tanks.findIndex(t=>t.id===a.tankId||t.name===a.tankName);if(i<0)return;
+    const s=parse(a.start),e=parse(a.closed&&a.closed.date);if(!s||!e)return;B[i].push({kind:'past',s,e:add(e,1),name:a.recipe,lot:a.lot,vol:a.closed&&a.closed.volHL,tank:tanks[i]});});
+  // brassins prévus, regroupés par cuve / semaine / bière (ex. 3 brassins de 20 HL = 60 HL)
+  const curMon=monday(today),plan={};
+  (snap&&snap.brews||[]).forEach(p=>{const s=parse(p.date);if(!s||s<curMon)return;
+    (p.cuves||[]).forEach(ci=>{if(ci<0||ci>=tanks.length)return;const k=ci+'|'+p.week+'|'+p.beer;
+      const g=plan[k]||(plan[k]={kind:'plan',ci,s,e:add(s,7*(p.occWeeks||3)),name:p.beer,code:p.code,week:p.week,hl:0,n:0,condWeek:p.condWeek,tank:tanks[ci]});
+      g.hl+=(p.cuves.length>1?(p.brutHl||0)/p.cuves.length:(p.brutHl||0));g.n++;});});
+  Object.values(plan).forEach(g=>{
+    // déjà en cuve ? (lot de la même bière démarré cette semaine-là dans cette cuve) → ne pas doubler
+    const done=B[g.ci].some(x=>x.kind!=='plan'&&Math.abs(x.s-g.s)<8*DAY&&short(x.name).toLowerCase().split(' ')[0]===short(g.name).toLowerCase().split(' ')[0]);
+    if(!done)B[g.ci].push(g);});
+  // conflits : un brassin prévu dans une cuve encore occupée
+  const conflicts=[];
+  B.forEach((L,i)=>{L.filter(x=>x.kind==='plan').forEach(p=>{L.filter(x=>x.kind==='act'&&x.e>p.s).forEach(a=>{p.conf=a.conf=true;
+    conflicts.push({tank:tanks[i],plan:p,act:a});});
+    L.filter(x=>x.kind==='plan'&&x!==p&&x.s<p.e&&p.s<x.e&&x.s>=p.s).forEach(o=>{if(o.name!==p.name){o.conf=p.conf=true;conflicts.push({tank:tanks[i],plan:o,other:p});}});});});
+  return {today,tanks,B,snap,conflicts,unplaced:(snap&&snap.conflicts)||[]};
 }
-function load(){try{const s=JSON.parse(localStorage.getItem(STORE));if(s&&s.brews)return s;}catch(e){}return seed();}
-function save(){localStorage.setItem(STORE,JSON.stringify(state));}
-function tank(id){return TANKS.find(t=>t.id===id);}
-function brewEnd(b){return addDays(parse(b.start),Number(b.days));} // exclusive
-function overlaps(a,b){return parse(a.start)<brewEnd(b)&&parse(b.start)<brewEnd(a);}
 
-function conflictSet(){
-  const set=new Set();
-  for(let i=0;i<state.brews.length;i++)for(let j=i+1;j<state.brews.length;j++){
-    const a=state.brews[i],b=state.brews[j];
-    if(a.tank===b.tank&&overlaps(a,b)){set.add(a.id);set.add(b.id);}
-  }
-  return set;
-}
-
+/* ---------- rendu ---------- */
+let WEEKS=12;try{WEEKS=+localStorage.getItem('brasserie__planning_cuves_weeks')||12;}catch(e){}
 function render(){
-  const conf=conflictSet();
-  const viewEnd=addDays(viewStart,weeks*7);
-  const totalDays=weeks*7;
-  // range label
-  const fmt=d=>new Date(d).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
-  document.getElementById('rangeLbl').textContent=fmt(viewStart)+' – '+fmt(addDays(viewEnd,-1));
-  // conflict flag
-  const cf=document.getElementById('conflictFlag');
-  if(conf.size){cf.className='conflict-flag';cf.innerHTML='⚠ '+(conf.size)+' brassin(s) en conflit de cuve';}
-  else{cf.className='conflict-flag ok';cf.innerHTML='✓ Aucun conflit de cuve';}
-
-  const colW=`minmax(0,1fr)`;
-  const template=`160px repeat(${weeks}, ${colW})`;
-  const today=todayMid();
-  const todayPct=(today>=viewStart&&today<viewEnd)?((+today-+viewStart)/(totalDays*DAY))*100:null;
-
-  let html='';
-  // header
-  html+=`<div class="grow ghead" style="grid-template-columns:${template}">
-    <div class="rowlabel">Cuve</div>`;
-  for(let w=0;w<weeks;w++){
-    const ws=addDays(viewStart,w*7);
-    const isToday=today>=ws&&today<addDays(ws,7);
-    html+=`<div class="gcell ${isToday?'today':''}">S${weekNum(ws)}<br>${fmt(ws)}</div>`;
-  }
-  html+=`</div>`;
-
-  // rows
-  TANKS.forEach(t=>{
-    html+=`<div class="grow" style="grid-template-columns:${template}">
-      <div class="rowlabel">${t.name} <span class="cap">${t.cap}HL</span></div>
-      <div class="track" style="grid-column:2 / span ${weeks}">`;
-    // column separators
-    for(let w=1;w<weeks;w++)html+=`<div class="colsep" style="left:${(w/weeks*100).toFixed(4)}%"></div>`;
-    if(todayPct!=null)html+=`<div class="todayline" style="left:${todayPct.toFixed(3)}%"></div>`;
-    // bars for this tank
-    state.brews.filter(b=>b.tank===t.id).forEach(b=>{
-      const bs=parse(b.start),be=brewEnd(b);
-      if(be<=viewStart||bs>=viewEnd)return; // outside view
-      const clampS=Math.max(+bs,+viewStart),clampE=Math.min(+be,+viewEnd);
-      const left=((clampS-+viewStart)/(totalDays*DAY))*100;
-      const width=((clampE-clampS)/(totalDays*DAY))*100;
-      const isConf=conf.has(b.id);
-      html+=`<div class="bar ${isConf?'conflict':''}" data-id="${b.id}"
-        style="left:${left.toFixed(3)}%;width:calc(${width.toFixed(3)}% - 4px);background:${b.color||'#A8541B'}">
-        <div class="bn">${b.name}</div><div class="bd">${b.days}j${b.style?' · '+b.style:''}</div>
-      </div>`;
-    });
-    html+=`</div></div>`;
-  });
-  document.getElementById('gantt').innerHTML=html;
-
-  // upcoming list (sorted by start, only those ending in the future)
-  const now=todayMid();
-  const up=[...state.brews].filter(b=>brewEnd(b)>=now).sort((a,b)=>parse(a.start)-parse(b.start));
-  document.getElementById('upList').innerHTML=up.length?up.map(b=>{
-    const isConf=conf.has(b.id);
-    const d=Math.round((parse(b.start)-now)/DAY);
-    const when=d>0?`dans ${d} j`:(d===0?'aujourd\'hui':`en cours (${-d} j)`);
-    return `<div class="ucard ${isConf?'conflict':''}" data-id="${b.id}">
-      <div class="swatch" style="background:${b.color}"></div>
-      <div class="uinfo"><div class="un">${b.name}</div>
-        <div class="ud">${new Date(parse(b.start)).toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'})} → ${new Date(brewEnd(b)).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'})} · ${b.days} j · ${when}</div></div>
-      <div class="utank">${tank(b.tank)?.name||'—'}</div>
-      ${isConf?'<div class="miniconf">⚠ conflit</div>':''}
-    </div>`;
-  }).join(''):'<div class="ud" style="color:var(--ink-soft);font-style:italic">Aucun brassin planifié. Clique sur « + Brassin ».</div>';
+  const D=collect(),start=add(monday(D.today),-14),end=add(start,WEEKS*7+14),days=(end-start)/DAY;
+  const host=document.querySelector('.tl'),labW=window.innerWidth<860?92:118;
+  const dayW=Math.max(window.innerWidth<860?9:7,Math.floor((host.clientWidth-labW-2)/days));
+  const W=Math.round(days*dayW),X=d=>Math.round((d-start)/DAY*dayW);
+  let weeks='';for(let d=new Date(start),k=0;d<end;d=add(d,7),k++){weeks+=`<div class="wk${k%2?' alt':''}" style="left:${X(d)}px;width:${7*dayW}px"></div>`;}
+  let hdr='';for(let d=new Date(start);d<end;d=add(d,7)){hdr+=`<div class="wkl" style="left:${X(d)}px">S${isoWeek(d)}<small>${d.getDate()} ${d.toLocaleDateString('fr-FR',{month:'short'})}</small></div>`;}
+  const tx=X(D.today)+Math.round(dayW/2);
+  let h=`<div class="row hdr"><div class="lab"><small>Semaine</small></div><div class="lane" style="width:${W}px">${weeks}${hdr}<div class="today lbl" style="left:${tx}px"></div></div></div>`;
+  let idx=0;window._blk=[];
+  D.tanks.forEach((t,i)=>{
+    const L=D.B[i].filter(b=>b.e>start&&b.s<end).sort((a,b)=>a.s-b.s);
+    const cur=t.batch;
+    h+=`<div class="row"><div class="lab"><b>${esc(t.name)}</b><small>${t.cap} HL · ${cur?'occupée':'libre'}</small></div><div class="lane" style="width:${W}px">${weeks}<div class="today" style="left:${tx}px"></div>`;
+    L.forEach(b=>{const x=Math.max(0,X(b.s)),w=Math.max(18,Math.min(W,X(b.e))-x-2);window._blk[idx]=b;
+      const cls=b.kind==='plan'?'plan':b.kind==='past'?'past':'';
+      const l2=b.kind==='plan'?`S${b.week} · ${Math.round(b.hl)} HL${b.n>1?' ('+b.n+' brassins)':''}`:b.kind==='act'?`${b.lot?'lot '+esc(b.lot)+' · ':''}${b.vol!=null?Math.round(b.vol*10)/10+' HL':''}${b.late?' · cond. dépassé':''}`:`lot ${esc(b.lot||'')}`;
+      h+=`<div class="blk ${cls}${b.late?' late':''}${b.conf?' conf':''}" style="left:${x}px;width:${w}px;background-color:${colorFor(b.name)}" onclick="detail(${idx})" title="${esc(short(b.name))}"><b>${esc(short(b.name))}</b>${l2}</div>`;idx++;});
+    h+=`</div></div>`;});
+  const g=document.getElementById('grid');g.style.width=(W+labW)+'px';g.innerHTML=h;
+  host.scrollLeft=Math.max(0,X(add(D.today,-7)));
+  document.getElementById('fresh').textContent=D.snap&&D.snap.updatedAt?'Planning de brassage calculé le '+new Date(D.snap.updatedAt).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'Ouvre une fois le Planning de brassage pour afficher les brassins prévus';
+  renderAlerts(D);renderAvail(D);
 }
-function weekNum(d){const x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()+3-((x.getDay()+6)%7));
-  const w1=new Date(x.getFullYear(),0,4);return 1+Math.round(((x-w1)/DAY-3+((w1.getDay()+6)%7))/7);}
-
-// ---- modal ----
-const ov=document.getElementById('ov');
-function buildSwatches(sel){
-  document.getElementById('swatches').innerHTML=COLORS.map(c=>
-    `<div class="s ${c===sel?'sel':''}" data-c="${c}" style="background:${c}"></div>`).join('');
+function renderAlerts(D){
+  const a=[];
+  D.conflicts.forEach(c=>{if(c.act)a.push(`<div class="al bad"><b>${esc(c.tank.name)}</b> : ${esc(short(c.act.name))}${c.act.lot?' (lot '+esc(c.act.lot)+')':''} est encore en cuve ${c.act.late?'(conditionnement prévu dépassé)':'jusqu’au '+fmt(c.act.plannedEnd)}, alors que <b>${esc(short(c.plan.name))}</b> y est prévu à partir de la S${c.plan.week} (${fmt(c.plan.s)}). Conditionne avant, ou change la cuve dans le Planning de brassage.</div>`);
+    else a.push(`<div class="al bad"><b>${esc(c.tank.name)}</b> : ${esc(short(c.plan.name))} et ${esc(short(c.other.name))} se chevauchent.</div>`);});
+  D.unplaced.forEach(u=>a.push(`<div class="al bad">S${u.week} : <b>${esc(short(u.beer))}</b> (${u.brut} HL) — aucune cuve disponible dans le Planning de brassage.</div>`));
+  D.tanks.forEach((t,i)=>D.B[i].filter(b=>b.kind==='act'&&b.late).forEach(b=>a.push(`<div class="al warn"><b>${esc(t.name)}</b> : conditionnement de ${esc(short(b.name))}${b.lot?' (lot '+esc(b.lot)+')':''} prévu le ${fmt(b.plannedEnd)}, le lot est toujours en cuve.</div>`)));
+  D.tanks.forEach(t=>{const b=t.batch;if(b&&!b.pack&&!b.end)a.push(`<div class="al warn"><b>${esc(t.name)}</b> : pas de date de conditionnement pour ${esc(short(b.recipe))} — occupation estimée à 3 semaines. Ajoute-la dans le Suivi des cuves (Modifier).</div>`);});
+  document.getElementById('alerts').innerHTML=a.length?a.join(''):'<div class="al ok">Aucun conflit : chaque brassin prévu a une cuve libre.</div>';
 }
-function checkConflictPreview(){
-  const tankId=document.getElementById('f_tank').value;
-  const start=document.getElementById('f_start').value;
-  const days=Number(document.getElementById('f_days').value)||1;
-  if(!start)return;
-  const cand={start,days,tank:tankId,id:editId};
-  const hit=state.brews.find(b=>b.id!==editId&&b.tank===tankId&&overlaps(b,cand));
-  const note=document.getElementById('confNote');
-  if(hit){note.classList.add('show');note.textContent='⚠ Chevauche « '+hit.name+' » sur '+(tank(tankId)?.name)+'.';}
-  else note.classList.remove('show');
+function renderAvail(D){
+  const rows=D.tanks.map((t,i)=>{const L=D.B[i].filter(b=>b.kind!=='past').sort((a,b)=>a.s-b.s);
+    const act=L.find(b=>b.kind==='act'),next=L.find(b=>b.kind==='plan');
+    const freeFrom=act?(act.late?D.today:add(act.plannedEnd,1)):D.today;
+    const st=act?(act.late?`<span class="pill late">en retard</span>`:`<span class="pill busy">occupée</span>`):`<span class="pill free">libre</span>`;
+    const now=act?`${esc(short(act.name))}${act.vol!=null?' · '+Math.round(act.vol*10)/10+' HL':''}<br><small style="color:var(--ink-soft)">cond. prévu ${fmt(act.plannedEnd)}</small>`:'—';
+    const nx=next?`S${next.week} · ${esc(short(next.name))} · ${Math.round(next.hl)} HL`:'<span style="color:var(--ink-soft)">rien de prévu</span>';
+    const gap=next?Math.round((next.s-freeFrom)/DAY):null;
+    const win=next?(gap>0?`libre ${gap} j (du ${fmt(freeFrom)} au ${fmt(add(next.s,-1))})`:gap<0?'<span style="color:var(--red);font-weight:700">chevauchement</span>':'enchaînement direct'):`libre dès le ${fmt(freeFrom)}`;
+    return `<tr><td><b>${esc(t.name)}</b><br><small style="color:var(--ink-soft)">${t.cap} HL</small></td><td>${st}</td><td>${now}</td><td>${nx}<br><small style="color:var(--ink-soft)">${win}</small></td></tr>`;}).join('');
+  document.getElementById('avail').innerHTML=`<table class="t"><thead><tr><th>Cuve</th><th>État</th><th>En cuve</th><th>Prochain brassin</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
-function openModal(id){
-  editId=id;const b=id?state.brews.find(x=>x.id===id):null;
-  document.getElementById('mTitle').textContent=b?'Modifier le brassin':'Planifier un brassin';
-  document.getElementById('f_tank').innerHTML=TANKS.map(t=>`<option value="${t.id}">${t.name} — ${t.cap} HL</option>`).join('');
-  document.getElementById('f_name').value=b?.name||'';
-  document.getElementById('f_style').value=b?.style||'';
-  document.getElementById('f_tank').value=b?.tank||'c1';
-  document.getElementById('f_start').value=b?.start||iso(todayMid());
-  document.getElementById('f_days').value=b?.days||14;
-  pickColor=b?.color||COLORS[Math.floor(Math.random()*COLORS.length)];
-  buildSwatches(pickColor);
-  document.getElementById('mDelete').classList.toggle('hidden',!b);
-  document.getElementById('confNote').classList.remove('show');
-  ov.classList.add('show');
-  checkConflictPreview();
-  setTimeout(()=>document.getElementById('f_name').focus(),50);
-}
-function closeModal(){ov.classList.remove('show');editId=null;}
-document.getElementById('mCancel').onclick=closeModal;
-ov.addEventListener('click',e=>{if(e.target===ov)closeModal();});
-document.getElementById('swatches').addEventListener('click',e=>{
-  const s=e.target.closest('.s');if(!s)return;pickColor=s.dataset.c;buildSwatches(pickColor);
-});
-['f_tank','f_start','f_days'].forEach(id=>document.getElementById(id).addEventListener('input',checkConflictPreview));
-document.getElementById('mSave').onclick=()=>{
-  const name=document.getElementById('f_name').value.trim();
-  if(!name){document.getElementById('f_name').focus();return;}
-  const data={name,style:document.getElementById('f_style').value.trim(),
-    tank:document.getElementById('f_tank').value,
-    start:document.getElementById('f_start').value,
-    days:Math.max(1,Number(document.getElementById('f_days').value)||1),
-    color:pickColor};
-  if(editId)Object.assign(state.brews.find(b=>b.id===editId),data);
-  else state.brews.push({id:uid(),...data});
-  save();render();closeModal();
-};
-document.getElementById('mDelete').onclick=()=>{
-  if(confirm('Supprimer ce brassin du planning ?')){state.brews=state.brews.filter(b=>b.id!==editId);save();render();closeModal();}
-};
-document.getElementById('btnAdd').onclick=()=>openModal(null);
-document.getElementById('gantt').addEventListener('click',e=>{const bar=e.target.closest('.bar');if(bar)openModal(bar.dataset.id);});
-document.getElementById('upList').addEventListener('click',e=>{const c=e.target.closest('.ucard');if(c)openModal(c.dataset.id);});
-
-// ---- nav & zoom ----
-document.getElementById('prev').onclick=()=>{viewStart=addDays(viewStart,-7*Math.max(1,Math.round(weeks/2)));render();};
-document.getElementById('next').onclick=()=>{viewStart=addDays(viewStart,7*Math.max(1,Math.round(weeks/2)));render();};
-document.getElementById('today').onclick=()=>{viewStart=startOfWeek(todayMid());render();};
-document.getElementById('zoom').addEventListener('click',e=>{
-  const b=e.target.closest('button[data-w]');if(!b)return;
-  weeks=Number(b.dataset.w);
-  [...document.querySelectorAll('#zoom button')].forEach(x=>x.classList.toggle('active',x===b));
-  render();
-});
-
-// ---- import / export ----
-document.getElementById('btnExport').onclick=()=>{
-  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='planning_'+iso(todayMid())+'.json';a.click();
-};
-document.getElementById('btnImport').onclick=()=>document.getElementById('fileInput').click();
-document.getElementById('fileInput').onchange=e=>{
-  const f=e.target.files[0];if(!f)return;const rd=new FileReader();
-  rd.onload=()=>{try{const s=JSON.parse(rd.result);if(s.brews){state=s;save();render();}}catch(err){alert('Fichier invalide');}};
-  rd.readAsText(f);
-};
-
+function detail(i){const b=window._blk[i];if(!b)return;
+  const dl=(k,v)=>v?`<dt>${k}</dt><dd>${v}</dd>`:'';
+  document.getElementById('m_t').textContent=short(b.name);
+  let body='<dl>'+dl('Cuve',esc(b.tank.name)+' ('+b.tank.cap+' HL)');
+  if(b.kind==='act')body+=dl('État',b.late?'en cuve — conditionnement prévu dépassé':'en cuve')+dl('Lot',esc(b.lot))+dl('Volume',b.vol!=null?Math.round(b.vol*10)/10+' HL':'')+dl('Mise en cuve',fmt(b.s))+dl('Conditionnement prévu',fmt(b.plannedEnd));
+  else if(b.kind==='plan')body+=dl('Prévu','semaine '+b.week+' — à partir du '+fmt(b.s))+dl('Volume',Math.round(b.hl)+' HL'+(b.n>1?' ('+b.n+' brassins)':''))+dl('Occupation','jusqu’au '+fmt(add(b.e,-1)))+dl('Conditionnement',b.condWeek?'semaine '+b.condWeek:'');
+  else body+=dl('Lot',esc(b.lot))+dl('Mise en cuve',fmt(b.s))+dl('Soutiré le',fmt(add(b.e,-1)))+dl('Volume soutiré',b.vol!=null?b.vol+' HL':'');
+  body+='</dl>'+(b.conf?'<div class="al bad" style="margin-top:.4rem">En conflit avec un autre lot sur cette cuve.</div>':'');
+  document.getElementById('m_b').innerHTML=body;
+  document.getElementById('m_a').innerHTML=`<a class="btn" href="${b.kind==='plan'?'planning-brassage.html':'cuves.html'}" style="text-decoration:none;color:inherit">${b.kind==='plan'?'Planning de brassage':'Suivi des cuves'}</a><button class="btn" onclick="document.getElementById('ov').classList.remove('show')">Fermer</button>`;
+  document.getElementById('ov').classList.add('show');}
+document.getElementById('ov').addEventListener('click',e=>{if(e.target.id==='ov')e.target.classList.remove('show');});
+document.querySelectorAll('#range button').forEach(b=>{b.classList.toggle('on',+b.dataset.w===WEEKS);b.onclick=()=>{WEEKS=+b.dataset.w;try{localStorage.setItem('brasserie__planning_cuves_weeks',WEEKS);}catch(e){}
+  document.querySelectorAll('#range button').forEach(x=>x.classList.toggle('on',x===b));render();};});
+window.addEventListener('resize',()=>{clearTimeout(window._rt);window._rt=setTimeout(render,150);});
+window.addEventListener('storage',e=>{if(/cuves|brassins/.test(e.key||''))render();});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')render();});
 render();
 </script>
 </body>

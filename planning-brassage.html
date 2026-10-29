@@ -2026,6 +2026,9 @@ const BREW_SNAPSHOT_KEY = 'brasserie_brassins_v1';
 function publishBrewSnapshot() {
   try {
     const out = [];
+    // cuves affectées (même règle que le calendrier) — lues par le Planning des cuves
+    const asg = assignCuves(brewsByWeek), cuveOf = {};
+    Object.values(asg.schedule).forEach(L => L.forEach(x => { (cuveOf[x.id] = cuveOf[x.id] || []).push(x.cuveIdx); }));
     Object.keys(brewsByWeek).map(Number).sort((a, b) => a - b).forEach(w => {
       const groups = {};
       (brewsByWeek[w] || []).forEach(b => (groups[b.beer] = groups[b.beer] || []).push(b));
@@ -2042,15 +2045,17 @@ function publishBrewSnapshot() {
             beer, code: beerCode(beer), source: b.source,
             brutHl: b.brut, finiHl: b.fini,
             kegHl: +(sp.kegHl * r).toFixed(2), b33Hl: +(sp.bottle33Hl * r).toFixed(2), b75Hl: +(sp.bottle75Hl * r).toFixed(2),
-            condWeek: sp.week
+            condWeek: sp.week,
+            cuves: cuveOf[b.id] || [], occWeeks: b.exception ? 1 : CUVE_OCCUPATION_WEEKS
           });
         });
       }
     });
     // réécrit seulement si les brassins ont changé (évite une synchro inutile à chaque ouverture)
     let prev = null; try { prev = JSON.parse(localStorage.getItem(BREW_SNAPSHOT_KEY)); } catch (e) {}
-    if (!(prev && prev.year === YEAR && JSON.stringify(prev.brews) === JSON.stringify(out)))
-      localStorage.setItem(BREW_SNAPSHOT_KEY, JSON.stringify({ year: YEAR, updatedAt: new Date().toISOString(), brews: out }));
+    const conflicts = asg.conflicts.map(c => ({ week: c.week, beer: c.beer, brut: c.brut, reason: c.reason }));
+    if (!(prev && prev.year === YEAR && JSON.stringify(prev.brews) === JSON.stringify(out) && JSON.stringify(prev.conflicts || []) === JSON.stringify(conflicts)))
+      localStorage.setItem(BREW_SNAPSHOT_KEY, JSON.stringify({ year: YEAR, updatedAt: new Date().toISOString(), brews: out, conflicts }));
   } catch (e) {}
 }
 
