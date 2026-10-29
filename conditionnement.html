@@ -224,7 +224,7 @@ function lotSources(){
   (cv.tanks||[]).forEach(t=>{if(t.batch){const rs=lastR(t.batch),rp=rs.find(r=>r.plato!=null),rt=rs.find(r=>r.temp!=null),rph=rs.find(r=>r.ph!=null);
     add(t.batch.lot,{recipe:t.batch.recipe,tank:t.name,volHL:t.batch.volume,targets:t.batch.targets||(out.get(t.batch.lot)||{}).targets,og:t.batch.og,active:true,
       fg:rp&&rs.length>1?rp.plato:null,temp:rt?rt.temp:null,ph:rph?rph.ph:null});}});
-  out.forEach(v=>{if(!v.targets){const r=recs.find(x=>bNorm(x.name)===bNorm(v.recipe));if(r)v.targets=recipeTargets(r);}});
+  out.forEach(v=>{if(!v.targets){const r=recFind(v.recipe);if(r)v.targets=recipeTargets(r);}});
   return [...out.values()];
 }
 /* ---- valeurs reprises automatiquement des autres apps (seulement dans les champs vides) ---- */
@@ -382,18 +382,24 @@ const MAT=[['b33','Bouteilles 33 cl',['33cl']],['cap33','Capsules 33 cl',['33cl'
   ['b75','Bouteilles 75 cl',['75cl']],['cap75','Capsules / bouchons 75 cl',['75cl']],['lab75','Étiquettes 75 cl',['75cl']],['mus75','Muselets 75 cl',['75cl']],
   ['crt33','Cartons 33 cl',['33cl']],['crt75','Cartons 75 cl',['75cl']],
   ['can44','Canettes 44 cl',['44cl']],['lid44','Couvercles canette',['44cl']],['capFut','Capsules de fût',['10L','20L','30L']]];
-function recipePack(s){const r=ld(REC_KEY,[]).find(x=>bNorm(x.name)===bNorm(s.recipe));return (r&&r.pack)||{};}
+/* recette du carnet correspondant au nom saisi (ignore « Bière », « BIO », accents ; ex. « Bière Valmy IPA BIO » = « Valmy IPA ») */
+function rNorm(n){return String(n||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').replace(/\b(biere|bio)\b/g,' ').replace(/\s+/g,' ').trim();}
+function recFind(name){const a=ld(REC_KEY,[]),n=rNorm(name);if(!n)return null;
+  const ex=a.find(r=>bNorm(r.name)===bNorm(name))||a.find(r=>rNorm(r.name)===n);if(ex)return ex;
+  const c=a.filter(r=>{const m=rNorm(r.name);return m&&((m+' ').startsWith(n+' ')||(n+' ').startsWith(m+' '));});
+  return c.length?c.sort((x,y)=>Math.abs(rNorm(x.name).length-n.length)-Math.abs(rNorm(y.name).length-n.length))[0]:null;}
+function recipePack(s){const r=recFind(s.recipe);return (r&&r.pack)||{};}
 function matRows(s){
   const P=recipePack(s);s.mat=s.mat||{};const it=stockItems();
   const PER={crt33:24,crt75:12};
   return MAT.map(([k,l,fmts])=>{let auto=s.formats.filter(f=>fmts.includes(f.f)).reduce((a,f)=>a+(num(f.units)||0)+(PER[k]?0:(num(f.rej)||0)),0);
     if(PER[k]){const per=(P[k]&&+P[k].per)||PER[k];auto=Math.ceil(auto/per);l=l+' ('+per+' bt.)';}
-    const o=s.mat[k]||{};const id=o.id!=null?o.id:(P[k]&&P[k].id)||'';const q=num(o.qty)??auto;
+    const o=s.mat[k]||{};const id=o.id?o.id:(P[k]&&P[k].id)||'';const q=num(o.qty)??auto;
     const item=it.find(i=>i.id===id);
     // article épuisé : on prend ce qui reste, le complément sort sur l'article de remplacement (ex. capsule noire)
     let split=null;if(item&&item.alt&&q>0){const have=Math.max(0,Number(item.qty)||0);const alt=it.find(i=>i.id===item.alt);
       if(alt&&have<q)split=[{id:item.id,item,q:have},{id:alt.id,item:alt,q:q-have}].filter(x=>x.q>0);}
-    return {k,l,auto,id,q,split,fromRecipe:o.id==null&&!!(P[k]&&P[k].id),item};}).filter(r=>r.auto>0||(s.mat[r.k]&&s.mat[r.k].qty));
+    return {k,l,auto,id,q,split,fromRecipe:!o.id&&!!(P[k]&&P[k].id),item};}).filter(r=>(r.auto>0||(s.mat[r.k]&&s.mat[r.k].qty))&&(!Object.keys(P).length||P[r.k]||(s.mat[r.k]&&(s.mat[r.k].id||s.mat[r.k].qty))));
 }
 function setMat(k,f,v){const s=cur();s.mat=s.mat||{};s.mat[k]=s.mat[k]||{};s.mat[k][f]=v;if(f==='qty'&&v==='')delete s.mat[k].qty;save();if(f==='id')render();}
 function deductStock(){
@@ -481,7 +487,7 @@ function render(){
       <button class="btn-ghost btn-sm" onclick="addF()">+ Format</button>
       <div class="kpis">${kpi('out','Volume conditionné')}${kpi('yield','Rendement de conditionnement')}${kpi('loss','Pertes')}</div></div></div>
 
-  <div class="card"><div class="card-h"><h2><span class="n">05</span>Matériel &amp; sortie de stock</h2><span class="sub" style="margin:0">Articles définis dans la recette (Carnet de brassage)</span></div>
+  <div class="card"><div class="card-h"><h2><span class="n">05</span>Matériel &amp; sortie de stock</h2><span class="sub" style="margin:0">${(()=>{const r=recFind(s.recipe);return !r?`<span class="bad">⚠ Aucune recette du carnet ne correspond à « ${esc(s.recipe)} »</span>`:!Object.keys(r.pack||{}).length?`<span class="bad">⚠ Recette « ${esc(r.name)} » sans matériel : remplis « Matériel de conditionnement » dans le carnet (ou importe le fichier Excel)</span>`:`Matériel repris de la recette « ${esc(r.name)} »`;})()}</span></div>
     <div class="card-b">${(()=>{const M=matRows(s);const it=stockItems();
       const opts=sel=>`<option value="">— Choisir —</option><option value="__skip"${sel==='__skip'?' selected':''}>Ne pas déduire</option>`+[...it].sort((a,b)=>(a.cat==='emballage'?0:1)-(b.cat==='emballage'?0:1)||a.name.localeCompare(b.name,'fr')).map(i=>`<option value="${i.id}"${i.id===sel?' selected':''}>${esc(i.name)}</option>`).join('');
       return M.length?`<table class="t"><thead><tr><th>Matériel</th><th>Article du stock</th><th class="num">Quantité</th><th class="num">En stock</th></tr></thead><tbody>
