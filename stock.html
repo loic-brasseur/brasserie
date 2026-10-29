@@ -728,7 +728,7 @@ function importStockRows(aoa,all){
   if(!R){alert("Colonnes « Article » / « Quantité » introuvables : utilise le fichier modèle Stock_a_remplir.xlsx.");return;}
   const catOf=v=>{const n=xNorm(v);if(!n)return null;const c=CATS.find(c=>xNorm(c.label)===n||xNorm(c.label).startsWith(n)||n.startsWith(xNorm(c.label).split(' ')[0])||c.id===n);return c?c.id:null;};
   const numv=v=>{if(v===''||v==null)return null;const x=parseFloat(String(v).replace(',','.'));return isNaN(x)?null:x;};
-  let up=0,cr=0,skip=0;const pendAlt=[];
+  let up=0,cr=0,skip=0,priced=0;const pendAlt=[];
   R.forEach(r=>{const name=String(r['article']||'').trim();if(!name){skip++;return;}
     let it=(r['id']&&state.items.find(i=>i.id===String(r['id']).trim()))||state.items.find(i=>xNorm(i.name)===xNorm(name));
     const cat=catOf(r['section']);
@@ -738,10 +738,11 @@ function importStockRows(aoa,all){
     const q=numv(r['quantite']);if(q!=null)it.qty=q;
     if('seuil d alerte' in r){const m=numv(r['seuil d alerte']);it.min=m==null?'':m;}
     if(String(r['note']||'').trim())it.note=String(r['note']).trim();
+    {const pk=Object.keys(r).find(k=>k.startsWith('prix'));const pv=pk?numv(r[pk]):null;if(pv!=null&&pv>=0){it.price=pv;priced++;}}  // colonne « Prix d'achat » (ex. relevé des factures)
     const alt=String(r['remplacer par si epuise']||'').trim();if(alt)pendAlt.push([it,alt]);
   });
   pendAlt.forEach(([it,alt])=>{const a=state.items.find(i=>xNorm(i.name)===xNorm(alt));if(a&&a.id!==it.id)it.alt=a.id;});
-  if(!confirm(`Import du fichier Stock :\n• ${up} article(s) mis à jour\n• ${cr} article(s) créé(s)${skip?`\n• ${skip} ligne(s) sans nom ignorée(s)`:''}\n\nLes quantités saisies remplacent celles du stock (une case vide garde la quantité actuelle). Valider ?`)){state=load();render();return;}
+  if(!confirm(`Import du fichier Stock :\n• ${up} article(s) mis à jour\n• ${cr} article(s) créé(s)${skip?`\n• ${skip} ligne(s) sans nom ignorée(s)`:''}${priced?`\n• ${priced} prix d\'achat mis à jour`:''}\n\nLes quantités saisies remplacent celles du stock (une case vide garde la quantité actuelle). Valider ?`)){state=load();render();return;}
   save();render();alert('Stock mis à jour.');
 }
 
