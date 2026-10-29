@@ -185,6 +185,10 @@
         <label class="f">Date<input class="in" id="n_date" type="date"></label>
         <label class="f">Opérateur<input class="in" id="n_op" style="font-family:var(--sans)"></label>
       </div>
+      <div class="g g2">
+        <label class="f">N° de lot (étiquette)<input class="in" id="n_plot" placeholder="code du conditionnement"></label>
+        <label class="f">DDM<input class="in" id="n_ddm" type="date"></label>
+      </div>
     </div>
     <div class="acts"><button class="btn-ghost" onclick="closeOv('newOv')">Annuler</button><button class="btn-copper" onclick="createSession()">Créer</button></div>
   </div>
@@ -249,7 +253,7 @@ function openNew(){
   const L=lotSources();
   if(!L.length){alert("Aucun lot trouvé. Les lots viennent du Brew Log et du Suivi des cuves.");return;}
   document.getElementById('n_lot').innerHTML=L.sort((a,b)=>(b.active?1:0)-(a.active?1:0)||String(b.lot).localeCompare(a.lot)).map(l=>`<option value="${esc(l.lot)}">${esc(l.lot)} — ${esc(l.recipe)}${l.tank?' · '+esc(l.tank):''}</option>`).join('');
-  document.getElementById('n_date').value=today();codeHint();
+  document.getElementById('n_date').value=today();document.getElementById('n_plot').value='';document.getElementById('n_ddm').value='';codeHint();
   document.getElementById('newOv').classList.add('show');
 }
 /* code conditionnement = n° de lot + A / B / C dans l'ordre (ex. 61020A) */
@@ -257,10 +261,11 @@ function nextCode(lot){const used=new Set(S.filter(x=>x.lot===lot).map(sCode));f
 function sCode(s){if(s.code)return s.code;const same=S.filter(x=>x.lot===s.lot&&x.code==null).sort((a,b)=>a.date.localeCompare(b.date)||a.id.localeCompare(b.id));
   const taken=new Set(S.filter(x=>x.lot===s.lot&&x.code).map(x=>x.code));let i=0;for(const L of 'ABCDEFGH'){if(taken.has(s.lot+L))continue;if(same[i]===s)return s.lot+L;i++;}return s.lot;}
 function codeHint(){const lot=document.getElementById('n_lot').value;const n=S.filter(x=>x.lot===lot).length;
+  const pl=document.getElementById('n_plot');if(pl)pl.placeholder=lot?nextCode(lot):'code du conditionnement';
   document.getElementById('n_code').innerHTML=lot?`Code : <b>${esc(nextCode(lot))}</b>${n>=3?' — <span class="bad">déjà '+n+' conditionnements sur ce lot</span>':''}`:'';}
 function createSession(){
   const lot=document.getElementById('n_lot').value;const src=lotSources().find(l=>l.lot===lot);if(!src)return;
-  const s={id:'k'+Date.now(),date:document.getElementById('n_date').value||today(),op:document.getElementById('n_op').value.trim(),
+  const s={id:'k'+Date.now(),date:document.getElementById('n_date').value||today(),op:document.getElementById('n_op').value.trim(),plot:document.getElementById('n_plot').value.trim(),ddm:document.getElementById('n_ddm').value,
     lot,recipe:src.recipe,tank:src.tank||'',brewId:src.brewId||null,targets:src.targets||null,
     a:{vol:src.volHL!=null?String(Math.round(src.volHL*100)):'',co2:'',o2:'',abv:'',temp:'',ph:''},
     dil:{target:src.targets&&src.targets.abv!=null?String(src.targets.abv):'',water:''},
@@ -270,12 +275,13 @@ function createSession(){
   s.ref=newRef();autoFill(s,false);
   s.code=nextCode(lot);S.push(s);save();closeOv('newOv');open_(s.id);
 }
+function setTop(k,v){const s=cur();s[k]=v;save();renderList();}
 function open_(id){curId=id;renderList();render();window.scrollTo(0,0);}
 function renderList(){
   const L=document.getElementById('list');
   if(!S.length){L.innerHTML='<div class="empty" style="padding:1.5rem 1rem">Aucune session.</div>';return;}
   L.innerHTML=[...S].sort((a,b)=>b.date.localeCompare(a.date)).map(s=>{const c=calc(s);
-    return `<div class="bd${s.id===curId?' on':''}" onclick="open_('${s.id}')"><b>${esc(sCode(s))} · ${esc(s.recipe)}</b><small>Lot ${esc(s.lot)} · ${fmtD(s.date)} · ${c.outL?Math.round(c.outL)+' L':'—'}</small></div>`;}).join('');
+    return `<div class="bd${s.id===curId?' on':''}" onclick="open_('${s.id}')"><b>${esc(sCode(s))} · ${esc(s.recipe)}</b><small>Lot ${esc(s.plot||s.lot)}${s.ddm?' · DDM '+fmtD(s.ddm):''} · ${fmtD(s.date)} · ${c.outL?Math.round(c.outL)+' L':'—'}</small></div>`;}).join('');
 }
 
 /* ---- refermentation (sucre + levure) ---- */
@@ -433,7 +439,10 @@ function render(){
   const T=s.targets||{};
   M.innerHTML=`
   <div class="card"><div class="card-b"><div class="head-sheet">
-    <div><div class="ttl">${esc(s.recipe)}</div><div class="meta">Conditionnement <b>${esc(sCode(s))}</b> · lot ${esc(s.lot)} · ${fmtD(s.date)}${s.tank?' · depuis '+esc(s.tank):''}${s.op?' · '+esc(s.op):''}</div></div>
+    <div><div class="ttl">${esc(s.recipe)}</div><div class="meta">Conditionnement <b>${esc(sCode(s))}</b> · lot ${esc(s.lot)} · ${fmtD(s.date)}${s.tank?' · depuis '+esc(s.tank):''}${s.op?' · '+esc(s.op):''}</div>
+      <div class="g g2" style="margin-top:.6rem;max-width:520px">
+        <label class="f">N° de lot (étiquette)<input class="in" value="${esc(s.plot||'')}" placeholder="${esc(sCode(s))}" oninput="setTop('plot',this.value)"></label>
+        <label class="f">DDM<input class="in" type="date" value="${esc(s.ddm||'')}" onchange="setTop('ddm',this.value)"></label></div></div>
     <div class="toolbar"><button class="btn-ghost btn-sm" onclick="printS()">PDF</button><button class="btn-ghost btn-sm" style="color:var(--red)" onclick="delSession()">Supprimer</button></div></div></div></div>
 
   <div class="card"><div class="card-h"><h2><span class="n">01</span>Analyses de la cuve de garde</h2>
@@ -552,7 +561,7 @@ function refresh(){
 }
 function printS(){
   const s=cur(),c=calc(s),T=s.targets||{};
-  document.getElementById('printSheet').innerHTML=`<h1>${esc(s.recipe)} — ${esc(sCode(s))}</h1><div>Conditionnement du ${fmtD(s.date)}${s.tank?' · '+esc(s.tank):''}${s.op?' · '+esc(s.op):''}</div>
+  document.getElementById('printSheet').innerHTML=`<h1>${esc(s.recipe)} — ${esc(sCode(s))}</h1><div>Conditionnement du ${fmtD(s.date)}${s.tank?' · '+esc(s.tank):''}${s.op?' · '+esc(s.op):''}</div><div><b>N° de lot :</b> ${esc(s.plot||sCode(s))} · <b>DDM :</b> ${s.ddm?fmtD(s.ddm):'—'}</div>
   <h2>Analyses</h2><table><tr><th>Volume</th><td>${s.a.vol||'—'} L</td><th>CO₂</th><td>${s.a.co2||'—'} g/L (cible ${T.co2??'—'})</td><th>O₂</th><td>${s.a.o2||'—'} ppb (max ${T.o2??'—'})</td></tr>
   <tr><th>Alcool</th><td>${s.a.abv||'—'} %</td><th>Eau ajoutée</th><td>${c.water} L</td><th>Alcool final</th><td>${c.abvAfter!=null?c.abvAfter.toFixed(2):'—'} %</td></tr></table>
   ${s.ref&&s.ref.on?(()=>{const r=refCalc(s,c);const f2=(v,d)=>v==null?'—':v.toFixed(d);return `<h2>Refermentation</h2><table>
