@@ -284,12 +284,20 @@ const VPC=1.963; // g/L de CO2 pour 1 volume
 function newRef(){return {on:false,type:'sac',co2t:'',ghl:'5',sugarKg:'',yeastG:'',map:{},move:null};}
 /* CO2 encore dissous dans la bière à la température donnée (volumes), formule usuelle des calculateurs de priming */
 function residualCO2(T){return (3.0378-0.050062*T+0.00026555*T*T)*VPC;}
+/* T° la plus haute atteinte par le lot après le début de fermentation (relevés + consignes du protocole) :
+   en cuve non isobare, le CO₂ s'échappe à cette température et ne se redissout pas au refroidissement */
+function tmaxLot(lot){if(!lot)return null;const cv=ld(CUVES_KEY,{tanks:[],archive:[]});
+  const B=[...(cv.tanks||[]).map(t=>t.batch).filter(Boolean),...(cv.archive||[])].filter(b=>b.lot===lot);
+  let m=null;B.forEach(b=>{(b.readings||[]).forEach(r=>{if(r.temp!=null&&r.temp!==''&&!isNaN(+r.temp))m=m==null?+r.temp:Math.max(m,+r.temp);});
+    (b.protocol||[]).filter(p=>['ens','dia','dh'].includes(p.a)&&p.t!==''&&p.t!=null).forEach(p=>{m=m==null?+p.t:Math.max(m,+p.t);});});
+  return m;}
 function refCalc(s,c){
   const R=s.ref||newRef(),T=s.targets||{},sg=SUGARS[R.type]||SUGARS.sac;
   const target=num(R.co2t)??(T.co2!=null?+T.co2:5);
-  const co2m=num(s.a.co2),tt=num(s.a.temp);
-  const resid=co2m!=null?co2m:(tt!=null?residualCO2(tt):null);
-  const residFrom=co2m!=null?'CO₂ mesuré':tt!=null?'estimé à '+tt+' °C':'';
+  const co2m=num(s.a.co2),tm=num(R.tmax),ta=tmaxLot(s.lot),tt=num(s.a.temp);
+  const te=tm!=null?tm:ta!=null?ta:tt;
+  const resid=co2m!=null?co2m:(te!=null?residualCO2(te):null);
+  const residFrom=co2m!=null?'CO₂ mesuré':te!=null?'estimé à '+te+' °C'+(tm!=null?' (T° max saisie)':ta!=null?' (T° max du lot en cuve)':' (T° actuelle — à vérifier)'):'';
   const delta=resid!=null?Math.max(0,target-resid):null;
   const gL=delta!=null?delta/sg.co2:null;
   const V=c.volAfter;
@@ -439,6 +447,7 @@ function render(){
         <label class="f">Sucre<select class="in" onchange="setR('type',this.value)">${Object.entries(SUGARS).map(([k,o])=>`<option value="${k}"${s.ref.type===k?' selected':''}>${o.l}</option>`).join('')}</select></label>
         <label class="f">CO₂ visé (g/L)<input class="in" type="number" step="0.05" value="${esc(s.ref.co2t)}" placeholder="${T.co2??5}" oninput="setR('co2t',this.value)"></label>
         <label class="f">Dose de levure (g/hL)<input class="in" type="number" step="0.5" value="${esc(s.ref.ghl)}" oninput="setR('ghl',this.value)"></label>
+        <label class="f">T° max après fermentation (°C)<input class="in" type="number" step="0.5" value="${esc(s.ref.tmax||'')}" placeholder="${tmaxLot(s.lot)??'ex. 21'}" oninput="setR('tmax',this.value)"><small style="color:var(--ink-soft);font-weight:400;text-transform:none;letter-spacing:0;font-size:.74rem;line-height:1.35;font-family:var(--sans)">Cuve non isobare : le CO₂ restant dépend de la T° la plus haute atteinte (repos diacétyle), pas de la T° au soutirage. Vide = reprise des relevés de cuve. Un CO₂ mesuré (carte 01) est prioritaire.</small></label>
       </div>
       <div class="kpis">${kpi('rres','CO₂ déjà dissous')}${kpi('rgl','Sucre à ajouter')}${kpi('rsk','Sucre total')}${kpi('ryg','Levure totale')}</div>
       <div class="g g3">
