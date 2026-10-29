@@ -1820,10 +1820,15 @@ function secOf(sec,mode){return sec==='malt'?'des malts':sec==='hop'?'des houblo
 
 function costLines(r){
   const L=[],mode=r.mode||'biere';
+  if(!SK)skLoad();
   const push=(sec,type,it,sub,q,qu,qp)=>{
     const k=prixKey(type,it),p=getPrix(k);
-    const pc=p&&p.c!=null?p.c:null,pb=p&&p.b!=null?p.b:null;
-    L.push({sec,type,key:k,meta:prixMeta(type,it),n:it.n||'',sub,q,qu,qp,pu:prixUnitOf(type,it),pc,pb,
+    let pc=p&&p.c!=null?p.c:null,pb=p&&p.b!=null?p.b:null,stk=null;
+    /* prix d'achat de l'article du Stock relié (prioritaire sur le tarif) : converti en €/kg ou €/L */
+    const sid=SK?skGuess(type,it):'',si=sid&&SK.items.find(x=>x.id===sid);
+    if(si&&si.price!==''&&si.price!=null&&!isNaN(+si.price)){const u=String(si.unit||'').toLowerCase().trim(),f=u==='g'||u==='ml'?0.001:(u==='kg'||u==='l'||u==='litre'||u==='litres')?1:null;
+      if(f){const v=+si.price/f;const side=/\bbio\b/i.test(si.name)?'b':'c';if(type==='yeast'){pc=v;pb=v;}else if(side==='b')pb=v;else pc=v;stk={side:type==='yeast'?'cb':side,name:si.name,linked:!!it.sid};}}
+    L.push({sec,type,key:k,meta:prixMeta(type,it),n:it.n||'',sub,q,qu,qp,pu:prixUnitOf(type,it),pc,pb,stk,
       vc:pc!=null?qp*pc:null,vb:pb!=null?qp*pb:null,est:!!(p&&p.e)});
   };
   if(mode==='biere'){
@@ -1864,7 +1869,8 @@ function renderCost(){
     const L=S.lines.map((l,i)=>({l,i})).filter(x=>x.l.sec===sec);if(!L.length)return;
     h+=`<tr class="sec"><td class="l">${secLabel(sec,S.mode)}</td><td>${secQty(L.map(x=>x.l),sec)}</td><td></td><td id="cs-c-${sec}"></td><td></td><td class="c-bio" id="cs-b-${sec}"></td><td class="c-ec" id="cs-d-${sec}"></td></tr>`;
     L.forEach(({l,i})=>{
-      const inp=(f,v)=>`<span class="pw"><input class="pz${v==null?' miss':''}" inputmode="decimal" data-i="${i}" data-f="${f}" value="${v==null?'':fmtP(v)}" placeholder="à saisir" aria-label="Prix ${f==='c'?'conventionnel':'bio'} HT de ${hEsc(l.n)}">${l.pu==='L'?'<small>/L</small>':''}</span>`;
+      const inp=(f,v)=>l.stk&&l.stk.side.includes(f)?`<span class="pw" title="Prix d'achat du Stock : ${hEsc(l.stk.name)}${l.stk.linked?'':' (article suggéré)'} — à modifier dans l'app Stock"><input class="pz" readonly style="background:#EEF3E6;color:#3d5424" value="${fmtP(v)}">${l.pu==='L'?'<small>/L</small>':''}<small style="color:#4F6B2F">stock</small></span>`
+        :`<span class="pw"><input class="pz${v==null?' miss':''}" inputmode="decimal" data-i="${i}" data-f="${f}" value="${v==null?'':fmtP(v)}" placeholder="à saisir" aria-label="Prix ${f==='c'?'conventionnel':'bio'} HT de ${hEsc(l.n)}">${l.pu==='L'?'<small>/L</small>':''}</span>`;
       h+=`<tr><td class="l"><div class="rn">${hEsc(l.n)}${l.est?'<span class="tag-est">estim.</span>':''}<small>${hEsc(l.sub)}</small></div></td><td>${qtyTxt(l)}</td>`+
         `<td>${inp('c',l.pc)}</td><td id="cv-c-${i}"></td><td>${inp('b',l.pb)}</td><td class="c-bio" id="cv-b-${i}"></td><td class="c-ec" id="cv-d-${i}"></td></tr>`;
     });
