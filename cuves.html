@@ -138,6 +138,11 @@
   .next.late{background:rgba(168,57,43,.08);border-color:rgba(168,57,43,.35)}
   .next b{font-weight:700}
   .tg{display:flex;gap:.35rem;flex-wrap:wrap}
+  .adv-btn{all:unset;cursor:pointer;display:block;font-size:.76rem;line-height:1.35;border-radius:10px;padding:.45rem .6rem;border:1px solid}
+  .adv-btn.warn,.adv.warn{background:rgba(207,152,43,.12);border-color:rgba(207,152,43,.45)}
+  .adv-btn.bad,.adv.bad{background:rgba(179,38,30,.08);border-color:rgba(179,38,30,.35);color:#8C1D16}
+  .adv{border:1px solid;border-radius:10px;padding:.6rem .8rem;font-size:.85rem}
+  .adv ol{margin:.4rem 0 0 1.1rem;padding:0}.adv li{margin:.25rem 0;color:var(--ink)}
   .tg span{font-size:.68rem;font-weight:700;padding:.18rem .45rem;border-radius:999px;background:rgba(26,22,18,.06)}
   .tg .ok{background:rgba(79,107,47,.13);color:var(--green)}.tg .warn{background:rgba(184,132,47,.16);color:var(--amber)}.tg .bad{background:rgba(168,57,43,.13);color:var(--red)}
   .modal.wide{max-width:760px}
@@ -210,8 +215,9 @@
     <div class="mhint" id="batchHint"></div>
     <div class="form">
       <label>Recette / nom du brassin
-        <input class="input" id="f_recipe" list="beerList" placeholder="Choisis ou tape un nom">
+        <input class="input" id="f_recipe" list="beerList" placeholder="Choisis ou tape un nom" oninput="recHint()">
       </label>
+      <div class="mhint" id="f_recHint" style="margin:-.3rem 0 .2rem"></div>
       <div class="two">
         <label>Style
           <input class="input" id="f_style" placeholder="ex. Pale Ale">
@@ -327,6 +333,8 @@
         <label>Densité finale (°P)<input class="input" id="o_fg" type="number" step="0.1" inputmode="decimal"></label>
         <label>Destination<input class="input" id="o_dest" style="font-family:var(--sans)" placeholder="Conditionnement, fûts…"></label>
       </div>
+      <label style="flex-direction:row;align-items:center;gap:.5rem"><input type="checkbox" id="o_last" style="width:auto"> Dernier soutirage : la cuve est terminée (le reste = pertes)</label>
+      <div class="mhint" id="o_rest"></div>
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" id="outCancel">Annuler</button>
@@ -365,7 +373,8 @@ function bieresAdd(name){name=String(name||'').trim();if(!name)return false;cons
 function bieresExtra(defaults){const set=new Set(defaults.map(bNorm));return bieresLoad().filter(b=>!set.has(bNorm(b.name)));}
 
 bieresExtra(BEERS).forEach(b=>BEERS.push(b.name)); // bières ajoutées depuis les autres apps
-function fillBeerList(){document.getElementById('beerList').innerHTML=BEERS.map(b=>`<option value="${b.replace(/"/g,'&quot;')}">`).join('');}
+function fillBeerList(){const R=recAll().map(r=>r.name).filter(Boolean);const L=[...R,...BEERS.filter(b=>!R.some(r=>bNorm(r)===bNorm(b)))];
+  document.getElementById('beerList').innerHTML=L.map(b=>`<option value="${String(b).replace(/"/g,'&quot;')}">${R.includes(b)?'Carnet de brassage':''}</option>`).join('');}
 fillBeerList();
 let state=load();
 let editId=null, readId=null;
@@ -426,7 +435,13 @@ function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'
 function addDays(s,n){const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return ymd(d);}
 function platoToSG(p){return 1+p/(258.6-(p/258.2)*227.1);}
 function abvP(og,fg){if(og==null||fg==null)return null;return (platoToSG(og)-platoToSG(fg))*131.25;}
-function recipeByName(name){try{const a=JSON.parse(localStorage.getItem('brasserie_recettes_v1'))||[];return a.find(r=>bNorm(r.name)===bNorm(name))||null;}catch(e){return null;}}
+function recAll(){try{return JSON.parse(localStorage.getItem('brasserie_recettes_v1'))||[];}catch(e){return[];}}
+/* nom « nettoyé » : sans accents, sans « Bière » ni « BIO » (ex. « Bière Valmy IPA BIO » = « Valmy IPA ») */
+function rNorm(n){return String(n||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').replace(/\b(biere|bio)\b/g,' ').replace(/\s+/g,' ').trim();}
+function recipeByName(name){const a=recAll(),n=rNorm(name);if(!n)return null;
+  const ex=a.find(r=>bNorm(r.name)===bNorm(name))||a.find(r=>rNorm(r.name)===n);if(ex)return ex;
+  const c=a.filter(r=>{const m=rNorm(r.name);return m&&((m+' ').startsWith(n+' ')||(n+' ').startsWith(m+' '));});
+  return c.length?c.sort((x,y)=>Math.abs(rNorm(x.name).length-n.length)-Math.abs(rNorm(y.name).length-n.length))[0]:null;}
 function recipeTargets(r){
   const t=(r.process&&r.process.targets)||{},c=r.calc||{};
   const n=(v,d)=>v===''||v==null||isNaN(parseFloat(v))?d:parseFloat(v);
@@ -452,6 +467,56 @@ function targetTags(b){
     <span class="${tgtClass(F.att,T.att,T.attTol)}" title="Atténuation apparente">Att. ${F.att!=null?F.att.toFixed(0):'—'}/${T.att!=null?Math.round(T.att):'—'} %</span>
     <span class="${tgtClass(F.abv,T.abv,T.abvTol)}" title="Degré estimé / cible">${F.abv!=null?F.abv.toFixed(1):'—'}/${T.abv!=null?(+T.abv).toFixed(1):'—'} %vol</span></div>`;
 }
+/* ---- diagnostic quand la densité s'écarte de la DF cible : propose des solutions ---- */
+function dfAdvice(b){
+  const T=b.targets;if(!T||T.fg==null)return null;const F=batchFigures(b);if(F.cur==null)return null;
+  const rs=[...(b.readings||[])].filter(r=>r.plato!=null).sort((x,y)=>x.date<y.date?-1:1);if(rs.length<2)return null;
+  const fg=+T.fg,tol=+T.fgTol||0.5,d=F.cur-fg;if(Math.abs(d)<=tol)return null;
+  const last=rs[rs.length-1],ref=[...rs].reverse().find(r=>daysBetween(r.date,last.date)>=2)||rs[rs.length-2];
+  const days=Math.max(1,daysBetween(ref.date,last.date)),rate=(+ref.plato-+last.plato)/days; // °P perdus par jour
+  const stable=rate<0.1;
+  const lt=[...(b.readings||[])].sort((x,y)=>x.date<y.date?-1:1).reverse().find(r=>r.temp!=null);const temp=lt?+lt.temp:null;
+  const coldDone=(b.protocol||[]).some(p=>p.a==='cold'&&p.done)||(temp!=null&&temp<8);
+  const coldNext=(b.protocol||[]).find(p=>p.a==='cold'&&!p.done);
+  const ens=(b.protocol||[]).find(p=>p.a==='ens'&&p.t!==''&&p.t!=null);const fermT=ens?+ens.t:null;
+  const attOk=F.att!=null&&T.att!=null&&Math.abs(F.att-T.att)<=(+T.attTol||3);
+  const it=[];let level,title;
+  if(d>0){
+    if(!stable){
+      const eta=Math.ceil((F.cur-fg)/rate);level='warn';title=`DF encore haute (+${d.toFixed(1)} °P) — fermentation toujours active`;
+      it.push(`Au rythme actuel (−${rate.toFixed(2)} °P/jour), la cible devrait être atteinte dans <b>~${eta} jour${eta>1?'s':''}</b> : patience, pas d'intervention.`);
+      if(coldNext&&coldNext.date<addDays(todayStr(),eta))it.push(`<b>Décaler le refroidissement</b> prévu le ${fmtDate(coldNext.date)} : ne refroidir qu'après 2 relevés identiques à 24–48 h d'écart.`);
+      if(temp!=null&&fermT!=null&&temp<fermT-1)it.push(`Température actuelle (${temp} °C) sous la consigne d'ensemencement (${fermT} °C) : remonter de 1–2 °C pour finir la fermentation.`);
+    }else{
+      level='bad';title=`DF trop haute (+${d.toFixed(1)} °P) — fermentation bloquée`;
+      it.push(`<b>Vérifier la mesure</b> : densimètre lu à la bonne température (ou corrigé), échantillon dégazé. Au réfractomètre, la lecture est faussée par l'alcool : appliquer la correction.`);
+      if(attOk)it.push(`L'atténuation est conforme (${F.att.toFixed(0)} % / cible ${Math.round(T.att)} %) : la DI était sans doute plus haute que prévu. Rien à corriger en cuve ; ajuster le degré par <b>dilution</b> au conditionnement si besoin.`);
+      if(coldDone)it.push(`<b>Refroidissement trop tôt</b> : la levure est tombée. Remonter la cuve à la température de fermentation${fermT!=null?' ('+fermT+' °C)':''} pour la réactiver.`);
+      else if(temp!=null)it.push(`<b>Remonter la température de 2–3 °C</b> (actuellement ${temp} °C) pendant 48 h pour un repos de fin de fermentation.`);
+      it.push(`<b>Remettre la levure en suspension</b> : purge du fond de cône puis recirculation douce, ou injection de CO₂ par le bas. Relevé de contrôle à 24 h et 48 h.`);
+      it.push(`Si la densité ne bouge toujours pas après 48 h : <b>ré-ensemencer</b> avec une levure active et atténuante (levure sèche neutre réhydratée ~50 g/HL, ou 5–10 % de moût en pleine fermentation / krausening).`);
+      it.push(`<b>Refermentation en bouteille</b> : ne pas conditionner tant que la DF n'est pas stable. S'il reste des sucres, réduire le sucre de refermentation, sinon risque de surcarbonatation.`);
+      it.push(`Pour le prochain brassin : contrôler la température d'empâtage (trop chaude = moût peu fermentescible), l'oxygénation et le taux d'ensemencement.`);
+    }
+  }else{
+    const ad=F.abv!=null&&T.abv!=null?F.abv-T.abv:null;
+    if(!stable){
+      level='bad';title=`DF sous la cible (${d.toFixed(1)} °P) et la densité continue de baisser`;
+      it.push(`<b>Suspicion de contamination</b> (levure diastaticus ou bactéries) : goûter et sentir (phénolé, acide, beurré), mesurer le pH (une baisse marquée signe une contamination bactérienne).`);
+      it.push(`Isoler la cuve et prévoir un <b>nettoyage / désinfection renforcés</b> avant son prochain remplissage.`);
+      it.push(`<b>Pas de refermentation en bouteille</b> tant que la densité baisse : risque de gushing ou de casse. Privilégier fût / conditionnement à froid, ou attendre la stabilisation.`);
+    }else{
+      level='warn';title=`DF plus basse que prévu (${d.toFixed(1)} °P) — bière plus sèche`;
+      if(ad!=null&&ad>0.2)it.push(`Degré estimé ${F.abv.toFixed(1)} % (cible ${(+T.abv).toFixed(1)} %) : <b>diluer à l'eau désaérée</b> au conditionnement pour revenir à la cible (calcul dans le Packaging Log).`);
+      it.push(`Goûter : si le corps manque, rien à corriger en cuve. Pour le prochain brassin, <b>empâter 1–2 °C plus chaud</b>, ou choisir une levure moins atténuante.`);
+      it.push(`Si la DI était plus basse que prévu, vérifier le rendement d'empâtage et le volume en cuve.`);
+    }
+  }
+  return {level,title,items:it};
+}
+function advHTML(a,full){if(!a)return '';
+  return full?`<div class="sec"><h3>Écart de DF — que faire ?</h3><div class="adv ${a.level}"><b>${a.title}</b><ol>${a.items.map(x=>`<li>${x}</li>`).join('')}</ol></div></div>`
+    :`<button class="adv-btn ${a.level}" data-act="sheet" data-id="__ID__">⚠ ${a.title} — <u>voir les solutions</u></button>`;}
 function fermScore(b){
   if(b.note&&b.note.s!=null)return b.note.s;
   const T=b.targets,F=batchFigures(b);if(!T||F.cur==null||T.fg==null)return null;
@@ -521,6 +586,7 @@ function render(){
         ${og!=null&&cur!=null?`<div><div class="gauge"><span style="width:${prog.toFixed(0)}%"></span></div></div>`:''}
         ${(b.readings&&b.readings.length>=2)?sparkline(b.readings):''}
         ${targetTags(b)}
+        ${advHTML(dfAdvice(b),false).replace('__ID__',t.id)}
         ${(()=>{const n=nextStep(b);if(!n)return (b.protocol&&b.protocol.length)?'<div class="next">Protocole terminé — prête à soutirer</div>':'';const late=n.date<todayStr();
           return `<div class="next${late?' late':''}">Prochaine étape · <b>${FERM_ACT[n.a]||n.a}</b>${n.t!==''&&n.t!=null?' à '+n.t+' °C':''} — ${n.date===todayStr()?'aujourd\'hui':fmtDate(n.date)}${late?' (en retard)':''}</div>`;})()}
         <div class="dates">
@@ -557,9 +623,14 @@ function openBatch(id){
   document.getElementById('f_start').value=b?.start||todayStr();
   document.getElementById('f_end').value=b?.end||'';
   document.getElementById('f_pack').value=b?.pack||'';
+  fillBeerList();recHint();
   document.getElementById('batchClear').style.display=b?'':'none';
   bo.classList.add('show');
 }
+function recHint(){const v=document.getElementById('f_recipe').value.trim(),el=document.getElementById('f_recHint');if(!v){el.innerHTML='';return;}
+  const r=recipeByName(v);el.innerHTML=r?`<span style="color:#4F6B2F">✓ Liée à la recette « ${esc(r.name)} » du carnet : DF, atténuation, degré et protocole repris.</span>`
+    :`<span style="color:#B3261E">⚠ Aucune recette du carnet ne correspond : pas de cibles ni de protocole. Choisis un nom de la liste (Carnet de brassage).</span>`;
+  if(r&&!document.getElementById('f_style').value&&r.style)document.getElementById('f_style').value=r.style;}
 function closeBatch(){bo.classList.remove('show');editId=null;}
 document.getElementById('batchCancel').onclick=closeBatch;
 document.getElementById('batchClear').onclick=()=>{if(editId)clearTank(editId);};
@@ -582,6 +653,8 @@ document.getElementById('batchSave').onclick=()=>{
   if(t.batch&&t.batch.protocol&&t.batch.start!==data.start){const sh=daysBetween(t.batch.start,data.start);data.protocol=data.protocol.map(p=>({...p,date:addDays(p.date,sh)}));}
   if(!data.protocol||!data.protocol.length){if(installProtocol(data)&&!data.end&&data.protocol.length){
     const cold=data.protocol.find(p=>p.a==='cold')||data.protocol[data.protocol.length-1];data.end=cold.date;}}
+  else if(!data.targets){const r=recipeByName(data.recipe);if(r){data.targets=recipeTargets(r);data.recipeTs=r.ts;data.recipeRev=r.rev||1;}}
+  if(t.batch&&t.batch.sout)data.sout=t.batch.sout;
   // seed initial reading from OG if no readings yet
   if(data.og!=null && (!data.readings.length)){
     data.readings=[{date:data.start||todayStr(),plato:data.og,temp:null}];
@@ -678,12 +751,15 @@ function sheetHTML(t,b,printing){
     <tr><td>Atténuation apparente</td><td class="n">${T.att!=null?Math.round(T.att)+' ± '+T.attTol+' %':'—'}</td><td class="n">${F.att!=null?F.att.toFixed(0)+' %':'—'}</td><td class="n">${F.att!=null&&T.att!=null?(F.att-T.att>=0?'+':'')+(F.att-T.att).toFixed(0):'—'}</td></tr>
     <tr><td>Degré d'alcool (estimé)</td><td class="n">${T.abv!=null?(+T.abv).toFixed(1)+' ± '+T.abvTol+' %':'—'}</td><td class="n">${F.abv!=null?F.abv.toFixed(1)+' %':'—'}</td><td class="n">${F.abv!=null&&T.abv!=null?(F.abv-T.abv>=0?'+':'')+(F.abv-T.abv).toFixed(1):'—'}</td></tr>
     </tbody></table>`:'<p class="meta">Pas de cibles : la recette n\'est pas liée. '+(printing?'':'<button class="mini" onclick="relink()">Lier à la recette</button>')+'</p>'}</div>
+  ${advHTML(dfAdvice(b),true)}
   <div class="sec"><h3>Protocole de fermentation</h3>${prot.length?`<table class="t"><thead><tr><th>Date</th><th>Jour</th><th>Action</th><th class="n">T°</th><th class="w">Consigne</th><th>Fait</th></tr></thead><tbody>
     ${prot.map(p=>`<tr class="${p.done?'tr-done':p.date<todayStr()?'tr-late':''}"><td>${fmtDate(p.date)}</td><td>J+${p.d}</td><td>${FERM_ACT[p.a]||p.a}</td><td class="n">${p.t!==''&&p.t!=null?p.t+' °C':''}</td><td class="w">${esc(p.note)}</td>
       <td>${printing?(p.done?fmtDate(p.done):''):`<input type="checkbox" class="chk" ${p.done?'checked':''} onchange="markStep('${t.id}','${p.id}',this.checked)"> ${p.done?fmtDate(p.done):''}`}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun protocole. '+(printing?'':'<button class="mini" onclick="relink()">Installer depuis la recette</button>')+'</p>'}</div>
   ${relChart(b,rs)}
   <div class="sec"><h3>Relevés (${rs.length})</h3>${rs.length?`<table class="t"><thead><tr><th>Date</th><th class="n">J+</th><th class="n">°P</th><th class="n">T° (°C)</th><th class="n">pH</th><th class="w">Note</th></tr></thead><tbody>
     ${rs.map(r=>`<tr><td>${fmtDate(r.date)}</td><td class="n">${b.start?daysBetween(b.start,r.date):''}</td><td class="n">${r.plato!=null?(+r.plato).toFixed(1):'—'}</td><td class="n">${r.temp!=null?(+r.temp).toFixed(1):'—'}</td><td class="n">${r.ph!=null?(+r.ph).toFixed(2):'—'}</td><td class="w">${esc(r.note||'')}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun relevé.</p>'}</div>
+  ${(b.sout||[]).length?`<div class="sec"><h3>Soutirages (${b.sout.length})</h3><table class="t"><thead><tr><th>Date</th><th class="n">Volume</th><th class="n">DF</th><th class="w">Destination</th>${printing?'':'<th></th>'}</tr></thead><tbody>
+    ${b.sout.map(x=>`<tr><td>${fmtDate(x.date)}</td><td class="n">${x.volHL??'—'} HL</td><td class="n">${x.fg!=null?(+x.fg).toFixed(1)+' °P':'—'}</td><td class="w">${esc(x.dest)}</td>${printing?'':`<td><button class="mini" style="color:#B3261E" onclick="delSout('${x.id}')">Supprimer</button></td>`}</tr>`).join('')}</tbody></table></div>`:''}
   <div class="sec"><h3>Note fermentation</h3>
     ${printing?`<p>${fs!=null?fs+'/5':'—'} ${esc((b.note&&b.note.c)||'')}</p>`:`<div style="display:flex;gap:.6rem;align-items:flex-start;flex-wrap:wrap"><div class="stars">${[1,2,3,4,5].map(i=>`<button class="${fs!=null&&i<=fs?'on':''}" onclick="setFermNote(${i})">★</button>`).join('')}</div>
       <span class="meta">${b.note&&b.note.s!=null?'manuelle':fs!=null?'auto (DF vs cible)':''}</span>
@@ -732,6 +808,17 @@ function setFermNote(s,c){
   const b=tank(sheetId).batch;b.note=b.note||{s:null,c:''};
   if(s!=null){b.note.s=b.note.s===s?null:s;save();renderSheet();}else{b.note.c=c;save();}
 }
+/* supprime un soutirage partiel : le volume revient dans la cuve */
+function delSout(sid){const t=tank(sheetId),b=t&&t.batch;if(!b)return;const x=(b.sout||[]).find(s=>s.id===sid);if(!x)return;
+  if(!confirm(`Supprimer le soutirage du ${fmtDate(x.date)} (${x.volHL||0} HL) ?\nLes ${x.volHL||0} HL reviennent dans ${t.name}.\n(La session du Packaging Log éventuelle n'est pas supprimée.)`))return;
+  b.sout=b.sout.filter(s=>s.id!==sid);b.volume=Math.round((+(b.volume||0)+(+x.volHL||0))*100)/100;save();render();renderSheet();}
+/* supprime un lot archivé (soutirage final) ; propose de le remettre dans sa cuve si elle est vide */
+function delArch(i){const a=state.archive[i];if(!a)return;const t=tank(a.tankId);
+  if(!confirm(`Supprimer le soutirage final du lot ${a.lot||''} — ${a.recipe} (${fmtDate(a.closed.date)}) ?`))return;
+  if(t&&!t.batch&&confirm(`Remettre le lot dans ${t.name}, comme avant ce soutirage ?\n(Annuler = supprimer définitivement de l'historique)`)){
+    const b={...a};['aid','tankId','tankName','fermScore','closed'].forEach(k=>delete b[k]);
+    b.sout=(b.sout||[]).slice(0,-1);b.volume=a.closed.volBefore!=null?a.closed.volBefore:(a.closed.volHL||b.volume);t.batch=b;}
+  state.archive.splice(i,1);save();render();document.getElementById('btnHist').click();}
 function relink(){
   const b=tank(sheetId).batch;
   if(installProtocol(b)){save();render();renderSheet();}
@@ -748,13 +835,18 @@ document.getElementById('shPdf').onclick=()=>{
 const oo=document.getElementById('outOverlay');let outId=null;
 function openOut(id){
   outId=id;const t=tank(id),b=t.batch,F=batchFigures(b);
-  document.getElementById('outHint').textContent=t.name+' · '+(b.recipe||'')+(b.lot?' · lot '+b.lot:'')+' — le lot est archivé avec tous ses relevés.';
+  document.getElementById('outHint').textContent=t.name+' · '+(b.recipe||'')+(b.lot?' · lot '+b.lot:'')+' — en cuve : '+(Math.round((b.volume||t.cap)*100)/100)+' HL'+((b.sout||[]).length?' ('+b.sout.length+' soutirage(s) déjà fait(s))':'');
+  document.getElementById('o_last').checked=true;
   document.getElementById('o_date').value=todayStr();
   document.getElementById('o_vol').value=b.volume||t.cap;
   document.getElementById('o_fg').value=F.cur!=null?F.cur.toFixed(1):'';
   document.getElementById('o_dest').value='';
-  oo.classList.add('show');
+  oo.classList.add('show');outRest();
 }
+function outRest(){const t=tank(outId);if(!t||!t.batch)return;const have=+(t.batch.volume||t.cap),v=parseFloat(document.getElementById('o_vol').value)||0,last=document.getElementById('o_last');
+  const rest=Math.round((have-v)*100)/100;if(this&&this.id==='o_vol')last.checked=rest<=0.05;
+  document.getElementById('o_rest').innerHTML=last.checked?`Le lot sera archivé et la cuve libérée${rest>0.05?' ('+rest+' HL comptés en pertes)':''}.`:`<b>Soutirage partiel</b> : ${rest>0?rest:0} HL restent en cuve et le lot reste dans le suivi.`;}
+document.getElementById('o_vol').addEventListener('input',outRest);document.getElementById('o_last').addEventListener('change',()=>outRest());
 document.getElementById('outCancel').onclick=()=>oo.classList.remove('show');
 oo.addEventListener('click',e=>{if(e.target===oo)oo.classList.remove('show');});
 document.getElementById('outSave').onclick=()=>{
@@ -762,10 +854,15 @@ document.getElementById('outSave').onclick=()=>{
   const fg=document.getElementById('o_fg').value;
   if(fg!==''){const d=document.getElementById('o_date').value||todayStr();if(!(b.readings||[]).some(r=>r.date===d&&r.plato!=null))(b.readings=b.readings||[]).push({date:d,plato:parseFloat(fg),temp:null,note:'Soutirage'});}
   const sout=(b.protocol||[]).find(p=>p.a==='sout'&&!p.done);if(sout)sout.done=document.getElementById('o_date').value||todayStr();
-  state.archive.push({...b,tankId:t.id,tankName:t.name,fermScore:fermScore(b),
-    closed:{date:document.getElementById('o_date').value||todayStr(),volHL:parseFloat(document.getElementById('o_vol').value)||null,fg:fg!==''?parseFloat(fg):null,dest:document.getElementById('o_dest').value.trim()}});
-  const lot=b.lot;t.batch=null;save();render();oo.classList.remove('show');
-  if(lot)location.href='conditionnement.html?lot='+encodeURIComponent(lot);
+  const date=document.getElementById('o_date').value||todayStr(),vol=parseFloat(document.getElementById('o_vol').value)||null,dest=document.getElementById('o_dest').value.trim();
+  const last=document.getElementById('o_last').checked,before=+(b.volume||t.cap);
+  (b.sout=b.sout||[]).push({id:'s'+Date.now().toString(36),date,volHL:vol,fg:fg!==''?parseFloat(fg):null,dest});
+  if(last){const tot=Math.round(b.sout.reduce((a,x)=>a+(+x.volHL||0),0)*100)/100;
+    state.archive.push({...b,aid:'a'+Date.now().toString(36),tankId:t.id,tankName:t.name,fermScore:fermScore(b),
+      closed:{date,volHL:tot||vol,fg:fg!==''?parseFloat(fg):null,dest,volBefore:before}});t.batch=null;}
+  else b.volume=Math.max(0,Math.round((before-(vol||0))*100)/100);
+  const lot=b.lot;save();render();oo.classList.remove('show');
+  if(lot)location.href='conditionnement.html?lot='+encodeURIComponent(lot)+(vol?'&vol='+vol:'');
   else alert("Lot archivé. Pas de n° de lot sur ce brassin : crée la session à la main dans le Packaging Log.");
 };
 
@@ -792,10 +889,10 @@ document.getElementById('trSave').onclick=()=>{
 // ---- historique ----
 const ho=document.getElementById('histOverlay');
 document.getElementById('btnHist').onclick=()=>{
-  const A=[...state.archive].sort((a,b)=>a.closed.date<b.closed.date?1:-1);
-  document.getElementById('histBody').innerHTML=A.length?`<table class="t"><thead><tr><th>Lot</th><th>Bière</th><th>Cuve</th><th>Mise en cuve</th><th>Soutirage</th><th class="n">DI</th><th class="n">DF</th><th class="n">Att.</th><th class="n">Vol. in → out</th><th class="n">Note</th></tr></thead><tbody>
+  const A=state.archive.map((a,i)=>({...a,_i:i})).sort((a,b)=>a.closed.date<b.closed.date?1:-1);
+  document.getElementById('histBody').innerHTML=A.length?`<table class="t"><thead><tr><th>Lot</th><th>Bière</th><th>Cuve</th><th>Mise en cuve</th><th>Soutirage</th><th class="n">DI</th><th class="n">DF</th><th class="n">Att.</th><th class="n">Vol. in → out</th><th class="n">Note</th><th></th></tr></thead><tbody>
     ${A.map(a=>{const og=a.og!=null?+a.og:null,fg=a.closed.fg;const att=og&&fg!=null?((og-fg)/og*100).toFixed(0)+' %':'—';
-      return `<tr><td>${esc(a.lot||'')}</td><td>${esc(a.recipe)}</td><td>${esc(a.tankName)}</td><td>${fmtDate(a.start)}</td><td>${fmtDate(a.closed.date)}</td><td class="n">${og!=null?og.toFixed(1):'—'}</td><td class="n">${fg!=null?fg.toFixed(1):'—'}</td><td class="n">${att}</td><td class="n">${a.volume||'—'} → ${a.closed.volHL??'—'} HL</td><td class="n">${a.fermScore!=null?a.fermScore+'/5':'—'}</td></tr>`;}).join('')}</tbody></table>`:'<p class="meta">Aucun lot clôturé pour l\'instant. Utilise « Soutirer & conditionner » sur une cuve pour archiver un lot.</p>';
+      return `<tr><td>${esc(a.lot||'')}</td><td>${esc(a.recipe)}</td><td>${esc(a.tankName)}</td><td>${fmtDate(a.start)}</td><td>${fmtDate(a.closed.date)}</td><td class="n">${og!=null?og.toFixed(1):'—'}</td><td class="n">${fg!=null?fg.toFixed(1):'—'}</td><td class="n">${att}</td><td class="n">${a.volume||'—'} → ${a.closed.volHL??'—'} HL</td><td class="n">${a.fermScore!=null?a.fermScore+'/5':'—'}</td><td><button class="mini" style="color:#B3261E" onclick="delArch(${a._i})">Supprimer</button></td></tr>`;}).join('')}</tbody></table>`:'<p class="meta">Aucun lot clôturé pour l\'instant. Utilise « Soutirer & conditionner » sur une cuve pour archiver un lot.</p>';
   ho.classList.add('show');
 };
 document.getElementById('histClose').onclick=()=>ho.classList.remove('show');
