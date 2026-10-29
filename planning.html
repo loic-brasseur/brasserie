@@ -224,7 +224,8 @@
 </div>
 
 <script>
-const STORE='brasserie_planning_v1';
+const STORE='brasserie_planning_cuves_v1';   // clé propre (brasserie_planning_v1 appartient au Planning de brassage)
+try{if(!localStorage.getItem(STORE)){const o=JSON.parse(localStorage.getItem('brasserie_planning_v1'));if(o&&Array.isArray(o.brews))localStorage.setItem(STORE,JSON.stringify(o));}}catch(e){}
 const TANKS=[
   {id:'c1',name:'Cuve 1',cap:60},{id:'c2',name:'Cuve 2',cap:60},
   {id:'c3',name:'Cuve 3',cap:60},{id:'c4',name:'Cuve 4',cap:60},
