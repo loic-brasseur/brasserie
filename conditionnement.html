@@ -266,6 +266,7 @@ function createSession(){
     dil:{target:src.targets&&src.targets.abv!=null?String(src.targets.abv):'',water:''},
     formats:[{f:'33cl',units:'',rej:''}],w:{f:'33cl',target:'',tol:'5',samples:[]},
     note:{s:null,c:''}};
+  if(window.__preVol){s.a.vol=String(Math.round(window.__preVol*100));s.auto=s.auto||{};s.auto.vol='volume soutiré';window.__preVol=null;}
   s.ref=newRef();autoFill(s,false);
   s.code=nextCode(lot);S.push(s);save();closeOv('newOv');open_(s.id);
 }
@@ -551,7 +552,7 @@ function importJSON(e){const f=e.target.files[0];if(!f)return;const rd=new FileR
 
 renderList();
 /* arrivée depuis le Suivi des cuves (« Soutirer & conditionner ») : nouvelle session pré-remplie pour ce lot */
-(function(){const lot=new URLSearchParams(location.search).get('lot');if(!lot)return;history.replaceState(null,'',location.pathname);
+(function(){const q=new URLSearchParams(location.search),lot=q.get('lot');if(!lot)return;window.__preVol=parseFloat(q.get('vol'))||null;history.replaceState(null,'',location.pathname);
   setTimeout(()=>{openNew();const sel=document.getElementById('n_lot');if([...sel.options].some(o=>o.value===lot)){sel.value=lot;codeHint();}},50);})();
 if(S.length)open_([...S].sort((a,b)=>b.date.localeCompare(a.date))[0].id);else render();
 </script>

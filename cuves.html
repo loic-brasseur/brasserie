@@ -215,8 +215,9 @@
     <div class="mhint" id="batchHint"></div>
     <div class="form">
       <label>Recette / nom du brassin
-        <input class="input" id="f_recipe" list="beerList" placeholder="Choisis ou tape un nom">
+        <input class="input" id="f_recipe" list="beerList" placeholder="Choisis ou tape un nom" oninput="recHint()">
       </label>
+      <div class="mhint" id="f_recHint" style="margin:-.3rem 0 .2rem"></div>
       <div class="two">
         <label>Style
           <input class="input" id="f_style" placeholder="ex. Pale Ale">
@@ -332,6 +333,8 @@
         <label>Densité finale (°P)<input class="input" id="o_fg" type="number" step="0.1" inputmode="decimal"></label>
         <label>Destination<input class="input" id="o_dest" style="font-family:var(--sans)" placeholder="Conditionnement, fûts…"></label>
       </div>
+      <label style="flex-direction:row;align-items:center;gap:.5rem"><input type="checkbox" id="o_last" style="width:auto"> Dernier soutirage : la cuve est terminée (le reste = pertes)</label>
+      <div class="mhint" id="o_rest"></div>
     </div>
     <div class="modal-actions">
       <button class="btn-ghost" id="outCancel">Annuler</button>
@@ -370,7 +373,8 @@ function bieresAdd(name){name=String(name||'').trim();if(!name)return false;cons
 function bieresExtra(defaults){const set=new Set(defaults.map(bNorm));return bieresLoad().filter(b=>!set.has(bNorm(b.name)));}
 
 bieresExtra(BEERS).forEach(b=>BEERS.push(b.name)); // bières ajoutées depuis les autres apps
-function fillBeerList(){document.getElementById('beerList').innerHTML=BEERS.map(b=>`<option value="${b.replace(/"/g,'&quot;')}">`).join('');}
+function fillBeerList(){const R=recAll().map(r=>r.name).filter(Boolean);const L=[...R,...BEERS.filter(b=>!R.some(r=>bNorm(r)===bNorm(b)))];
+  document.getElementById('beerList').innerHTML=L.map(b=>`<option value="${String(b).replace(/"/g,'&quot;')}">${R.includes(b)?'Carnet de brassage':''}</option>`).join('');}
 fillBeerList();
 let state=load();
 let editId=null, readId=null;
@@ -431,7 +435,13 @@ function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'
 function addDays(s,n){const d=new Date(s+'T00:00:00');d.setDate(d.getDate()+n);return ymd(d);}
 function platoToSG(p){return 1+p/(258.6-(p/258.2)*227.1);}
 function abvP(og,fg){if(og==null||fg==null)return null;return (platoToSG(og)-platoToSG(fg))*131.25;}
-function recipeByName(name){try{const a=JSON.parse(localStorage.getItem('brasserie_recettes_v1'))||[];return a.find(r=>bNorm(r.name)===bNorm(name))||null;}catch(e){return null;}}
+function recAll(){try{return JSON.parse(localStorage.getItem('brasserie_recettes_v1'))||[];}catch(e){return[];}}
+/* nom « nettoyé » : sans accents, sans « Bière » ni « BIO » (ex. « Bière Valmy IPA BIO » = « Valmy IPA ») */
+function rNorm(n){return String(n||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').replace(/\b(biere|bio)\b/g,' ').replace(/\s+/g,' ').trim();}
+function recipeByName(name){const a=recAll(),n=rNorm(name);if(!n)return null;
+  const ex=a.find(r=>bNorm(r.name)===bNorm(name))||a.find(r=>rNorm(r.name)===n);if(ex)return ex;
+  const c=a.filter(r=>{const m=rNorm(r.name);return m&&((m+' ').startsWith(n+' ')||(n+' ').startsWith(m+' '));});
+  return c.length?c.sort((x,y)=>Math.abs(rNorm(x.name).length-n.length)-Math.abs(rNorm(y.name).length-n.length))[0]:null;}
 function recipeTargets(r){
   const t=(r.process&&r.process.targets)||{},c=r.calc||{};
   const n=(v,d)=>v===''||v==null||isNaN(parseFloat(v))?d:parseFloat(v);
@@ -613,9 +623,14 @@ function openBatch(id){
   document.getElementById('f_start').value=b?.start||todayStr();
   document.getElementById('f_end').value=b?.end||'';
   document.getElementById('f_pack').value=b?.pack||'';
+  fillBeerList();recHint();
   document.getElementById('batchClear').style.display=b?'':'none';
   bo.classList.add('show');
 }
+function recHint(){const v=document.getElementById('f_recipe').value.trim(),el=document.getElementById('f_recHint');if(!v){el.innerHTML='';return;}
+  const r=recipeByName(v);el.innerHTML=r?`<span style="color:#4F6B2F">✓ Liée à la recette « ${esc(r.name)} » du carnet : DF, atténuation, degré et protocole repris.</span>`
+    :`<span style="color:#B3261E">⚠ Aucune recette du carnet ne correspond : pas de cibles ni de protocole. Choisis un nom de la liste (Carnet de brassage).</span>`;
+  if(r&&!document.getElementById('f_style').value&&r.style)document.getElementById('f_style').value=r.style;}
 function closeBatch(){bo.classList.remove('show');editId=null;}
 document.getElementById('batchCancel').onclick=closeBatch;
 document.getElementById('batchClear').onclick=()=>{if(editId)clearTank(editId);};
@@ -638,6 +653,8 @@ document.getElementById('batchSave').onclick=()=>{
   if(t.batch&&t.batch.protocol&&t.batch.start!==data.start){const sh=daysBetween(t.batch.start,data.start);data.protocol=data.protocol.map(p=>({...p,date:addDays(p.date,sh)}));}
   if(!data.protocol||!data.protocol.length){if(installProtocol(data)&&!data.end&&data.protocol.length){
     const cold=data.protocol.find(p=>p.a==='cold')||data.protocol[data.protocol.length-1];data.end=cold.date;}}
+  else if(!data.targets){const r=recipeByName(data.recipe);if(r){data.targets=recipeTargets(r);data.recipeTs=r.ts;data.recipeRev=r.rev||1;}}
+  if(t.batch&&t.batch.sout)data.sout=t.batch.sout;
   // seed initial reading from OG if no readings yet
   if(data.og!=null && (!data.readings.length)){
     data.readings=[{date:data.start||todayStr(),plato:data.og,temp:null}];
@@ -741,6 +758,8 @@ function sheetHTML(t,b,printing){
   ${relChart(b,rs)}
   <div class="sec"><h3>Relevés (${rs.length})</h3>${rs.length?`<table class="t"><thead><tr><th>Date</th><th class="n">J+</th><th class="n">°P</th><th class="n">T° (°C)</th><th class="n">pH</th><th class="w">Note</th></tr></thead><tbody>
     ${rs.map(r=>`<tr><td>${fmtDate(r.date)}</td><td class="n">${b.start?daysBetween(b.start,r.date):''}</td><td class="n">${r.plato!=null?(+r.plato).toFixed(1):'—'}</td><td class="n">${r.temp!=null?(+r.temp).toFixed(1):'—'}</td><td class="n">${r.ph!=null?(+r.ph).toFixed(2):'—'}</td><td class="w">${esc(r.note||'')}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun relevé.</p>'}</div>
+  ${(b.sout||[]).length?`<div class="sec"><h3>Soutirages (${b.sout.length})</h3><table class="t"><thead><tr><th>Date</th><th class="n">Volume</th><th class="n">DF</th><th class="w">Destination</th>${printing?'':'<th></th>'}</tr></thead><tbody>
+    ${b.sout.map(x=>`<tr><td>${fmtDate(x.date)}</td><td class="n">${x.volHL??'—'} HL</td><td class="n">${x.fg!=null?(+x.fg).toFixed(1)+' °P':'—'}</td><td class="w">${esc(x.dest)}</td>${printing?'':`<td><button class="mini" style="color:#B3261E" onclick="delSout('${x.id}')">Supprimer</button></td>`}</tr>`).join('')}</tbody></table></div>`:''}
   <div class="sec"><h3>Note fermentation</h3>
     ${printing?`<p>${fs!=null?fs+'/5':'—'} ${esc((b.note&&b.note.c)||'')}</p>`:`<div style="display:flex;gap:.6rem;align-items:flex-start;flex-wrap:wrap"><div class="stars">${[1,2,3,4,5].map(i=>`<button class="${fs!=null&&i<=fs?'on':''}" onclick="setFermNote(${i})">★</button>`).join('')}</div>
       <span class="meta">${b.note&&b.note.s!=null?'manuelle':fs!=null?'auto (DF vs cible)':''}</span>
@@ -789,6 +808,17 @@ function setFermNote(s,c){
   const b=tank(sheetId).batch;b.note=b.note||{s:null,c:''};
   if(s!=null){b.note.s=b.note.s===s?null:s;save();renderSheet();}else{b.note.c=c;save();}
 }
+/* supprime un soutirage partiel : le volume revient dans la cuve */
+function delSout(sid){const t=tank(sheetId),b=t&&t.batch;if(!b)return;const x=(b.sout||[]).find(s=>s.id===sid);if(!x)return;
+  if(!confirm(`Supprimer le soutirage du ${fmtDate(x.date)} (${x.volHL||0} HL) ?\nLes ${x.volHL||0} HL reviennent dans ${t.name}.\n(La session du Packaging Log éventuelle n'est pas supprimée.)`))return;
+  b.sout=b.sout.filter(s=>s.id!==sid);b.volume=Math.round((+(b.volume||0)+(+x.volHL||0))*100)/100;save();render();renderSheet();}
+/* supprime un lot archivé (soutirage final) ; propose de le remettre dans sa cuve si elle est vide */
+function delArch(i){const a=state.archive[i];if(!a)return;const t=tank(a.tankId);
+  if(!confirm(`Supprimer le soutirage final du lot ${a.lot||''} — ${a.recipe} (${fmtDate(a.closed.date)}) ?`))return;
+  if(t&&!t.batch&&confirm(`Remettre le lot dans ${t.name}, comme avant ce soutirage ?\n(Annuler = supprimer définitivement de l'historique)`)){
+    const b={...a};['aid','tankId','tankName','fermScore','closed'].forEach(k=>delete b[k]);
+    b.sout=(b.sout||[]).slice(0,-1);b.volume=a.closed.volBefore!=null?a.closed.volBefore:(a.closed.volHL||b.volume);t.batch=b;}
+  state.archive.splice(i,1);save();render();document.getElementById('btnHist').click();}
 function relink(){
   const b=tank(sheetId).batch;
   if(installProtocol(b)){save();render();renderSheet();}
@@ -805,13 +835,18 @@ document.getElementById('shPdf').onclick=()=>{
 const oo=document.getElementById('outOverlay');let outId=null;
 function openOut(id){
   outId=id;const t=tank(id),b=t.batch,F=batchFigures(b);
-  document.getElementById('outHint').textContent=t.name+' · '+(b.recipe||'')+(b.lot?' · lot '+b.lot:'')+' — le lot est archivé avec tous ses relevés.';
+  document.getElementById('outHint').textContent=t.name+' · '+(b.recipe||'')+(b.lot?' · lot '+b.lot:'')+' — en cuve : '+(Math.round((b.volume||t.cap)*100)/100)+' HL'+((b.sout||[]).length?' ('+b.sout.length+' soutirage(s) déjà fait(s))':'');
+  document.getElementById('o_last').checked=true;
   document.getElementById('o_date').value=todayStr();
   document.getElementById('o_vol').value=b.volume||t.cap;
   document.getElementById('o_fg').value=F.cur!=null?F.cur.toFixed(1):'';
   document.getElementById('o_dest').value='';
-  oo.classList.add('show');
+  oo.classList.add('show');outRest();
 }
+function outRest(){const t=tank(outId);if(!t||!t.batch)return;const have=+(t.batch.volume||t.cap),v=parseFloat(document.getElementById('o_vol').value)||0,last=document.getElementById('o_last');
+  const rest=Math.round((have-v)*100)/100;if(this&&this.id==='o_vol')last.checked=rest<=0.05;
+  document.getElementById('o_rest').innerHTML=last.checked?`Le lot sera archivé et la cuve libérée${rest>0.05?' ('+rest+' HL comptés en pertes)':''}.`:`<b>Soutirage partiel</b> : ${rest>0?rest:0} HL restent en cuve et le lot reste dans le suivi.`;}
+document.getElementById('o_vol').addEventListener('input',outRest);document.getElementById('o_last').addEventListener('change',()=>outRest());
 document.getElementById('outCancel').onclick=()=>oo.classList.remove('show');
 oo.addEventListener('click',e=>{if(e.target===oo)oo.classList.remove('show');});
 document.getElementById('outSave').onclick=()=>{
@@ -819,10 +854,15 @@ document.getElementById('outSave').onclick=()=>{
   const fg=document.getElementById('o_fg').value;
   if(fg!==''){const d=document.getElementById('o_date').value||todayStr();if(!(b.readings||[]).some(r=>r.date===d&&r.plato!=null))(b.readings=b.readings||[]).push({date:d,plato:parseFloat(fg),temp:null,note:'Soutirage'});}
   const sout=(b.protocol||[]).find(p=>p.a==='sout'&&!p.done);if(sout)sout.done=document.getElementById('o_date').value||todayStr();
-  state.archive.push({...b,tankId:t.id,tankName:t.name,fermScore:fermScore(b),
-    closed:{date:document.getElementById('o_date').value||todayStr(),volHL:parseFloat(document.getElementById('o_vol').value)||null,fg:fg!==''?parseFloat(fg):null,dest:document.getElementById('o_dest').value.trim()}});
-  const lot=b.lot;t.batch=null;save();render();oo.classList.remove('show');
-  if(lot)location.href='conditionnement.html?lot='+encodeURIComponent(lot);
+  const date=document.getElementById('o_date').value||todayStr(),vol=parseFloat(document.getElementById('o_vol').value)||null,dest=document.getElementById('o_dest').value.trim();
+  const last=document.getElementById('o_last').checked,before=+(b.volume||t.cap);
+  (b.sout=b.sout||[]).push({id:'s'+Date.now().toString(36),date,volHL:vol,fg:fg!==''?parseFloat(fg):null,dest});
+  if(last){const tot=Math.round(b.sout.reduce((a,x)=>a+(+x.volHL||0),0)*100)/100;
+    state.archive.push({...b,aid:'a'+Date.now().toString(36),tankId:t.id,tankName:t.name,fermScore:fermScore(b),
+      closed:{date,volHL:tot||vol,fg:fg!==''?parseFloat(fg):null,dest,volBefore:before}});t.batch=null;}
+  else b.volume=Math.max(0,Math.round((before-(vol||0))*100)/100);
+  const lot=b.lot;save();render();oo.classList.remove('show');
+  if(lot)location.href='conditionnement.html?lot='+encodeURIComponent(lot)+(vol?'&vol='+vol:'');
   else alert("Lot archivé. Pas de n° de lot sur ce brassin : crée la session à la main dans le Packaging Log.");
 };
 
@@ -849,10 +889,10 @@ document.getElementById('trSave').onclick=()=>{
 // ---- historique ----
 const ho=document.getElementById('histOverlay');
 document.getElementById('btnHist').onclick=()=>{
-  const A=[...state.archive].sort((a,b)=>a.closed.date<b.closed.date?1:-1);
-  document.getElementById('histBody').innerHTML=A.length?`<table class="t"><thead><tr><th>Lot</th><th>Bière</th><th>Cuve</th><th>Mise en cuve</th><th>Soutirage</th><th class="n">DI</th><th class="n">DF</th><th class="n">Att.</th><th class="n">Vol. in → out</th><th class="n">Note</th></tr></thead><tbody>
+  const A=state.archive.map((a,i)=>({...a,_i:i})).sort((a,b)=>a.closed.date<b.closed.date?1:-1);
+  document.getElementById('histBody').innerHTML=A.length?`<table class="t"><thead><tr><th>Lot</th><th>Bière</th><th>Cuve</th><th>Mise en cuve</th><th>Soutirage</th><th class="n">DI</th><th class="n">DF</th><th class="n">Att.</th><th class="n">Vol. in → out</th><th class="n">Note</th><th></th></tr></thead><tbody>
     ${A.map(a=>{const og=a.og!=null?+a.og:null,fg=a.closed.fg;const att=og&&fg!=null?((og-fg)/og*100).toFixed(0)+' %':'—';
-      return `<tr><td>${esc(a.lot||'')}</td><td>${esc(a.recipe)}</td><td>${esc(a.tankName)}</td><td>${fmtDate(a.start)}</td><td>${fmtDate(a.closed.date)}</td><td class="n">${og!=null?og.toFixed(1):'—'}</td><td class="n">${fg!=null?fg.toFixed(1):'—'}</td><td class="n">${att}</td><td class="n">${a.volume||'—'} → ${a.closed.volHL??'—'} HL</td><td class="n">${a.fermScore!=null?a.fermScore+'/5':'—'}</td></tr>`;}).join('')}</tbody></table>`:'<p class="meta">Aucun lot clôturé pour l\'instant. Utilise « Soutirer & conditionner » sur une cuve pour archiver un lot.</p>';
+      return `<tr><td>${esc(a.lot||'')}</td><td>${esc(a.recipe)}</td><td>${esc(a.tankName)}</td><td>${fmtDate(a.start)}</td><td>${fmtDate(a.closed.date)}</td><td class="n">${og!=null?og.toFixed(1):'—'}</td><td class="n">${fg!=null?fg.toFixed(1):'—'}</td><td class="n">${att}</td><td class="n">${a.volume||'—'} → ${a.closed.volHL??'—'} HL</td><td class="n">${a.fermScore!=null?a.fermScore+'/5':'—'}</td><td><button class="mini" style="color:#B3261E" onclick="delArch(${a._i})">Supprimer</button></td></tr>`;}).join('')}</tbody></table>`:'<p class="meta">Aucun lot clôturé pour l\'instant. Utilise « Soutirer & conditionner » sur une cuve pour archiver un lot.</p>';
   ho.classList.add('show');
 };
 document.getElementById('histClose').onclick=()=>ho.classList.remove('show');
