@@ -737,7 +737,7 @@ function importStockRows(aoa,all){
     it.name=name;if(cat)it.cat=cat;
     if(String(r['unite']||'').trim())it.unit=String(r['unite']).trim();
     const q=numv(r['quantite']);if(q!=null)it.qty=q;
-    if('seuil d alerte' in r){const m=numv(r['seuil d alerte']);it.min=m==null?'':m;}
+    {const m=numv(r['seuil d alerte']);if(m!=null)it.min=m;}   // case vide = seuil inchangé
     if(String(r['note']||'').trim())it.note=String(r['note']).trim();
     {const pk=Object.keys(r).find(k=>k.startsWith('prix'));const pv=pk?numv(r[pk]):null;if(pv!=null&&pv>=0){it.price=pv;priced++;}}  // colonne « Prix d'achat » (ex. relevé des factures)
     const alt=String(r['remplacer par si epuise']||'').trim();if(alt)pendAlt.push([it,alt]);
