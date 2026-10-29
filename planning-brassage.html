@@ -9,6 +9,7 @@
 <link rel="icon" type="image/png" href="favicon.png">
 
 <meta charset="UTF-8">
+<script src="sync.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Planning de brassage 2026</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2046,7 +2047,10 @@ function publishBrewSnapshot() {
         });
       }
     });
-    localStorage.setItem(BREW_SNAPSHOT_KEY, JSON.stringify({ year: YEAR, updatedAt: new Date().toISOString(), brews: out }));
+    // réécrit seulement si les brassins ont changé (évite une synchro inutile à chaque ouverture)
+    let prev = null; try { prev = JSON.parse(localStorage.getItem(BREW_SNAPSHOT_KEY)); } catch (e) {}
+    if (!(prev && prev.year === YEAR && JSON.stringify(prev.brews) === JSON.stringify(out)))
+      localStorage.setItem(BREW_SNAPSHOT_KEY, JSON.stringify({ year: YEAR, updatedAt: new Date().toISOString(), brews: out }));
   } catch (e) {}
 }
 
