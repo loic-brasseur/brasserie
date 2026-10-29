@@ -496,26 +496,58 @@ function dfAdvice(b){
       it.push(`<b>Remettre la levure en suspension</b> : purge du fond de cône puis recirculation douce, ou injection de CO₂ par le bas. Relevé de contrôle à 24 h et 48 h.`);
       it.push(`Si la densité ne bouge toujours pas après 48 h : <b>ré-ensemencer</b> avec une levure active et atténuante (levure sèche neutre réhydratée ~50 g/HL, ou 5–10 % de moût en pleine fermentation / krausening).`);
       it.push(`<b>Refermentation en bouteille</b> : ne pas conditionner tant que la DF n'est pas stable. S'il reste des sucres, réduire le sucre de refermentation, sinon risque de surcarbonatation.`);
-      it.push(`Pour le prochain brassin : contrôler la température d'empâtage (trop chaude = moût peu fermentescible), l'oxygénation et le taux d'ensemencement.`);
     }
   }else{
     const ad=F.abv!=null&&T.abv!=null?F.abv-T.abv:null;
     if(!stable){
       level='bad';title=`DF sous la cible (${d.toFixed(1)} °P) et la densité continue de baisser`;
       it.push(`<b>Suspicion de contamination</b> (levure diastaticus ou bactéries) : goûter et sentir (phénolé, acide, beurré), mesurer le pH (une baisse marquée signe une contamination bactérienne).`);
-      it.push(`Isoler la cuve et prévoir un <b>nettoyage / désinfection renforcés</b> avant son prochain remplissage.`);
       it.push(`<b>Pas de refermentation en bouteille</b> tant que la densité baisse : risque de gushing ou de casse. Privilégier fût / conditionnement à froid, ou attendre la stabilisation.`);
     }else{
+      it.push(`Goûter : si le corps manque, rien à corriger en cuve.`);
       level='warn';title=`DF plus basse que prévu (${d.toFixed(1)} °P) — bière plus sèche`;
       if(ad!=null&&ad>0.2)it.push(`Degré estimé ${F.abv.toFixed(1)} % (cible ${(+T.abv).toFixed(1)} %) : <b>diluer à l'eau désaérée</b> au conditionnement pour revenir à la cible (calcul dans le Packaging Log).`);
-      it.push(`Goûter : si le corps manque, rien à corriger en cuve. Pour le prochain brassin, <b>empâter 1–2 °C plus chaud</b>, ou choisir une levure moins atténuante.`);
-      it.push(`Si la DI était plus basse que prévu, vérifier le rendement d'empâtage et le volume en cuve.`);
     }
   }
-  return {level,title,items:it};
+  const contam=d<0&&!stable,needNext=!(d>0&&!stable);
+  return {level,title,items:it,next:needNext?nextBrewAdvice(b,F,T,d>0,contam):[]};
+}
+/* ---- conseils chiffrés pour le prochain brassin (à partir de la recette liée) ---- */
+function nextBrewAdvice(b,F,T,high,contam){
+  const r=recipeByName(b.recipe),it=[];const rnd=x=>Math.round(x*2)/2;
+  const mashT=r?(+((r.process&&r.process.mash||[]).find(m=>/sacch/i.test(m.n||''))||{}).t||+r.mash||null):null;
+  const dAtt=F.att!=null&&T.att!=null?T.att-F.att:null; // >0 : il manque de l'atténuation
+  const dT=dAtt!=null?Math.min(3,Math.max(0.5,rnd(Math.abs(dAtt)/2))):1; // ≈ 1 °C d'empâtage pour ~2 % d'atténuation
+  if(contam){
+    it.push(`<b>Hygiène</b> : nettoyage + désinfection complets de la cuve, des raccords et de l'échangeur ; vérifier les joints et vannes d'échantillonnage.`);
+    it.push(`<b>Levure</b> : repartir d'une levure neuve (ne pas re-ensemencer avec la levure de ce lot) ; contrôler la pureté si elle est récoltée.`);
+  }
+  if(high){
+    it.push(mashT?`<b>Empâtage</b> : saccharification à <b>${rnd(mashT-dT)} °C</b> au lieu de ${mashT} °C (−${dT} °C), ou ajouter un palier β-amylase 62–64 °C pendant 20–30 min.`
+      :`<b>Empâtage</b> : baisser la saccharification d'environ ${dT} °C, ou ajouter un palier β-amylase 62–64 °C pendant 20–30 min.`);
+    if(r&&r.yeast&&r.yeast.n){const y=r.yeast,ya=+(y.attU||y.att)||null,g=+y.g||null;
+      it.push(`<b>Levure ${esc(y.n)}</b>${ya?` (atténuation annoncée ${ya} %)`:''} : vérifier sa date et sa vitalité${g?`, augmenter l'ensemencement d'environ 25 % (<b>${Math.round(g*1.25)} g</b> au lieu de ${g} g)`:', augmenter l\'ensemencement d\'environ 25 %'}.`+
+        (ya&&F.att!=null&&F.att<ya-5?` L'atténuation obtenue (${F.att.toFixed(0)} %) est loin de celle de la levure : si ça se répète, choisir une souche plus atténuante.`:''));}
+    else it.push(`<b>Levure</b> : vérifier la vitalité et augmenter l'ensemencement d'environ 25 %, ou choisir une souche plus atténuante.`);
+    it.push(`<b>Oxygénation</b> : 8–10 mg/L d'O₂ sur moût refroidi à l'ensemencement.`);
+    it.push(`<b>Fermentation</b> : remonter de 2–3 °C en fin de fermentation (repos diacétyle) et ne refroidir qu'après 2 relevés identiques à 24–48 h.`);
+    if(r&&Array.isArray(r.malts)){const tot=r.malts.reduce((a,m)=>a+(+m.kg||0),0),car=r.malts.filter(m=>m.c==='caramel'||/cara|crystal|dextrin|special b/i.test(m.n||'')).reduce((a,m)=>a+(+m.kg||0),0);
+      if(tot&&car/tot>0.1)it.push(`<b>Recette</b> : ${(car/tot*100).toFixed(0)} % de malts caramel / dextrine, peu fermentescibles. Les réduire si l'écart se répète.`);}
+  }else if(!contam){
+    it.push(mashT?`<b>Empâtage</b> : saccharification à <b>${rnd(mashT+dT)} °C</b> au lieu de ${mashT} °C (+${dT} °C), ou raccourcir le palier 62–64 °C.`
+      :`<b>Empâtage</b> : monter la saccharification d'environ ${dT} °C, ou raccourcir le palier 62–64 °C.`);
+    if(r&&r.yeast&&r.yeast.n)it.push(`<b>Levure ${esc(r.yeast.n)}</b> : si l'écart se répète, choisir une souche moins atténuante.`);
+    it.push(`<b>Corps</b> : ajouter 3–5 % de malt dextrine (Carapils) si la bière manque de rondeur.`);
+  }
+  const ogP=T.ogP!=null?+T.ogP:null;
+  if(ogP&&F.og!=null&&Math.abs(F.og-ogP)>0.5){
+    const eff=r&&+r.eff?+r.eff:null;
+    it.push(`<b>DI</b> : ${F.og.toFixed(1)} °P obtenus pour ${ogP.toFixed(1)} °P prévus. `+(eff?`Mettre le rendement de la recette à <b>${(eff*F.og/ogP).toFixed(1)} %</b> (au lieu de ${eff} %) pour recalculer les quantités de malt.`:'Ajuster le rendement de la recette pour recalculer les quantités de malt.'));
+  }
+  return it;
 }
 function advHTML(a,full){if(!a)return '';
-  return full?`<div class="sec"><h3>Écart de DF — que faire ?</h3><div class="adv ${a.level}"><b>${a.title}</b><ol>${a.items.map(x=>`<li>${x}</li>`).join('')}</ol></div></div>`
+  return full?`<div class="sec"><h3>Écart de DF — que faire ?</h3><div class="adv ${a.level}"><b>${a.title}</b><div style="margin-top:.4rem;font-weight:700">Sur ce lot</div><ol>${a.items.map(x=>`<li>${x}</li>`).join('')}</ol>${a.next&&a.next.length?`<div style="margin-top:.5rem;font-weight:700">Pour le prochain brassin</div><ol>${a.next.map(x=>`<li>${x}</li>`).join('')}</ol>`:''}</div></div>`
     :`<button class="adv-btn ${a.level}" data-act="sheet" data-id="__ID__">⚠ ${a.title} — <u>voir les solutions</u></button>`;}
 function fermScore(b){
   if(b.note&&b.note.s!=null)return b.note.s;
