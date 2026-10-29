@@ -1202,6 +1202,8 @@ function loadEntries() {
     if (raw) entries = JSON.parse(raw);
   } catch(e) { console.warn('Lecture stockage échouée:', e); entries = []; }
 }
+/* date du dernier inventaire complet saisi (import « Remplacer », « Tout effacer ») : il prévaut sur les ajouts automatiques du Packaging Log */
+function markCount(){try{localStorage.setItem('brasserie_inventaire_meta',JSON.stringify({lastCount:new Date().toISOString()}));}catch(e){}}
 function saveEntries() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(entries)); }
   catch(e) { toast('Erreur de sauvegarde : ' + e.message); }
@@ -1254,7 +1256,7 @@ function addOrUpdate(e) {
 
   if (editingId) {
     const target = entries.find(x => x.id === editingId);
-    if (target) Object.assign(target, { beer, container, quantity, ddm, lot });
+    if (target) { Object.assign(target, { beer, container, quantity, ddm, lot }); delete target.src; delete target.packId; }  // modifiée à la main : ta saisie prévaut
     toast('Entrée modifiée');
     cancelEdit();
   } else {
@@ -1414,7 +1416,7 @@ function render() {
         <td class="num mono">${fmtInt(e.quantity)}</td>
         <td class="num mono">${fmtHL(hl)}</td>
         <td class="ddm">${fmtMonthYear(e.ddm)}</td>
-        <td class="mono">${escapeHtml(e.lot || '—')}</td>
+        <td class="mono">${escapeHtml(e.lot || '—')}${e.src==='cond'?' <span title="Ajouté automatiquement par le Packaging Log" style="font-size:10px;font-weight:700;color:#4F6B2F;border:1px solid rgba(79,107,47,.4);border-radius:6px;padding:0 4px">auto</span>':''}</td>
         <td><span class="tag ${tagClass}">${tagLabel}</span></td>
         <td class="actions-col">
           <div class="row-actions">
@@ -1640,7 +1642,7 @@ function handleImportXlsx(file){
     });
     if(!out.length){toast('Aucune ligne valide'+(bad.length?' (lignes '+bad.slice(0,8).join(', ')+')':''));return;}
     const msg=`${out.length} ligne(s) valide(s)`+(bad.length?` — ${bad.length} ligne(s) ignorée(s) (n° ${bad.slice(0,10).join(', ')}) : bière, contenant (33cl, 44cl, 75cl, 20L, 30L), quantité ou DDM manquant`:'');
-    if(confirm(msg+'.\n\nOK : REMPLACER tout l\'inventaire actuel ('+entries.length+' entrée(s)) par le fichier.\nAnnuler : choisir d\'ajouter à la place.')){entries=out;}
+    if(confirm(msg+'.\n\nOK : REMPLACER tout l\'inventaire actuel ('+entries.length+' entrée(s)) par le fichier.\nAnnuler : choisir d\'ajouter à la place.')){entries=out;markCount();}
     else if(confirm('Ajouter les '+out.length+' ligne(s) à l\'inventaire actuel ?')){entries=entries.concat(out);}
     else return;
     out.forEach(e=>{if(!BEERS.some(b=>b[0]===e.beer)&&typeof bieresAdd==='function')bieresAdd(e.beer);});
@@ -1658,7 +1660,7 @@ function handleImport(file) {
         title: 'Importer cet inventaire ?',
         body: `Le fichier contient ${data.entries.length} entrée(s). Ceci remplacera tout l'inventaire actuel (${entries.length} entrée(s)).`,
         okText: 'Remplacer',
-        onOk: () => { entries = data.entries; saveEntries(); render(); toast('Import effectué'); }
+        onOk: () => { entries = data.entries; markCount(); saveEntries(); render(); toast('Import effectué'); }
       });
     } catch (err) {
       toast('Fichier invalide : ' + err.message);
@@ -1866,7 +1868,7 @@ $('resetAllBtn').addEventListener('click', () => {
     title: 'Effacer tout l\'inventaire ?',
     body: `${entries.length} entrée(s) seront définitivement supprimées. Pense à exporter d'abord si tu veux garder une sauvegarde.`,
     okText: 'Tout effacer',
-    onOk: () => { entries = []; saveEntries(); render(); toast('Inventaire effacé'); }
+    onOk: () => { entries = []; markCount(); saveEntries(); render(); toast('Inventaire effacé'); }
   });
 });
 

@@ -420,15 +420,39 @@ function deductStock(){
     if(!st.items.some(i=>i.id===m.id)){miss.push(m.l.toLowerCase());return;}
     (m.split||[{id:m.id,q:m.q}]).forEach(p=>{const ex=lines.find(l=>l.id===p.id);if(ex)ex.qty=String((parseFloat(ex.qty)||0)+p.q);else lines.push({id:p.id,qty:String(p.q)});});});
   if(miss.length&&!confirm('Aucun article de stock choisi pour : '+miss.join(', ')+'. Continuer sans ?'))return;
-  if(!lines.length&&!s.ref.move){alert('Rien à déduire : saisis les formats conditionnés (et le sucre / la levure si refermentation).');return;}
+  if(!lines.length&&!s.ref.move){const im=toInventory(s);render();alert(im?'Rien à déduire du stock (aucun article choisi).'+im:'Rien à déduire : saisis les formats conditionnés (et le sucre / la levure si refermentation).');return;}
   st.moves=st.moves||[];const prev=s.ref.move&&st.moves.find(m=>m.id===s.ref.move.id);
   const delta={};(prev?prev.lines:[]).forEach(l=>delta[l.id]=(delta[l.id]||0)+(parseFloat(l.qty)||0));lines.forEach(l=>delta[l.id]=(delta[l.id]||0)-(parseFloat(l.qty)||0));
   Object.keys(delta).forEach(id=>{const it=st.items.find(i=>i.id===id);if(it)it.qty=Math.max(0,(Number(it.qty)||0)+delta[id]);});
   const party='Conditionnement '+sCode(s)+' — '+s.recipe;
   if(prev){prev.lines=lines;prev.party=party;prev.date=s.date;}
   else{const m={id:'m'+Math.random().toString(36).slice(2,9),type:'usage',date:s.date,party,lines,lot:s.lot,packId:s.id,createdAt:Date.now()};st.moves.push(m);s.ref.move={id:m.id};}
-  s.ref.move.at=new Date().toISOString();sv(STOCK_KEY,st);save();render();
-  alert((prev?'Sortie de stock mise à jour':'Stock déduit')+' : '+lines.map(l=>{const it=st.items.find(i=>i.id===l.id);return it.name+' '+l.qty+' '+(it.unit||'');}).join(' · '));
+  s.ref.move.at=new Date().toISOString();sv(STOCK_KEY,st);save();const im=toInventory(s);render();
+  alert((prev?'Sortie de stock mise à jour':'Stock déduit')+' : '+lines.map(l=>{const it=st.items.find(i=>i.id===l.id);return it.name+' '+l.qty+' '+(it.unit||'');}).join(' · ')+im);
+}
+/* ---- entrée automatique dans l'Inventaire (produits finis) ; un inventaire saisi après ce conditionnement prévaut ---- */
+const INV_KEY='brasserie_inventaire_v1',INV_FMT=['33cl','44cl','75cl','20L','30L'];
+const INV_BEERS=["Bière Valmy blonde BIO", "Bière Valmy blanche BIO", "Bière Valmy ambrée BIO", "Bière Valmy IPA BIO", "Bière Valmy Triple BIO", "Bière Valmy Framboise BIO", "Bière Valmy Noël BIO", "Bière Orgemont blonde BIO", "Bière Orgemont brune BIO", "Bière Orgemont triple BIO", "Bière Orgemont Saison BIO", "Bière Orgemont IPA BIO", "Bière Rèmes", "Bière Tutti Berry BIO", "Bière Trouble Jeu BIO", "Bière Bouquet Final BIO", "Bière Crème de la Crème BIO", "Bière Légionnaire Blonde", "Bière Légionnaire IPA", "Bière Bayard / Baraquine blonde", "Bière Bayard / Baraquine triple", "Biére Muizon"]; // noms de l'Inventaire
+function invBeerName(recipe){
+  const reg=INV_BEERS.concat(ld('brasserie_bieres_v1',[]).map(b=>b&&b.name).filter(Boolean));
+  const n=rNorm(recipe);let hit=reg.find(b=>rNorm(b)===n)||reg.find(b=>{const m=rNorm(b);return (m+' ').startsWith(n+' ')||(n+' ').startsWith(m+' ');});
+  if(!hit){try{const R=ld('brasserie_bieres_v1',[]);if(!R.some(b=>rNorm(b.name)===n)){R.push({name:recipe,code:''});sv('brasserie_bieres_v1',R);}}catch(e){}hit=recipe;}
+  return hit;}
+function toInventory(s){
+  const fm=s.formats.filter(f=>INV_FMT.includes(f.f)&&num(f.units)>0);if(!fm.length)return '';
+  if(!s.ddm)return '\n\nInventaire : non mis à jour — saisis la DDM en haut de la fiche puis clique à nouveau sur « Déduire du stock ».';
+  const meta=ld('brasserie_inventaire_meta',{}),lc=meta.lastCount||null;let inv=ld(INV_KEY,[]);if(!Array.isArray(inv))inv=[];
+  const lot=s.plot||sCode(s),beer=invBeerName(s.recipe);
+  if(s.inv&&lc&&lc>s.inv.at)return '\n\nInventaire : non modifié — un inventaire a été saisi le '+fmtD(lc.slice(0,10))+', il prévaut.';
+  if(!s.inv&&lc&&lc.slice(0,10)>=s.date&&!confirm('Un inventaire a été saisi le '+fmtD(lc.slice(0,10))+', après (ou le jour de) ce conditionnement : il prévaut normalement.\n\nAjouter quand même ce conditionnement à l\'inventaire ?'))return '\n\nInventaire : non modifié (l\'inventaire saisi prévaut).';
+  const ids=(s.inv&&s.inv.ids)||{},out=[];
+  fm.forEach(f=>{const q=Math.round(num(f.units));const e=ids[f.f]&&inv.find(x=>x.id===ids[f.f]);
+    if(e){if(e.src==='cond'){Object.assign(e,{beer,quantity:q,ddm:s.ddm,lot});out.push(f.f+' : '+q+' (mis à jour)');}else out.push(f.f+' : modifié à la main dans l\'Inventaire, inchangé');}
+    else if(s.inv&&ids[f.f]){out.push(f.f+' : supprimé dans l\'Inventaire, non recréé');}
+    else{const id='e_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);
+      inv.push({id,beer,container:f.f,quantity:q,ddm:s.ddm,lot,createdAt:new Date().toISOString(),src:'cond',packId:s.id});ids[f.f]=id;out.push(f.f+' : +'+q);}});
+  sv(INV_KEY,inv);s.inv={at:new Date().toISOString(),ids};save();
+  return '\n\nInventaire ('+beer+', lot '+lot+', DDM '+fmtD(s.ddm)+') : '+out.join(' · ');
 }
 function delSession(){if(!confirm('Supprimer cette session ?'))return;S=S.filter(x=>x.id!==curId);curId=null;save();renderList();render();}
 
@@ -508,7 +532,7 @@ function render(){
         <p class="hint">Quantités calculées depuis les formats : unités + rebuts (cartons : bonnes bouteilles ÷ bouteilles par carton, arrondi au supérieur). ${M.some(m=>!m.id)?'Choisis l\'article une fois dans le Carnet de brassage (« Matériel de conditionnement ») pour qu\'il soit repris à chaque lot.':''}</p>`
       :'<p class="hint">Saisis les formats conditionnés pour calculer bouteilles, capsules et étiquettes.</p>';})()}
       <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.8rem"><button class="btn-copper" onclick="deductStock()">${s.ref&&s.ref.move?'Mettre à jour la sortie de stock':'Déduire du stock'}</button>
-        <span class="hint" style="margin:0">${s.ref&&s.ref.on?'Matériel + sucre + levure':'Matériel'}</span>
+        <span class="hint" style="margin:0">${s.ref&&s.ref.on?'Matériel + sucre + levure':'Matériel'} → Stock · bouteilles / fûts → Inventaire${s.inv?' (ajouté le '+fmtD(s.inv.at.slice(0,10))+')':''}</span>
         ${s.ref&&s.ref.move?`<span class="pill cave">déduit le ${fmtD(s.ref.move.at.slice(0,10))}</span>`:''}</div>
     </div></div>
 
