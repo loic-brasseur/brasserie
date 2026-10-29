@@ -371,6 +371,10 @@
     .ps-foot{margin-top:30px;padding-top:10px;border-top:1px solid #d8c7a8;font-family:var(--sans);
       font-size:9.5px;color:#8a7a64;letter-spacing:.04em;display:flex;justify-content:space-between}
   }
+  .ri .stk{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin-top:4px;font-size:11px;font-weight:400}
+  .ri .stk select{max-width:210px;font-size:11px;padding:2px 4px;border-radius:6px;border:1px solid rgba(26,22,18,.25);background:#fff}
+  .ri .stk select.sugg{border-style:dashed;color:#7A6F5C}.ri .stk em{font-style:normal;color:#7A6F5C}.ri .stk em.bad{color:#B3261E;font-weight:600}
+  @media print{.ri .stk{display:none}}
 </style>
 </head>
 <body>
@@ -1065,6 +1069,48 @@ function renderBrowser(){
   L.innerHTML=html||'<div class="empty">Aucun résultat</div>';
 }
 
+
+/* ============================ LIEN AVEC LE STOCK ============================ */
+/* Chaque ingrédient de la recette est relié à un article de l'app Stock (brasserie_stock_v2).
+   Le choix est gardé sur la ligne (sid) et comme choix par défaut de l'ingrédient (recipeMap du stock),
+   repris par le Brew Log pour la sortie de stock et par le Stock pour les commandes. */
+const SK_KEY='brasserie_stock_v2';
+const skNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
+const SK_STOP=new Set(['malt','malts','levure','levures','conv','bio','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
+const skTok=t=>skNorm(t).split(' ').filter(w=>w&&!SK_STOP.has(w));
+const SK_TYPE={malt:['malt','malt'],hop:['houblon','houblon'],yeast:['levure','levure'],soft:['soft','conso']};
+const SK_U={g:['m',1],kg:['m',1000],ml:['v',1],l:['v',1000]};
+function skConv(q,from,to){const a=SK_U[String(from||'').toLowerCase()],b=SK_U[String(to||'').toLowerCase()];if(!a||!b||a[0]!==b[0])return null;return q*a[1]/b[1];}
+let SK=null;
+function skLoad(){try{const s=JSON.parse(localStorage.getItem(SK_KEY));SK=s&&Array.isArray(s.items)?s:null;}catch(e){SK=null;}}
+function skKey(type,o){return SK_TYPE[type][0]+'|'+skNorm(String(o.n||'').split(' · ')[0]);}
+function skGuess(type,o){
+  if(!SK)return '';if(o.sid&&SK.items.some(i=>i.id===o.sid))return o.sid;
+  const saved=(SK.recipeMap||{})[skKey(type,o)];if(saved&&saved!=='__skip'&&SK.items.some(i=>i.id===saved))return saved;
+  const t=skTok(o.n);if(!t.length)return '';let best='',bs=0;const cat=SK_TYPE[type][1];
+  SK.items.forEach(it=>{const t2=skTok(it.name);const hit=t.filter(w=>t2.includes(w)).length;if(!hit||hit<t.length)return;const sc=10-(t2.length-hit)+(it.cat===cat?5:0);if(sc>bs){bs=sc;best=it.id;}});
+  return best;
+}
+function skCell(type,i,o,q,u){
+  if(!SK)return '';const sel=skGuess(type,o),it=SK.items.find(x=>x.id===sel),cat=SK_TYPE[type][1];
+  const items=[...SK.items].sort((a,b)=>(a.cat===cat?0:1)-(b.cat===cat?0:1)||a.name.localeCompare(b.name,'fr'));
+  let opts=`<option value="">— Article du stock —</option>`,grp=null;
+  items.forEach(x=>{const g=x.cat===cat?'Même catégorie':'Autres articles';if(g!==grp){if(grp)opts+='</optgroup>';opts+=`<optgroup label="${g}">`;grp=g;}opts+=`<option value="${x.id}"${x.id===sel?' selected':''}>${hEsc(x.name)}</option>`;});
+  if(grp)opts+='</optgroup>';
+  let info='',cls='';
+  if(it){const have=Number(it.qty)||0,need=skConv(q,u,it.unit);
+    info=`${fmtN(have,0,2)} ${hEsc(it.unit||'')}${it.price!=null&&it.price!==''?' · '+fmtN(+it.price,2,3)+' €/'+hEsc(it.unit||'u'):''}`;
+    if(need!=null&&need>have+1e-9){cls='bad';info+=' · stock insuffisant pour 1 brassin';}}
+  else info='non relié';
+  return `<span class="stk"><select class="${o.sid?'':'sugg'}" title="${o.sid?'Article du stock relié':'Suggestion — choisis pour confirmer'}" onchange="setSk('${type}',${i},this.value)">${opts}</select><em class="${cls}">${info}</em></span>`;
+}
+function setSk(type,i,v){
+  const o=type==='malt'?state.malts[i]:type==='hop'?state.hops[i]:type==='yeast'?state.yeast:state.soft[i];if(!o)return;
+  if(v)o.sid=v;else delete o.sid;
+  try{const st=JSON.parse(localStorage.getItem(SK_KEY));if(st&&v){st.recipeMap=st.recipeMap||{};st.recipeMap[skKey(type,o)]=v;localStorage.setItem(SK_KEY,JSON.stringify(st));}}catch(e){}
+  renderRecipe();recalc();
+}
+
 /* ============================ ADD / RENDER RECIPE ============================ */
 function addMalt(gi){const m=MALTS[gi];state.malts.push({...m,kg:10,cs:false});renderRecipe();recalc();}
 function addHop(gi){const h=HOPS[gi];state.hops.push({n:h.n,a:h.a,g:50,time:60,form:'pellets'});renderRecipe();recalc();}
@@ -1076,13 +1122,14 @@ function rmSoft(i){state.soft.splice(i,1);renderRecipe();recalc();}
 function unitOpts(cur){return ['kg','g','L','ml'].map(u=>`<option value="${u}" ${u===cur?'selected':''}>${u}</option>`).join('');}
 
 function renderRecipe(){
+  skLoad();
   // malts
   let mh="";
   if(!state.malts.length)mh='<div class="empty">Ajoute des malts depuis la liste →</div>';
   state.malts.forEach((m,i)=>{
     mh+=`<div class="ri malt">
       <span class="dot" style="width:14px;height:14px;border-radius:50%;background:${ebcHex(m.ebc)}"></span>
-      <span class="rn">${m.n}<small>${m.b} · ${m.ebc} EBC</small></span>
+      <span class="rn">${m.n}<small>${m.b} · ${m.ebc} EBC</small>${skCell('malt',i,m,parseFloat(m.kg)||0,'kg')}</span>
       <input type="number" value="${m.kg}" min="0" step="0.1" oninput="upd('malt',${i},'kg',this.value)">
       <label class="cs-toggle"><input type="checkbox" ${m.cs?'checked':''} onchange="upd('malt',${i},'cs',this.checked)">cold</label>
       <button class="del" onclick="rm('malt',${i})">×</button></div>`;
@@ -1098,7 +1145,7 @@ function renderRecipe(){
    hh+=`<div class="hop-grp">${HOPUSE[gu].l}<span>${gtot} g${gu==='dh'&&getVol()>0?' · '+fmtN(gtot/(getVol()/100),0,1)+' g/hL':''}</span></div>`;
    idx.forEach(i=>{const h=state.hops[i],u=hopUse(h);
     hh+=`<div class="ri hop">
-      <span class="rn">${h.n}</span>
+      <span class="rn">${h.n}${skCell('hop',i,h,parseFloat(h.g)||0,'g')}</span>
       <input type="number" value="${h.g}" min="0" step="1" title="Quantité (g)" oninput="upd('hop',${i},'g',this.value)">
       <input type="number" value="${h.a}" min="0" step="0.1" title="Alpha (%)" oninput="upd('hop',${i},'a',this.value)">
       <select title="Moment d'ajout" onchange="setHopUse(${i},this.value)">${Object.keys(HOPUSE).map(k=>`<option value="${k}"${k===u?' selected':''}>${HOPUSE[k].l}</option>`).join('')}</select>
@@ -1115,7 +1162,7 @@ function renderRecipe(){
   if(!state.yeast)yh='<div class="empty">Choisis une levure →</div>';
   else{const y=state.yeast;
     yh=`<div class="ri yeast">
-      <span class="rn">${y.n}<small>${y.t} · ${y.tp}</small></span>
+      <span class="rn">${y.n}<small>${y.t} · ${y.tp}</small>${skCell('yeast',0,y,parseFloat(y.g)||0,'g')}</span>
       <input type="number" value="${y.g}" min="0" step="10" oninput="upd('yeast',0,'g',this.value)" title="grammes">
       <input type="number" value="${y.attU}" min="40" max="95" step="1" oninput="upd('yeast',0,'attU',this.value)" title="atténuation %">
       <button class="del" onclick="rm('yeast',0)">×</button></div>
@@ -1130,7 +1177,7 @@ function renderRecipe(){
   state.soft.forEach((s,i)=>{
     const info=beerM?`<span id="sdose${i}">${softDose(s)}</span>`:`${s.sucre?` · ${s.sucre}% sucre`:''}${s.acide?` · ${s.acide}% acide`:''}`;
     sh+=`<div class="ri soft">
-      <span class="rn">${s.n}<small>${SOFTCAT[s.c]}${info}</small></span>
+      <span class="rn">${s.n}<small>${SOFTCAT[s.c]}${info}</small>${skCell('soft',i,s,parseFloat(s.qty)||0,s.u||'kg')}</span>
       <input type="number" value="${s.qty}" min="0" step="0.1" oninput="updSoft(${i},'qty',this.value)">
       <select onchange="updSoft(${i},'u',this.value)">${unitOpts(s.u)}</select>
       <button class="del" onclick="rmSoft(${i})">×</button></div>`;

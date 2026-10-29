@@ -926,15 +926,16 @@ function rqRound(q,u){u=String(u||'').toLowerCase();return (u==='g'||u==='ml')?M
 // Ingrédients d'une recette ramenés au volume voulu
 function rqIngredients(r,vol){
   const k=vol/(parseFloat(r.vol)||vol||1),out=[];
-  (r.malts||[]).forEach(m=>out.push({type:'malt',cat:'malt',n:m.n,sub:m.b||'',q:(parseFloat(m.kg)||0)*k,u:'kg'}));
-  (r.hops||[]).forEach(h=>out.push({type:'houblon',cat:'houblon',n:h.n,sub:h.use==='dh'?'Dry hop':h.use==='wp'?'Whirlpool':(h.time!=null?h.time+' min':''),q:(parseFloat(h.g)||0)*k,u:'g'}));
-  if(r.yeast&&r.yeast.n)out.push({type:'levure',cat:'levure',n:r.yeast.n,sub:'',q:(parseFloat(r.yeast.g)||0)*k,u:'g'});
-  (r.soft||[]).forEach(x=>{if(x.c==='eau'||x.u==='Eau'||rqNorm(x.n)==='eau')return;out.push({type:'soft',cat:'conso',n:x.n,sub:'',q:(parseFloat(x.qty)||0)*k,u:x.u||'kg'});});
+  (r.malts||[]).forEach(m=>out.push({type:'malt',cat:'malt',n:m.n,sub:m.b||'',q:(parseFloat(m.kg)||0)*k,u:'kg',sid:m.sid}));
+  (r.hops||[]).forEach(h=>out.push({type:'houblon',cat:'houblon',n:h.n,sub:h.use==='dh'?'Dry hop':h.use==='wp'?'Whirlpool':(h.time!=null?h.time+' min':''),q:(parseFloat(h.g)||0)*k,u:'g',sid:h.sid}));
+  if(r.yeast&&r.yeast.n)out.push({type:'levure',cat:'levure',n:r.yeast.n,sub:'',q:(parseFloat(r.yeast.g)||0)*k,u:'g',sid:r.yeast.sid});
+  (r.soft||[]).forEach(x=>{if(x.c==='eau'||x.u==='Eau'||rqNorm(x.n)==='eau')return;out.push({type:'soft',cat:'conso',n:x.n,sub:'',q:(parseFloat(x.qty)||0)*k,u:x.u||'kg',sid:x.sid});});
   // regroupe les doublons (ex. même houblon à 60 et 10 min)
   const g={};out.forEach(i=>{const key=i.type+'|'+rqNorm(i.n);if(g[key]){g[key].q+=rqConv(i.q,i.u,g[key].u);if(i.sub&&g[key].type==='houblon')g[key].sub+=' + '+i.sub;}else g[key]={...i,key};});
   return Object.values(g).filter(i=>i.q>0);
 }
 function rqGuess(ing){
+  if(ing.sid&&itById(ing.sid))return ing.sid;   // article relié dans le Carnet de brassage
   const saved=(state.recipeMap||{})[ing.key];
   if(saved&&(saved==='__skip'||itById(saved)))return saved;
   const t=rqTok(ing.n);if(!t.length)return '';

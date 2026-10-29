@@ -843,10 +843,10 @@ function lotIngredients(d){
   const out=[];const base=n=>String(n||'').split(' · ')[0];const q=v=>{const x=num(v);return x==null?0:x;};
   const when=h=>{const u=hopUse(h);return u==='boil'?(h.time||0)+' min':u==='wp'?'whirlpool':'dry hop';};
   d.brassins.forEach((b,bi)=>{const A=actualRecipe(d,b),code=bCode(d,bi);
-    (A.malts||[]).forEach(m=>out.push({type:'malt',cat:'malt',n:base(m.n),q:q(m.kg),u:'kg',sub:''}));
-    (A.hops||[]).forEach(h=>out.push({type:'houblon',cat:'houblon',n:h.n,q:q(h.g),u:'g',sub:when(h)}));
-    if(A.yeast&&A.yeast.n)out.push({type:'levure',cat:'levure',n:A.yeast.n,q:q(A.yeast.g),u:'g',sub:''});
-    (A.soft||[]).forEach(x=>{if(x.c==='eau'||stNorm(x.n)==='eau')return;out.push({type:'soft',cat:'conso',n:x.n,q:q(x.qty),u:x.u||'kg',sub:''});});
+    (A.malts||[]).forEach(m=>out.push({type:'malt',cat:'malt',n:base(m.n),q:q(m.kg),u:'kg',sub:'',sid:m.sid}));
+    (A.hops||[]).forEach(h=>out.push({type:'houblon',cat:'houblon',n:h.n,q:q(h.g),u:'g',sub:when(h),sid:h.sid}));
+    if(A.yeast&&A.yeast.n)out.push({type:'levure',cat:'levure',n:A.yeast.n,q:q(A.yeast.g),u:'g',sub:'',sid:A.yeast.sid});
+    (A.soft||[]).forEach(x=>{if(x.c==='eau'||stNorm(x.n)==='eau')return;out.push({type:'soft',cat:'conso',n:x.n,q:q(x.qty),u:x.u||'kg',sub:'',sid:x.sid});});
     const TY={hop:['houblon','houblon'],yeast:['levure','levure'],other:['soft','conso']};
     (b.extra||[]).forEach(x=>{if(x.typ==='malt'||!String(x.n||'').trim())return;const t=TY[x.typ]||TY.other;out.push({type:t[0],cat:t[1],n:x.n,q:q(x.qty),u:x.u||'g',sub:'ajouté '+code});});
   });
@@ -856,6 +856,7 @@ function lotIngredients(d){
   return Object.values(g).map(i=>({...i,sub:i.subs.join(' + ')}));
 }
 function stGuess(ing){
+  if(ing.sid&&stState.items.some(i=>i.id===ing.sid))return ing.sid;   // article relié dans le Carnet de brassage
   const saved=(stState.recipeMap||{})[ing.key];
   if(saved&&(saved==='__skip'||stState.items.some(i=>i.id===saved)))return saved;
   const t=stTok(ing.n);if(!t.length)return '';let best='',bs=0;
