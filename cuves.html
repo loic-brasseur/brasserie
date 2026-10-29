@@ -138,6 +138,11 @@
   .next.late{background:rgba(168,57,43,.08);border-color:rgba(168,57,43,.35)}
   .next b{font-weight:700}
   .tg{display:flex;gap:.35rem;flex-wrap:wrap}
+  .adv-btn{all:unset;cursor:pointer;display:block;font-size:.76rem;line-height:1.35;border-radius:10px;padding:.45rem .6rem;border:1px solid}
+  .adv-btn.warn,.adv.warn{background:rgba(207,152,43,.12);border-color:rgba(207,152,43,.45)}
+  .adv-btn.bad,.adv.bad{background:rgba(179,38,30,.08);border-color:rgba(179,38,30,.35);color:#8C1D16}
+  .adv{border:1px solid;border-radius:10px;padding:.6rem .8rem;font-size:.85rem}
+  .adv ol{margin:.4rem 0 0 1.1rem;padding:0}.adv li{margin:.25rem 0;color:var(--ink)}
   .tg span{font-size:.68rem;font-weight:700;padding:.18rem .45rem;border-radius:999px;background:rgba(26,22,18,.06)}
   .tg .ok{background:rgba(79,107,47,.13);color:var(--green)}.tg .warn{background:rgba(184,132,47,.16);color:var(--amber)}.tg .bad{background:rgba(168,57,43,.13);color:var(--red)}
   .modal.wide{max-width:760px}
@@ -452,6 +457,56 @@ function targetTags(b){
     <span class="${tgtClass(F.att,T.att,T.attTol)}" title="Atténuation apparente">Att. ${F.att!=null?F.att.toFixed(0):'—'}/${T.att!=null?Math.round(T.att):'—'} %</span>
     <span class="${tgtClass(F.abv,T.abv,T.abvTol)}" title="Degré estimé / cible">${F.abv!=null?F.abv.toFixed(1):'—'}/${T.abv!=null?(+T.abv).toFixed(1):'—'} %vol</span></div>`;
 }
+/* ---- diagnostic quand la densité s'écarte de la DF cible : propose des solutions ---- */
+function dfAdvice(b){
+  const T=b.targets;if(!T||T.fg==null)return null;const F=batchFigures(b);if(F.cur==null)return null;
+  const rs=[...(b.readings||[])].filter(r=>r.plato!=null).sort((x,y)=>x.date<y.date?-1:1);if(rs.length<2)return null;
+  const fg=+T.fg,tol=+T.fgTol||0.5,d=F.cur-fg;if(Math.abs(d)<=tol)return null;
+  const last=rs[rs.length-1],ref=[...rs].reverse().find(r=>daysBetween(r.date,last.date)>=2)||rs[rs.length-2];
+  const days=Math.max(1,daysBetween(ref.date,last.date)),rate=(+ref.plato-+last.plato)/days; // °P perdus par jour
+  const stable=rate<0.1;
+  const lt=[...(b.readings||[])].sort((x,y)=>x.date<y.date?-1:1).reverse().find(r=>r.temp!=null);const temp=lt?+lt.temp:null;
+  const coldDone=(b.protocol||[]).some(p=>p.a==='cold'&&p.done)||(temp!=null&&temp<8);
+  const coldNext=(b.protocol||[]).find(p=>p.a==='cold'&&!p.done);
+  const ens=(b.protocol||[]).find(p=>p.a==='ens'&&p.t!==''&&p.t!=null);const fermT=ens?+ens.t:null;
+  const attOk=F.att!=null&&T.att!=null&&Math.abs(F.att-T.att)<=(+T.attTol||3);
+  const it=[];let level,title;
+  if(d>0){
+    if(!stable){
+      const eta=Math.ceil((F.cur-fg)/rate);level='warn';title=`DF encore haute (+${d.toFixed(1)} °P) — fermentation toujours active`;
+      it.push(`Au rythme actuel (−${rate.toFixed(2)} °P/jour), la cible devrait être atteinte dans <b>~${eta} jour${eta>1?'s':''}</b> : patience, pas d'intervention.`);
+      if(coldNext&&coldNext.date<addDays(todayStr(),eta))it.push(`<b>Décaler le refroidissement</b> prévu le ${fmtDate(coldNext.date)} : ne refroidir qu'après 2 relevés identiques à 24–48 h d'écart.`);
+      if(temp!=null&&fermT!=null&&temp<fermT-1)it.push(`Température actuelle (${temp} °C) sous la consigne d'ensemencement (${fermT} °C) : remonter de 1–2 °C pour finir la fermentation.`);
+    }else{
+      level='bad';title=`DF trop haute (+${d.toFixed(1)} °P) — fermentation bloquée`;
+      it.push(`<b>Vérifier la mesure</b> : densimètre lu à la bonne température (ou corrigé), échantillon dégazé. Au réfractomètre, la lecture est faussée par l'alcool : appliquer la correction.`);
+      if(attOk)it.push(`L'atténuation est conforme (${F.att.toFixed(0)} % / cible ${Math.round(T.att)} %) : la DI était sans doute plus haute que prévu. Rien à corriger en cuve ; ajuster le degré par <b>dilution</b> au conditionnement si besoin.`);
+      if(coldDone)it.push(`<b>Refroidissement trop tôt</b> : la levure est tombée. Remonter la cuve à la température de fermentation${fermT!=null?' ('+fermT+' °C)':''} pour la réactiver.`);
+      else if(temp!=null)it.push(`<b>Remonter la température de 2–3 °C</b> (actuellement ${temp} °C) pendant 48 h pour un repos de fin de fermentation.`);
+      it.push(`<b>Remettre la levure en suspension</b> : purge du fond de cône puis recirculation douce, ou injection de CO₂ par le bas. Relevé de contrôle à 24 h et 48 h.`);
+      it.push(`Si la densité ne bouge toujours pas après 48 h : <b>ré-ensemencer</b> avec une levure active et atténuante (levure sèche neutre réhydratée ~50 g/HL, ou 5–10 % de moût en pleine fermentation / krausening).`);
+      it.push(`<b>Refermentation en bouteille</b> : ne pas conditionner tant que la DF n'est pas stable. S'il reste des sucres, réduire le sucre de refermentation, sinon risque de surcarbonatation.`);
+      it.push(`Pour le prochain brassin : contrôler la température d'empâtage (trop chaude = moût peu fermentescible), l'oxygénation et le taux d'ensemencement.`);
+    }
+  }else{
+    const ad=F.abv!=null&&T.abv!=null?F.abv-T.abv:null;
+    if(!stable){
+      level='bad';title=`DF sous la cible (${d.toFixed(1)} °P) et la densité continue de baisser`;
+      it.push(`<b>Suspicion de contamination</b> (levure diastaticus ou bactéries) : goûter et sentir (phénolé, acide, beurré), mesurer le pH (une baisse marquée signe une contamination bactérienne).`);
+      it.push(`Isoler la cuve et prévoir un <b>nettoyage / désinfection renforcés</b> avant son prochain remplissage.`);
+      it.push(`<b>Pas de refermentation en bouteille</b> tant que la densité baisse : risque de gushing ou de casse. Privilégier fût / conditionnement à froid, ou attendre la stabilisation.`);
+    }else{
+      level='warn';title=`DF plus basse que prévu (${d.toFixed(1)} °P) — bière plus sèche`;
+      if(ad!=null&&ad>0.2)it.push(`Degré estimé ${F.abv.toFixed(1)} % (cible ${(+T.abv).toFixed(1)} %) : <b>diluer à l'eau désaérée</b> au conditionnement pour revenir à la cible (calcul dans le Packaging Log).`);
+      it.push(`Goûter : si le corps manque, rien à corriger en cuve. Pour le prochain brassin, <b>empâter 1–2 °C plus chaud</b>, ou choisir une levure moins atténuante.`);
+      it.push(`Si la DI était plus basse que prévu, vérifier le rendement d'empâtage et le volume en cuve.`);
+    }
+  }
+  return {level,title,items:it};
+}
+function advHTML(a,full){if(!a)return '';
+  return full?`<div class="sec"><h3>Écart de DF — que faire ?</h3><div class="adv ${a.level}"><b>${a.title}</b><ol>${a.items.map(x=>`<li>${x}</li>`).join('')}</ol></div></div>`
+    :`<button class="adv-btn ${a.level}" data-act="sheet" data-id="__ID__">⚠ ${a.title} — <u>voir les solutions</u></button>`;}
 function fermScore(b){
   if(b.note&&b.note.s!=null)return b.note.s;
   const T=b.targets,F=batchFigures(b);if(!T||F.cur==null||T.fg==null)return null;
@@ -521,6 +576,7 @@ function render(){
         ${og!=null&&cur!=null?`<div><div class="gauge"><span style="width:${prog.toFixed(0)}%"></span></div></div>`:''}
         ${(b.readings&&b.readings.length>=2)?sparkline(b.readings):''}
         ${targetTags(b)}
+        ${advHTML(dfAdvice(b),false).replace('__ID__',t.id)}
         ${(()=>{const n=nextStep(b);if(!n)return (b.protocol&&b.protocol.length)?'<div class="next">Protocole terminé — prête à soutirer</div>':'';const late=n.date<todayStr();
           return `<div class="next${late?' late':''}">Prochaine étape · <b>${FERM_ACT[n.a]||n.a}</b>${n.t!==''&&n.t!=null?' à '+n.t+' °C':''} — ${n.date===todayStr()?'aujourd\'hui':fmtDate(n.date)}${late?' (en retard)':''}</div>`;})()}
         <div class="dates">
@@ -678,6 +734,7 @@ function sheetHTML(t,b,printing){
     <tr><td>Atténuation apparente</td><td class="n">${T.att!=null?Math.round(T.att)+' ± '+T.attTol+' %':'—'}</td><td class="n">${F.att!=null?F.att.toFixed(0)+' %':'—'}</td><td class="n">${F.att!=null&&T.att!=null?(F.att-T.att>=0?'+':'')+(F.att-T.att).toFixed(0):'—'}</td></tr>
     <tr><td>Degré d'alcool (estimé)</td><td class="n">${T.abv!=null?(+T.abv).toFixed(1)+' ± '+T.abvTol+' %':'—'}</td><td class="n">${F.abv!=null?F.abv.toFixed(1)+' %':'—'}</td><td class="n">${F.abv!=null&&T.abv!=null?(F.abv-T.abv>=0?'+':'')+(F.abv-T.abv).toFixed(1):'—'}</td></tr>
     </tbody></table>`:'<p class="meta">Pas de cibles : la recette n\'est pas liée. '+(printing?'':'<button class="mini" onclick="relink()">Lier à la recette</button>')+'</p>'}</div>
+  ${advHTML(dfAdvice(b),true)}
   <div class="sec"><h3>Protocole de fermentation</h3>${prot.length?`<table class="t"><thead><tr><th>Date</th><th>Jour</th><th>Action</th><th class="n">T°</th><th class="w">Consigne</th><th>Fait</th></tr></thead><tbody>
     ${prot.map(p=>`<tr class="${p.done?'tr-done':p.date<todayStr()?'tr-late':''}"><td>${fmtDate(p.date)}</td><td>J+${p.d}</td><td>${FERM_ACT[p.a]||p.a}</td><td class="n">${p.t!==''&&p.t!=null?p.t+' °C':''}</td><td class="w">${esc(p.note)}</td>
       <td>${printing?(p.done?fmtDate(p.done):''):`<input type="checkbox" class="chk" ${p.done?'checked':''} onchange="markStep('${t.id}','${p.id}',this.checked)"> ${p.done?fmtDate(p.done):''}`}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun protocole. '+(printing?'':'<button class="mini" onclick="relink()">Installer depuis la recette</button>')+'</p>'}</div>
