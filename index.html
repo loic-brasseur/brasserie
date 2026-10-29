@@ -2,6 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<script src="sync.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Brasserie">
@@ -137,9 +138,15 @@
       <p>Recettes versionnées : process, protocole de fermentation, cibles qualité, PDF.</p>
       <span class="go">Ouvrir →</span>
     </a>
+    <a class="tile" href="#" onclick="window.BrasserieSync&&BrasserieSync.open();return false;">
+      <div class="ic" style="background:#3E6E8E">☁︎</div>
+      <h2>Synchronisation &amp; sauvegarde</h2>
+      <p>Mêmes données sur le Mac, l'iPad et l'iPhone (dépôt GitHub privé, historique des versions) · sauvegarde complète en un fichier.</p>
+      <span class="go">Régler →</span>
+    </a>
   </div>
 
-  <footer>Brasserie — outils internes · données enregistrées sur chaque appareil</footer>
+  <footer>Brasserie — outils internes · données synchronisées entre appareils si la synchronisation est activée</footer>
 </div>
 </body>
 </html>
