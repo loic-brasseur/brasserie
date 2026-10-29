@@ -414,11 +414,11 @@ function deductStock(){
   if(!st||!Array.isArray(st.items)){alert("Le stock n'est pas encore initialisé : ouvre une fois l'app Stock, puis reviens ici.");return;}
   const lines=[],miss=[];
   const add=(kind,qG,label)=>{const id=s.ref.map[kind];if(id==='__skip'||!(qG>0))return;const it=st.items.find(i=>i.id===id);if(!it){miss.push(label);return;}
-    lines.push({id,qty:String(Math.round(toUnit(qG,it.unit)*1000)/1000)});};
+    lines.push({id,qty:String(Math.round(toUnit(qG,it.unit)*1000)/1000),k:kind});};
   if(s.ref&&s.ref.on){add('sugar',r.sugarKg!=null?r.sugarKg*1000:null,'sucre');add('yeast',r.yeastG,'levure');}
   matRows(s).forEach(m=>{if(!(m.q>0))return;if(!m.id||m.id==='__skip'){if(!m.id)miss.push(m.l.toLowerCase());return;}
     if(!st.items.some(i=>i.id===m.id)){miss.push(m.l.toLowerCase());return;}
-    (m.split||[{id:m.id,q:m.q}]).forEach(p=>{const ex=lines.find(l=>l.id===p.id);if(ex)ex.qty=String((parseFloat(ex.qty)||0)+p.q);else lines.push({id:p.id,qty:String(p.q)});});});
+    (m.split||[{id:m.id,q:m.q}]).forEach(p=>{const ex=lines.find(l=>l.id===p.id);if(ex)ex.qty=String((parseFloat(ex.qty)||0)+p.q);else lines.push({id:p.id,qty:String(p.q),k:m.k});});});
   if(miss.length&&!confirm('Aucun article de stock choisi pour : '+miss.join(', ')+'. Continuer sans ?'))return;
   if(!lines.length&&!s.ref.move){const im=toInventory(s);render();alert(im?'Rien à déduire du stock (aucun article choisi).'+im:'Rien à déduire : saisis les formats conditionnés (et le sucre / la levure si refermentation).');return;}
   st.moves=st.moves||[];const prev=s.ref.move&&st.moves.find(m=>m.id===s.ref.move.id);

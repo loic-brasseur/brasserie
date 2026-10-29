@@ -142,6 +142,8 @@
   .recv-row.filled{border-color:rgba(79,107,47,.5);background:linear-gradient(180deg,rgba(79,107,47,.07),var(--bg))}
   .recv-row.out{border-color:rgba(168,57,43,.5);background:linear-gradient(180deg,rgba(168,57,43,.06),var(--bg))}
   .recv-row .rn{flex:1;min-width:0}
+  .recv-row.has-sub{flex-wrap:wrap}.recv-sub{flex-basis:100%;display:flex;gap:.45rem;flex-wrap:wrap;padding-top:.35rem}.recv-sub input{flex:1;min-width:120px;font:inherit;font-size:.82rem;padding:.35rem .5rem;border:1px solid var(--line);border-radius:8px;background:#fff}
+  .lotlist{font-size:.78rem;color:var(--ink-soft);margin-top:.2rem}.lotlist b{color:var(--ink)}
   .recv-row .rn b{font-weight:600;font-size:.9rem;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .recv-row .rn small{font-size:.7rem;color:var(--ink-soft);font-family:var(--mono)}
   .recv-row input{width:86px;font-family:var(--mono);font-size:.95rem;padding:.4rem .5rem;border:1px solid #E0D4BE;border-radius:8px;background:#fff;text-align:right;min-height:38px;-webkit-appearance:none;appearance:none}
@@ -232,6 +234,7 @@
     #orderPrint .po-sign-lbl{font-size:9.5px;color:#8a8170;margin-top:5px}
   }
 </style>
+<script src="tracabilite.js"></script>
 </head>
 <body>
 <a href="index.html" id="backHome" aria-label="Retour à l'écran d'accueil" style="position:fixed;left:14px;bottom:14px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:#1A1612;color:#FBF5EC;font-family:'Manrope',system-ui,-apple-system,sans-serif;font-size:13px;font-weight:600;text-decoration:none;padding:10px 14px;border-radius:999px;box-shadow:0 4px 16px rgba(26,22,18,.28);-webkit-tap-highlight-color:transparent;"><span style="font-size:15px;line-height:1">←</span> Accueil</a>
@@ -296,6 +299,10 @@
           <input class="input" id="f_min" type="number" step="any" inputmode="decimal" placeholder="alerte si <">
         </label>
       </div>
+      <label id="f_pricel">Prix d'achat (€ HT par unité de stock)
+        <input class="input" id="f_price" type="number" step="any" inputmode="decimal" placeholder="mis à jour à chaque réception avec prix">
+      </label>
+      <div class="lotlist" id="f_lots"></div>
       <label>Note / fournisseur / lot (optionnel)
         <input class="input" id="f_note" placeholder="ex. Castle Malting · lot 2026-A">
       </label>
@@ -545,6 +552,7 @@ function render(){
   document.getElementById('summary').innerHTML=`
     <div class="stat"><div class="n">${items.length}</div><div class="l">Articles suivis</div></div>
     <div class="stat ${lowN?'alert':''}"><div class="n">${lowN}</div><div class="l">Sous le seuil</div></div>
+    ${(()=>{if(!window.BrasserieTrace)return '';const v=BrasserieTrace.stockValue(state);return `<div class="stat" title="${v.missing.length?'Sans prix : '+esc(v.missing.slice(0,30).join(', ')):'Tous les articles ont un prix'}"><div class="n" style="font-size:1.25rem">${Math.round(v.value).toLocaleString('fr-FR')} €</div><div class="l">Valeur du stock${v.missing.length?' · '+v.missing.length+' sans prix':''}</div></div>`;})()}
     ${CATS.map(c=>{const n=items.filter(i=>i.cat===c.id).length;return `<div class="stat"><div class="n">${n}</div><div class="l">${c.label.split(' ')[0]}</div></div>`;}).join('')}`;
 
   // chips
@@ -588,6 +596,12 @@ function itemRow(it){
   </div>`;
 }
 
+// ---- lots en stock (calculés depuis l'historique, ordre FIFO) ----
+function lotsHTML(it){if(!window.BrasserieTrace)return '';const r=BrasserieTrace.compute(state),L=(r.layers[it.id]||[]).filter(x=>x.qty>1e-9);
+  const ip=BrasserieTrace.itemPrice(it);
+  const pr=ip.p!=null&&(it.price===''||it.price==null)?`<div>Prix utilisé faute de prix saisi : <b>${ip.p.toFixed(3)} €</b> / ${esc(it.unit||'unité')} (${esc(ip.src)})</div>`:'';
+  if(!L.length)return pr;
+  return pr+'<div><b>Lots en stock</b> (estimation, les plus anciens sortent en premier) :</div>'+L.map(x=>`<div>• ${x.init?'Stock initial (lot non renseigné)':'Lot <b>'+esc(x.lot||'non renseigné')+'</b>'} — ${num(x.qty)} ${esc(it.unit||'')}${x.date?' · reçu le '+new Date(x.date+'T12:00:00').toLocaleDateString('fr-FR')+(x.party?' ('+esc(x.party)+')':''):''}${x.price!=null?' · '+x.price.toFixed(3)+' €':''}</div>`).join('');}
 // ---- modal ----
 const ov=document.getElementById('ov');
 function openModal(id){
@@ -600,6 +614,9 @@ function openModal(id){
   document.getElementById('f_qty').value=it?.qty??'';
   document.getElementById('f_min').value=it?.min??'';
   document.getElementById('f_note').value=it?.note||'';
+  document.getElementById('f_price').value=it&&it.price!=null?it.price:'';
+  document.getElementById('f_pricel').firstChild.textContent="Prix d'achat (€ HT par "+((it&&it.unit)||'unité')+')';
+  document.getElementById('f_lots').innerHTML=it?lotsHTML(it):'';
   document.getElementById('f_alt').innerHTML='<option value="">— Aucun —</option>'+state.items.filter(i=>i.id!==id&&(!it||i.cat===it.cat)).sort((a,b)=>a.name.localeCompare(b.name,'fr')).map(i=>`<option value="${i.id}"${it&&it.alt===i.id?' selected':''}>${esc(i.name)}</option>`).join('');
   document.getElementById('mDelete').classList.toggle('hidden',!it);
   ov.classList.add('show');
@@ -624,7 +641,8 @@ document.getElementById('mSave').onclick=()=>{
     qty:parseFloat(document.getElementById('f_qty').value)||0,
     min:document.getElementById('f_min').value!==''?parseFloat(document.getElementById('f_min').value):'',
     note:document.getElementById('f_note').value.trim(),
-    alt:document.getElementById('f_alt').value||''
+    alt:document.getElementById('f_alt').value||'',
+    price:document.getElementById('f_price').value!==''?parseFloat(document.getElementById('f_price').value):''
   };
   let created=null;
   if(editId){Object.assign(state.items.find(i=>i.id===editId),data);}
@@ -711,7 +729,7 @@ function importStockRows(aoa,all){
   if(!R){alert("Colonnes « Article » / « Quantité » introuvables : utilise le fichier modèle Stock_a_remplir.xlsx.");return;}
   const catOf=v=>{const n=xNorm(v);if(!n)return null;const c=CATS.find(c=>xNorm(c.label)===n||xNorm(c.label).startsWith(n)||n.startsWith(xNorm(c.label).split(' ')[0])||c.id===n);return c?c.id:null;};
   const numv=v=>{if(v===''||v==null)return null;const x=parseFloat(String(v).replace(',','.'));return isNaN(x)?null:x;};
-  let up=0,cr=0,skip=0;const pendAlt=[];
+  let up=0,cr=0,skip=0,priced=0;const pendAlt=[];
   R.forEach(r=>{const name=String(r['article']||'').trim();if(!name){skip++;return;}
     let it=(r['id']&&state.items.find(i=>i.id===String(r['id']).trim()))||state.items.find(i=>xNorm(i.name)===xNorm(name));
     const cat=catOf(r['section']);
@@ -721,10 +739,11 @@ function importStockRows(aoa,all){
     const q=numv(r['quantite']);if(q!=null)it.qty=q;
     if('seuil d alerte' in r){const m=numv(r['seuil d alerte']);it.min=m==null?'':m;}
     if(String(r['note']||'').trim())it.note=String(r['note']).trim();
+    {const pk=Object.keys(r).find(k=>k.startsWith('prix'));const pv=pk?numv(r[pk]):null;if(pv!=null&&pv>=0){it.price=pv;priced++;}}  // colonne « Prix d'achat » (ex. relevé des factures)
     const alt=String(r['remplacer par si epuise']||'').trim();if(alt)pendAlt.push([it,alt]);
   });
   pendAlt.forEach(([it,alt])=>{const a=state.items.find(i=>xNorm(i.name)===xNorm(alt));if(a&&a.id!==it.id)it.alt=a.id;});
-  if(!confirm(`Import du fichier Stock :\n• ${up} article(s) mis à jour\n• ${cr} article(s) créé(s)${skip?`\n• ${skip} ligne(s) sans nom ignorée(s)`:''}\n\nLes quantités saisies remplacent celles du stock (une case vide garde la quantité actuelle). Valider ?`)){state=load();render();return;}
+  if(!confirm(`Import du fichier Stock :\n• ${up} article(s) mis à jour\n• ${cr} article(s) créé(s)${skip?`\n• ${skip} ligne(s) sans nom ignorée(s)`:''}${priced?`\n• ${priced} prix d\'achat mis à jour`:''}\n\nLes quantités saisies remplacent celles du stock (une case vide garde la quantité actuelle). Valider ?`)){state=load();render();return;}
   save();render();alert('Stock mis à jour.');
 }
 
@@ -771,7 +790,7 @@ function updateSum(key){
 }
 function renderBasket(key){
   const cfg=ENTRY[key];
-  $(cfg.list).innerHTML=cfg.lines.length?cfg.lines.map(l=>{const it=itById(l.id);if(!it)return '';const c=cat(it.cat);return `<div class="recv-row ${cfg.tone}"><div class="rn"><b><span class="rdot" style="background:${c?c.color:'#999'}"></span>${it.name}</b><small>en stock : ${num(it.qty)} ${it.unit||''}</small></div><input type="number" step="any" inputmode="decimal" data-id="${l.id}" value="${l.qty}"><span class="u">${it.unit||''}</span><button class="lineDel" data-id="${l.id}" title="Retirer la ligne">✕</button></div>`;}).join(''):'<div class="empty-cat" style="padding:.8rem 1.2rem">Aucune ligne pour le moment.</div>';
+  $(cfg.list).innerHTML=cfg.lines.length?cfg.lines.map(l=>{const it=itById(l.id);if(!it)return '';const c=cat(it.cat);return `<div class="recv-row ${cfg.tone}${key==='rcv'?' has-sub':''}"><div class="rn"><b><span class="rdot" style="background:${c?c.color:'#999'}"></span>${it.name}</b><small>en stock : ${num(it.qty)} ${it.unit||''}</small></div><input type="number" step="any" inputmode="decimal" data-id="${l.id}" value="${l.qty}"><span class="u">${it.unit||''}</span><button class="lineDel" data-id="${l.id}" title="Retirer la ligne">✕</button>${key==='rcv'?`<div class="recv-sub"><input data-lot="${l.id}" placeholder="Lot fournisseur" title="N° de lot fournisseur" value="${esc(l.lot||'')}"><input data-pr="${l.id}" type="number" step="any" inputmode="decimal" placeholder="€ HT / ${esc(it.unit||'u')}${it.price!=null&&it.price!==''?' ('+it.price+')':''}" title="Prix d'achat HT par ${esc(it.unit||'unité')}" value="${l.price??''}"></div>`:''}</div>`;}).join(''):'<div class="empty-cat" style="padding:.8rem 1.2rem">Aucune ligne pour le moment.</div>';
   updateSum(key);
 }
 function wireEntry(key){
@@ -782,7 +801,8 @@ function wireEntry(key){
   res.addEventListener('mousedown',e=>{const r=e.target.closest('.r');if(!r)return;e.preventDefault();if(r.dataset.create)openCreate(pick.value.trim(),key);else entryPick(key,r.dataset.id);});
   qty.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();entryAdd(key);}});
   $(cfg.add).addEventListener('click',()=>entryAdd(key));
-  list.addEventListener('input',e=>{const inp=e.target.closest('input[data-id]');if(!inp)return;const l=cfg.lines.find(x=>x.id===inp.dataset.id);if(l)l.qty=inp.value;updateSum(key);});
+  list.addEventListener('input',e=>{const li=e.target.closest('input[data-lot],input[data-pr]');if(li){const l=cfg.lines.find(x=>x.id===(li.dataset.lot||li.dataset.pr));if(l){if(li.dataset.lot)l.lot=li.value;else l.price=li.value;}return;}
+    const inp=e.target.closest('input[data-id]');if(!inp)return;const l=cfg.lines.find(x=>x.id===inp.dataset.id);if(l)l.qty=inp.value;updateSum(key);});
   list.addEventListener('click',e=>{const d=e.target.closest('.lineDel');if(!d)return;cfg.lines=cfg.lines.filter(x=>x.id!==d.dataset.id);renderBasket(key);});
 }
 wireEntry('rcv');wireEntry('use');wireEntry('ord');
@@ -806,7 +826,7 @@ $('rcv_order').addEventListener('change',e=>{
   renderBasket('rcv');
 });
 function openReceive(edit){
-  ENTRY.rcv.lines=edit?edit.lines.filter(l=>itById(l.id)).map(l=>({id:l.id,qty:String(l.qty)})):[];
+  ENTRY.rcv.lines=edit?edit.lines.filter(l=>itById(l.id)).map(l=>({id:l.id,qty:String(l.qty),lot:l.lot||'',price:l.price??''})):[];
   pickSel.rcv=null;rcvEditId=edit?edit.id:null;rcvOrderId=edit?(edit.orderId||null):null;
   $('rcv_h2').textContent=edit?'Modifier la réception':'Réception de livraison';
   $('rcv_save').textContent=edit?'Enregistrer les modifications':'Valider la réception';
@@ -821,7 +841,8 @@ function closeReceive(){rov.classList.remove('show');}
 $('rcv_cancel').onclick=closeReceive;
 rov.addEventListener('click',e=>{if(e.target===rov)closeReceive();});
 $('rcv_save').onclick=()=>{
-  const newLines=ENTRY.rcv.lines.map(l=>({id:l.id,qty:parseFloat(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
+  const newLines=ENTRY.rcv.lines.map(l=>{const o={id:l.id,qty:parseFloat(l.qty)};const lot=String(l.lot||'').trim();if(lot)o.lot=lot;const p=parseFloat(String(l.price??'').replace(',','.'));if(!isNaN(p)&&p>=0)o.price=p;return o;}).filter(l=>!isNaN(l.qty)&&l.qty>0);
+  newLines.forEach(l=>{if(l.price!=null){const it=itById(l.id);if(it)it.price=l.price;}});  // dernier prix d'achat connu
   if(rcvEditId){
     const idx=(state.moves||[]).findIndex(x=>x.id===rcvEditId);
     if(idx>=0){const m=state.moves[idx];reapply('reception',m.lines,newLines);

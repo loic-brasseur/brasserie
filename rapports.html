@@ -126,6 +126,7 @@
   @media(max-width:900px){.layout{grid-template-columns:1fr}.side{position:static}.side .list{max-height:220px}}
 
   .print{display:none}
+  .printonly{display:none}
   @media print{
     @page{size:A4 portrait;margin:14mm}
     body{background:#fff!important;padding:0}
@@ -135,6 +136,7 @@
     .print h2{font-family:var(--serif);font-size:13px;margin:12px 0 4px;border-bottom:1.5px solid #cf982b;padding-bottom:2px}
     .print table{width:100%;border-collapse:collapse}.print td,.print th{border-bottom:1px solid #e6d8bd;padding:3px 4px;text-align:left}
     .print .r{text-align:right}
+    .print .noprint,.print input{display:none!important}.print .printonly{display:inline}
   }
 </style>
 <style>
@@ -170,6 +172,7 @@
   .banner{background:rgba(207,152,43,.12);border:1px solid rgba(207,152,43,.4);border-radius:12px;padding:.7rem .9rem;margin-bottom:1rem;display:flex;gap:.7rem;align-items:center;flex-wrap:wrap;font-size:.86rem}
   .banner span{flex:1}
 </style>
+<script src="tracabilite.js"></script>
 </head>
 <body>
 <a href="index.html" id="backHome" style="position:fixed;left:14px;bottom:14px;z-index:99;display:inline-flex;align-items:center;gap:7px;background:#1A1612;color:#FBF5EC;font-family:'Manrope',system-ui,sans-serif;font-size:13px;font-weight:600;text-decoration:none;padding:10px 14px;border-radius:999px;box-shadow:0 4px 16px rgba(26,22,18,.28)"><span style="font-size:15px;line-height:1">←</span> Accueil</a>
@@ -332,6 +335,73 @@ function metrics(x){
   return m;
 }
 
+
+/* ===================== Traçabilité & coût de revient (lots fournisseurs, FIFO) ===================== */
+const FMT_V={'33cl':.33,'44cl':.44,'75cl':.75,'1.5L':1.5,'10L':10,'20L':20,'30L':30};
+const K_FMT={b33:'33cl',cap33:'33cl',lab33:'33cl',crt33:'33cl',b75:'75cl',cap75:'75cl',lab75:'75cl',mus75:'75cl',crt75:'75cl',can44:'44cl',lid44:'44cl',capFut:'fût'};
+const eur=(v,d)=>v==null||isNaN(v)?'—':v.toLocaleString('fr-FR',{minimumFractionDigits:d??2,maximumFractionDigits:d??2})+' €';
+const qf=v=>(+v).toLocaleString('fr-FR',{maximumFractionDigits:3});
+let traceQ='';
+function traceData(x){
+  if(!window.BrasserieTrace)return null;
+  const st=ld('brasserie_stock_v2',null);if(!st||!Array.isArray(st.items))return null;
+  const R=BrasserieTrace.compute(st);
+  const mv=R.moves.filter(m=>m.type==='usage'&&m.lot&&String(m.lot)===String(x.lot));
+  const brew=mv.filter(m=>m.brewId||(!m.packId&&/brass/i.test(m.party||''))),pack=mv.filter(m=>m.packId);
+  const lines=ms=>ms.map(m=>({m,L:R.alloc[m.id]||[]}));
+  const B=lines(brew),P=lines(pack);
+  const tot=a=>a.reduce((s,g)=>s+g.L.reduce((t,l)=>t+l.cost,0),0);
+  const miss=[...new Set([...B,...P].flatMap(g=>g.L.filter(l=>l.missingPrice).map(l=>l.name)))];
+  const cB=tot(B),cP=tot(P);
+  // coûts par format
+  const units={};x.packs.forEach(s=>(s.formats||[]).forEach(f=>{const u=num(f.units)||0;if(u>0)units[f.f]=(units[f.f]||0)+u;}));
+  const litres=Object.keys(units).reduce((a,f)=>a+units[f]*(FMT_V[f]||0),0)||(x.m.packed||0);
+  let general=0;const byF={};P.forEach(g=>g.L.forEach(l=>{const f=l.k&&K_FMT[l.k];if(f)byF[f]=(byF[f]||0)+l.cost;else general+=l.cost;}));
+  const kegU=['10L','20L','30L'].reduce((a,f)=>a+(units[f]||0),0);
+  const perL=litres?(cB+general)/litres:null;
+  const fmts=Object.keys(units).filter(f=>FMT_V[f]).map(f=>{const u=units[f],v=FMT_V[f];
+    const mat=f==='10L'||f==='20L'||f==='30L'?(byF['fût']||0)/(kegU||1):(byF[f]||0)/u;
+    return {f,u,liq:perL!=null?perL*v:null,mat,tot:perL!=null?perL*v+mat:null};});
+  return {R,B,P,cB,cP,miss,litres,perL:litres?(cB+cP)/litres:null,fmts,st};
+}
+function partsHTML(l){return l.parts.map(p=>`<div>${p.unknown?'<span class="bad">au-delà du stock enregistré</span>':p.init?'<i>stock initial (lot non renseigné)</i>':'Lot <b>'+esc(p.lot||'non renseigné')+'</b>'}${p.party&&!p.init?' · '+esc(p.party):''}${p.date?' · reçu le '+fmtD(p.date):''}${l.parts.length>1?' — '+qf(p.qty)+' '+esc(l.unit):''}</div>`).join('');}
+function traceTable(groups,label){
+  if(!groups.length)return `<p class="meta" style="color:var(--ink-soft);font-size:.82rem">${label} : aucune sortie de stock enregistrée pour ce lot.</p>`;
+  return groups.map(g=>`<div style="font-weight:700;margin:.6rem 0 .3rem">${esc(g.m.party||label)} <span style="color:var(--ink-soft);font-weight:400">· ${fmtD(g.m.date)}</span></div>
+    <table class="t"><thead><tr><th>Article</th><th class="num">Quantité</th><th>Lot(s) fournisseur</th><th class="num">Coût</th></tr></thead><tbody>
+    ${g.L.map(l=>`<tr><td>${esc(l.name)}</td><td class="num">${qf(l.qty)} ${esc(l.unit)}</td><td style="font-size:.8rem">${partsHTML(l)}</td><td class="num">${l.missingPrice?'<span class="bad" title="Prix manquant">?</span>':eur(l.cost)}</td></tr>`).join('')}
+    <tr><td colspan="3" style="text-align:right;font-weight:700">Sous-total</td><td class="num" style="font-weight:700">${eur(g.L.reduce((a,l)=>a+l.cost,0))}</td></tr></tbody></table>`).join('');
+}
+function setSale(rec,f,v){SET.sale=SET.sale||{};SET.sale[rec]=SET.sale[rec]||{};const n=num(v);if(n==null)delete SET.sale[rec][f];else SET.sale[rec][f]=n;localStorage.setItem(SET_KEY,JSON.stringify(SET));renderTraceCost();}
+function traceSearch(v){traceQ=v;renderTraceCost(true);}
+function traceHTML(x){
+  const D=traceData(x);if(!D)return `<div class="card"><div class="card-h"><h2>Traçabilité &amp; coût de revient</h2></div><div class="card-b"><p class="meta">Stock non initialisé : ouvre une fois l'app Stock.</p></div></div>`;
+  const sale=(SET.sale||{})[x.recipe]||{};
+  const fm=D.fmts.length?`<table class="t" style="margin-top:.6rem"><thead><tr><th>Format</th><th class="num">Unités</th><th class="num">Liquide</th><th class="num">Emballage</th><th class="num">Coût / unité</th><th class="num">Prix de vente HT</th><th class="num">Marge / unité</th></tr></thead><tbody>
+    ${D.fmts.map(r=>{const pv=sale[r.f];const mg=pv!=null&&r.tot!=null?pv-r.tot:null;return `<tr><td>${esc(r.f)}</td><td class="num">${qf(r.u)}</td><td class="num">${eur(r.liq,3)}</td><td class="num">${eur(r.mat,3)}</td><td class="num" style="font-weight:700">${eur(r.tot,3)}</td>
+      <td class="num"><input class="in noprint" style="width:90px;text-align:right;padding:.25rem .4rem" type="number" step="0.01" value="${pv??''}" placeholder="€" onchange="setSale('${esc(x.recipe).replace(/'/g,"\\'")}','${r.f}',this.value)"><span class="printonly">${pv!=null?eur(pv):''}</span></td>
+      <td class="num ${mg==null?'':mg>=0?'ok':'bad'}">${mg==null?'—':eur(mg,2)+(pv?' ('+Math.round(mg/pv*100)+' %)':'')}</td></tr>`;}).join('')}</tbody></table>`:'';
+  const hits=traceQ?BrasserieTrace.whereUsed(D.st,traceQ,D.R):[];
+  return `<div class="card" id="traceCard"><div class="card-h"><h2>Traçabilité &amp; coût de revient</h2><span class="sub" style="margin:0">Matières : <b>${eur(D.cB+D.cP)}</b>${D.perL!=null?' · <b>'+eur(D.perL,3)+'</b> / L conditionné':''}</span></div><div class="card-b">
+    <div class="kpis">
+      <div class="kpi"><div class="v">${eur(D.cB,0)}</div><div class="k">Brassage (ingrédients)</div></div>
+      <div class="kpi"><div class="v">${eur(D.cP,0)}</div><div class="k">Conditionnement</div></div>
+      <div class="kpi"><div class="v">${D.litres?qf(Math.round(D.litres)):'—'}<small> L</small></div><div class="k">Volume conditionné</div></div>
+      <div class="kpi"><div class="v">${D.perL!=null?eur(D.perL,2):'—'}</div><div class="k">Coût matières / L</div></div></div>
+    ${D.miss.length?`<div class="advice" style="margin-top:.6rem"><b>Prix manquant</b> pour : ${D.miss.map(esc).join(', ')} — saisis-le dans le Stock (fiche de l'article ou à la réception). Coûts sous-estimés.</div>`:''}
+    ${fm}
+    <p class="meta" style="color:var(--ink-soft);font-size:.78rem;margin:.5rem 0 0">Coût matières premières et emballages uniquement (hors énergie, main-d'œuvre, droits). Lots fournisseurs et prix estimés en sortant les lots les plus anciens en premier.</p>
+    <h3 style="font-family:var(--serif);margin:1rem 0 .2rem">Ingrédients — brassage</h3>${traceTable(D.B,'Brassage')}
+    <h3 style="font-family:var(--serif);margin:1rem 0 .2rem">Conditionnement</h3>${traceTable(D.P,'Conditionnement')}
+    <div class="noprint" style="margin-top:1rem;padding-top:.8rem;border-top:1px dashed var(--line)"><b>Rappel produit</b> : dans quels lots de bière a servi un lot fournisseur ?
+      <input class="in" style="margin-top:.4rem;max-width:320px" placeholder="n° de lot fournisseur" value="${esc(traceQ)}" oninput="traceSearch(this.value)">
+      <div id="traceHits" style="margin-top:.4rem;font-size:.85rem">${traceQ?(hits.length?hits.map(h=>`<div>• Lot bière <b>${esc(h.move.lot||'—')}</b> — ${esc(h.move.party||'')} (${fmtD(h.move.date)}) : ${esc(h.line.name)}, lot ${esc(h.part.lot)}, ${qf(h.part.qty)} ${esc(h.line.unit)}</div>`).join(''):'Aucune utilisation trouvée.'):''}</div></div>
+  </div></div>`;
+}
+function renderTraceCost(onlyHits){const x=collect().find(l=>l.lot===curLot);if(!x)return;const el=document.getElementById('traceCard');if(!el)return;
+  if(onlyHits){const tmp=document.createElement('div');tmp.innerHTML=traceHTML(x);document.getElementById('traceHits').innerHTML=tmp.querySelector('#traceHits').innerHTML;return;}
+  el.outerHTML=traceHTML(x);buildPrint(document.getElementById('main').innerHTML);}
+
 /* ===================== Rendu ===================== */
 function setMode(m){mode=m;document.getElementById('m_lot').classList.toggle('on',m==='lot');document.getElementById('m_per').classList.toggle('on',m==='per');render();}
 function render(){renderDue();if(mode==='lot')renderLot();else renderPeriod();}
@@ -383,7 +453,8 @@ function renderLot(){
     <tr><td>Degré d'alcool (conditionné)</td><td class="num">${T.abv!=null?(+T.abv).toFixed(1)+' ± '+T.abvTol+' %':'—'}</td><td class="num ${cls(m.abvPack??m.abv,T.abv,T.abvTol)}">${(m.abvPack??m.abv)!=null?(m.abvPack??m.abv).toFixed(2)+' %':'—'}</td></tr>
     <tr><td>CO₂</td><td class="num">${T.co2!=null?T.co2+' ± '+T.co2Tol+' g/L':'—'}</td><td class="num ${cls(m.co2,T.co2,T.co2Tol)}">${m.co2!=null?m.co2.toFixed(2)+' g/L':'—'}</td></tr>
     <tr><td>O₂ dissous</td><td class="num">${T.o2!=null?'≤ '+T.o2+' ppb':'—'}</td><td class="num ${m.o2==null||T.o2==null?'':m.o2<=T.o2?'ok':'bad'}">${m.o2!=null?Math.round(m.o2)+' ppb':'—'}</td></tr>
-    </tbody></table></div></div>`;
+    </tbody></table></div></div>
+  ${traceHTML(x)}`;
   buildPrint(document.getElementById('main').innerHTML);
 }
 
