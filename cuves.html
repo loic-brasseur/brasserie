@@ -348,7 +348,7 @@
   <div class="modal wide">
     <h2>Historique des lots</h2>
     <div class="mhint">Chaque lot clôturé reste compilé ici avec ses relevés, d'un brassin à l'autre.</div>
-    <div class="sec" id="histBody"></div>
+    <div class="sec" id="histBody" style="overflow-x:auto"></div>
     <div class="modal-actions"><button class="btn-primary" id="histClose">Fermer</button></div>
   </div>
 </div>
@@ -922,9 +922,9 @@ document.getElementById('trSave').onclick=()=>{
 const ho=document.getElementById('histOverlay');
 document.getElementById('btnHist').onclick=()=>{
   const A=state.archive.map((a,i)=>({...a,_i:i})).sort((a,b)=>a.closed.date<b.closed.date?1:-1);
-  document.getElementById('histBody').innerHTML=A.length?`<table class="t"><thead><tr><th>Lot</th><th>Bière</th><th>Cuve</th><th>Mise en cuve</th><th>Soutirage</th><th class="n">DI</th><th class="n">DF</th><th class="n">Att.</th><th class="n">Vol. in → out</th><th class="n">Note</th><th></th></tr></thead><tbody>
+  document.getElementById('histBody').innerHTML=A.length?`<table class="t"><thead><tr><th></th><th>Lot</th><th>Bière</th><th>Cuve</th><th>Mise en cuve</th><th>Soutirage</th><th class="n">DI</th><th class="n">DF</th><th class="n">Att.</th><th class="n">Vol. in → out</th><th class="n">Note</th></tr></thead><tbody>
     ${A.map(a=>{const og=a.og!=null?+a.og:null,fg=a.closed.fg;const att=og&&fg!=null?((og-fg)/og*100).toFixed(0)+' %':'—';
-      return `<tr><td>${esc(a.lot||'')}</td><td>${esc(a.recipe)}</td><td>${esc(a.tankName)}</td><td>${fmtDate(a.start)}</td><td>${fmtDate(a.closed.date)}</td><td class="n">${og!=null?og.toFixed(1):'—'}</td><td class="n">${fg!=null?fg.toFixed(1):'—'}</td><td class="n">${att}</td><td class="n">${a.volume||'—'} → ${a.closed.volHL??'—'} HL</td><td class="n">${a.fermScore!=null?a.fermScore+'/5':'—'}</td><td><button class="mini" style="color:#B3261E" onclick="delArch(${a._i})">Supprimer</button></td></tr>`;}).join('')}</tbody></table>`:'<p class="meta">Aucun lot clôturé pour l\'instant. Utilise « Soutirer & conditionner » sur une cuve pour archiver un lot.</p>';
+      return `<tr><td><button class="mini" style="color:#B3261E;white-space:nowrap" title="Supprimer ce soutirage" onclick="delArch(${a._i})">🗑 Supprimer</button></td><td>${esc(a.lot||'')}</td><td>${esc(a.recipe)}</td><td>${esc(a.tankName)}</td><td>${fmtDate(a.start)}</td><td>${fmtDate(a.closed.date)}</td><td class="n">${og!=null?og.toFixed(1):'—'}</td><td class="n">${fg!=null?fg.toFixed(1):'—'}</td><td class="n">${att}</td><td class="n">${a.volume||'—'} → ${a.closed.volHL??'—'} HL</td><td class="n">${a.fermScore!=null?a.fermScore+'/5':'—'}</td></tr>`;}).join('')}</tbody></table>`:'<p class="meta">Aucun lot clôturé pour l\'instant. Utilise « Soutirer & conditionner » sur une cuve pour archiver un lot.</p>';
   ho.classList.add('show');
 };
 document.getElementById('histClose').onclick=()=>ho.classList.remove('show');
