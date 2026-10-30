@@ -305,11 +305,12 @@ function tmaxLot(lot){if(!lot)return null;const cv=ld(CUVES_KEY,{tanks:[],archiv
 function refCalc(s,c){
   const R=s.ref||newRef(),T=s.targets||{},sg=SUGARS[R.type]||SUGARS.sac;
   const target=num(R.co2t)??(T.co2!=null?+T.co2:5);
-  const co2m=num(s.a.co2),tm=num(R.tmax),ta=tmaxLot(s.lot),tt=num(s.a.temp),pb=num(R.pbar),pt=num(R.ptemp)??tt;
+  // le CO₂ repris de l'app Carbonatation est une valeur calculée (fût, consigne), pas une mesure de la cuve avant refermentation : ignoré ici
+  const co2m=s.auto&&s.auto.co2==='carbonatation'?null:num(s.a.co2),tm=num(R.tmax),ta=tmaxLot(s.lot),tt=num(s.a.temp),pb=num(R.pbar),pt=num(R.ptemp)??tt;
   const te=tm!=null?tm:ta!=null?ta:tt;
   const byP=co2m==null&&pb!=null&&pt!=null?co2FromPressure(pb,pt):null;
   const resid=co2m!=null?co2m:byP!=null?byP:(te!=null?residualCO2(te):null);
-  const residFrom=co2m!=null?'CO₂ mesuré':byP!=null?`d'après ${pb} bar à ${pt} °C`:te!=null?'estimé à '+te+' °C'+(tm!=null?' (T° max saisie)':ta!=null?' (T° max du lot en cuve)':' (T° actuelle — à vérifier)'):'';
+  const residFrom=co2m!=null?'CO₂ mesuré (carte 01)':byP!=null?`d'après ${pb} bar à ${pt} °C`:te!=null?'estimé à '+te+' °C'+(tm!=null?' (T° max saisie)':ta!=null?' (T° max du lot en cuve)':' (T° actuelle — à vérifier)'):'';
   const delta=resid!=null?Math.max(0,target-resid):null;
   const gL=delta!=null?delta/sg.co2:null;
   const V=c.volAfter;
