@@ -218,8 +218,10 @@
         '<li>Crée un dépôt <b>privé</b> nommé <b>brasserie-donnees</b> : <a href="https://github.com/new?name=brasserie-donnees&visibility=private" target="_blank" rel="noopener">créer le dépôt</a>.</li>' +
         '<li>Crée un jeton : <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">nouveau jeton</a> → nom « brasserie », expiration 1 an → <i>Only select repositories</i> : brasserie-donnees → <i>Repository permissions</i> → <b>Contents : Read and write</b> → Generate.</li>' +
         '<li>Colle le jeton ci-dessous et connecte. Pour les autres appareils, utilise ensuite « Lien pour un autre appareil ».</li></ol>' +
+        (window.navigator.standalone || (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ? '<div class="st">App ouverte depuis l\'écran d\'accueil : elle a ses propres données, séparées de Safari. Sur un appareil déjà connecté, touche « Lien pour un autre appareil », puis ici « Coller le lien copié » et « Connecter ».</div>' : '') +
         '<label>Dépôt</label><input id="bs-repo" value="' + esc(c.repo || DEFAULT_REPO) + '">' +
-        '<label>Jeton GitHub</label><input id="bs-tok" type="password" autocomplete="off" value="' + esc(c.token || '') + '" placeholder="github_pat_…">' +
+        '<label>Jeton GitHub — ou lien « pour un autre appareil »</label><input id="bs-tok" type="password" autocomplete="off" value="' + esc(c.token || '') + '" placeholder="github_pat_… ou https://…#sync=…">' +
+        (navigator.clipboard && navigator.clipboard.readText ? '<div class="row" style="margin-top:6px"><button data-a="paste">Coller le lien copié</button></div>' : '') +
         '<label>Nom de cet appareil</label><input id="bs-dev" value="' + esc(c.device || guessDevice()) + '">' +
         (msg ? '<div class="st err">' + msg + '</div>' : '') +
         '<div class="row"><button class="pri" data-a="connect">Connecter</button></div>';
@@ -234,6 +236,7 @@
   async function act(a) {
     var c = cfg() || {};
     if (a === 'close') return closePanel();
+    if (a === 'paste') { try { var t = await navigator.clipboard.readText(); document.getElementById('bs-tok').value = (t || '').trim(); } catch (e) { msg = 'Collage refusé : colle le lien à la main dans le champ.'; renderPanel(); } return; }
     if (a === 'bk') return backup();
     if (a === 'rs') return document.getElementById('bs-file').click();
     if (a === 'now') { msg = ''; await sync(); msg = lastState === 'error' ? '' : 'Synchronisation terminée.'; return renderPanel(); }
@@ -247,6 +250,9 @@
     if (a === 'conf') { dl('versions-remplacees-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify(jget(CONF, []), null, 1)); return; }
     if (a === 'connect') {
       var repo = document.getElementById('bs-repo').value.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\/+$/, ''), tok = document.getElementById('bs-tok').value.trim(), dev = document.getElementById('bs-dev').value.trim() || guessDevice();
+      // lien de configuration collé à la place du jeton (app installée sur l'écran d'accueil : elle a ses propres données)
+      var lm = /[#&?]sync=([^&\s]+)/.exec(tok);
+      if (lm) { try { var lo = JSON.parse(atob(decodeURIComponent(lm[1]))); if (lo.token) { tok = lo.token; if (lo.repo) repo = lo.repo; } } catch (e) {} }
       if (!/^[\w.-]+\/[\w.-]+$/.test(repo) || !tok) { msg = 'Indique le dépôt (propriétaire/nom) et le jeton.'; return renderPanel(); }
       jset(CFG, { repo: repo, token: tok, device: dev, init: false }); msg = ''; status('busy');
       try {
