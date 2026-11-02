@@ -334,7 +334,7 @@
     <div class="picker">
       <div class="pick-wrap"><input class="input" id="rcv_pick" placeholder="Rechercher un article (1res lettres)…" autocomplete="off"></div>
       <div class="pick-results" id="rcv_results"></div>
-      <input class="input qtyin" id="rcv_qty" type="number" step="any" inputmode="decimal" placeholder="Qté reçue">
+      <input class="input qtyin" id="rcv_qty" type="text" inputmode="decimal" autocomplete="off" placeholder="Qté reçue">
       <button class="btn-copper addbtn" id="rcv_add">+ Ajouter</button>
     </div>
     <div class="recv-summary" id="rcv_summary"></div>
@@ -359,7 +359,7 @@
     <div class="picker">
       <div class="pick-wrap"><input class="input" id="use_pick" placeholder="Rechercher un article en stock…" autocomplete="off"></div>
       <div class="pick-results" id="use_results"></div>
-      <input class="input qtyin" id="use_qty" type="number" step="any" inputmode="decimal" placeholder="Qté utilisée">
+      <input class="input qtyin" id="use_qty" type="text" inputmode="decimal" autocomplete="off" placeholder="Qté utilisée">
       <button class="btn-copper addbtn" id="use_add">+ Ajouter</button>
     </div>
     <div class="fromrec"><button class="btn-ghost" id="use_fromrec">+ Depuis une recette</button></div>
@@ -385,7 +385,7 @@
     <div class="picker">
       <div class="pick-wrap"><input class="input" id="ord_pick" placeholder="Ajouter un article à commander…" autocomplete="off"></div>
       <div class="pick-results" id="ord_results"></div>
-      <input class="input qtyin" id="ord_qty" type="number" step="any" inputmode="decimal" placeholder="Qté">
+      <input class="input qtyin" id="ord_qty" type="text" inputmode="decimal" autocomplete="off" placeholder="Qté">
       <button class="btn-copper addbtn" id="ord_add">+ Ajouter</button>
     </div>
     <div class="fromrec"><button class="btn-ghost" id="ord_fromrec">+ Depuis mes prochaines recettes</button></div>
@@ -752,7 +752,7 @@ const rov=document.getElementById('rov'),uov=document.getElementById('uov'),cov=
 const $=id=>document.getElementById(id);
 const today=()=>new Date().toISOString().slice(0,10);
 const ENTRY={
-  rcv:{lines:[],pick:'rcv_pick',res:'rcv_results',qty:'rcv_qty',add:'rcv_add',list:'rcv_list',sum:'rcv_summary',can:()=>true,tone:'filled',word:'à ajouter au stock'},
+  rcv:{lines:[],pick:'rcv_pick',res:'rcv_results',qty:'rcv_qty',add:'rcv_add',list:'rcv_list',sum:'rcv_summary',can:()=>true,tone:'filled',word:'à ajouter au stock',create:true},
   use:{lines:[],pick:'use_pick',res:'use_results',qty:'use_qty',add:'use_add',list:'use_list',sum:'use_summary',can:it=>Number(it.qty)>0,tone:'out',word:'à déduire du stock'},
   ord:{lines:[],pick:'ord_pick',res:'ord_results',qty:'ord_qty',add:'ord_add',list:'ord_list',sum:'ord_summary',can:()=>true,tone:'filled',word:'sur le bon de commande',create:true}
 };
@@ -777,20 +777,20 @@ function entryPick(key,id){
 function entryAdd(key){
   const cfg=ENTRY[key],id=pickSel[key];
   if(!id){$(cfg.pick).focus();return;}
-  const v=parseFloat($(cfg.qty).value);
+  const v=numFr($(cfg.qty).value);
   if(isNaN(v)||v<=0){$(cfg.qty).focus();return;}
-  const ex=cfg.lines.find(l=>l.id===id);
+  const ex=key==='rcv'?null:cfg.lines.find(l=>l.id===id);   // en réception : une ligne par lot, même article possible plusieurs fois
   if(ex)ex.qty=String(v);else cfg.lines.push({id,qty:String(v)});
   pickSel[key]=null;$(cfg.pick).value='';$(cfg.qty).value='';
   renderBasket(key);$(cfg.pick).focus();
 }
 function updateSum(key){
-  const cfg=ENTRY[key],n=cfg.lines.filter(l=>parseFloat(l.qty)>0).length;
+  const cfg=ENTRY[key],n=cfg.lines.filter(l=>numFr(l.qty)>0).length;
   $(cfg.sum).innerHTML=n?`<b${cfg.tone==='out'?' style="color:var(--red)"':''}>${n}</b> ligne(s) ${cfg.word}`:'Aucune ligne — cherche un article ci-dessus puis « + Ajouter ».';
 }
 function renderBasket(key){
   const cfg=ENTRY[key];
-  $(cfg.list).innerHTML=cfg.lines.length?cfg.lines.map(l=>{const it=itById(l.id);if(!it)return '';const c=cat(it.cat);return `<div class="recv-row ${cfg.tone}${key==='rcv'?' has-sub':''}"><div class="rn"><b><span class="rdot" style="background:${c?c.color:'#999'}"></span>${it.name}</b><small>en stock : ${num(it.qty)} ${it.unit||''}</small></div><input type="number" step="any" inputmode="decimal" data-id="${l.id}" value="${l.qty}"><span class="u">${it.unit||''}</span><button class="lineDel" data-id="${l.id}" title="Retirer la ligne">✕</button>${key==='rcv'?`<div class="recv-sub"><input data-lot="${l.id}" placeholder="Lot fournisseur" title="N° de lot fournisseur" value="${esc(l.lot||'')}"><input data-pr="${l.id}" type="number" step="any" inputmode="decimal" placeholder="€ HT / ${esc(it.unit||'u')}${it.price!=null&&it.price!==''?' ('+it.price+')':''}" title="Prix d'achat HT par ${esc(it.unit||'unité')}" value="${l.price??''}"></div>`:''}</div>`;}).join(''):'<div class="empty-cat" style="padding:.8rem 1.2rem">Aucune ligne pour le moment.</div>';
+  $(cfg.list).innerHTML=cfg.lines.length?cfg.lines.map((l,li)=>{const it=itById(l.id);if(!it)return '';const c=cat(it.cat);return `<div class="recv-row ${cfg.tone}${key==='rcv'?' has-sub':''}"><div class="rn"><b><span class="rdot" style="background:${c?c.color:'#999'}"></span>${it.name}</b><small>en stock : ${num(it.qty)} ${it.unit||''}</small></div><input type="text" inputmode="decimal" autocomplete="off" data-id="${l.id}" data-i="${li}" value="${l.qty}"><span class="u">${it.unit||''}</span><button class="lineDel" data-id="${l.id}" data-i="${li}" title="Retirer la ligne">✕</button>${key==='rcv'?`<div class="recv-sub"><input data-lot="${li}" placeholder="Lot fournisseur" title="N° de lot fournisseur" value="${esc(l.lot||'')}"><input data-pr="${li}" type="text" inputmode="decimal" autocomplete="off" placeholder="€ HT / ${esc(it.unit||'u')}${it.price!=null&&it.price!==''?' ('+it.price+')':''}" title="Prix d'achat HT par ${esc(it.unit||'unité')}" value="${l.price??''}"><button type="button" class="lotAdd" data-i="${li}" title="Ajouter un autre lot pour cet article" style="all:unset;cursor:pointer;font-size:.78rem;font-weight:700;color:var(--green);padding:.3rem .4rem">+ lot</button></div>`:''}</div>`;}).join(''):'<div class="empty-cat" style="padding:.8rem 1.2rem">Aucune ligne pour le moment.</div>';
   updateSum(key);
 }
 function wireEntry(key){
@@ -801,9 +801,12 @@ function wireEntry(key){
   res.addEventListener('mousedown',e=>{const r=e.target.closest('.r');if(!r)return;e.preventDefault();if(r.dataset.create)openCreate(pick.value.trim(),key);else entryPick(key,r.dataset.id);});
   qty.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();entryAdd(key);}});
   $(cfg.add).addEventListener('click',()=>entryAdd(key));
-  list.addEventListener('input',e=>{const li=e.target.closest('input[data-lot],input[data-pr]');if(li){const l=cfg.lines.find(x=>x.id===(li.dataset.lot||li.dataset.pr));if(l){if(li.dataset.lot)l.lot=li.value;else l.price=li.value;}return;}
-    const inp=e.target.closest('input[data-id]');if(!inp)return;const l=cfg.lines.find(x=>x.id===inp.dataset.id);if(l)l.qty=inp.value;updateSum(key);});
-  list.addEventListener('click',e=>{const d=e.target.closest('.lineDel');if(!d)return;cfg.lines=cfg.lines.filter(x=>x.id!==d.dataset.id);renderBasket(key);});
+  list.addEventListener('input',e=>{const li=e.target.closest('input[data-lot],input[data-pr]');if(li){const l=cfg.lines[+(li.dataset.lot??li.dataset.pr)];if(l){if(li.dataset.lot!=null)l.lot=li.value;else l.price=li.value;}return;}
+    const inp=e.target.closest('input[data-i]');if(!inp)return;const l=cfg.lines[+inp.dataset.i];if(l)l.qty=inp.value;updateSum(key);});
+  list.addEventListener('click',e=>{const a=e.target.closest('.lotAdd');if(a){const i=+a.dataset.i,l=cfg.lines[i];if(!l)return;
+      // nouvelle ligne pour le même article (autre n° de lot, sa propre quantité), placée juste dessous
+      cfg.lines.splice(i+1,0,{id:l.id,qty:'',lot:'',price:l.price??''});renderBasket(key);setTimeout(()=>{const q=$(cfg.list).querySelector(`input[data-i="${i+1}"]`);if(q)q.focus();},30);return;}
+    const d=e.target.closest('.lineDel');if(!d)return;cfg.lines.splice(+d.dataset.i,1);renderBasket(key);});
 }
 wireEntry('rcv');wireEntry('use');wireEntry('ord');
 
@@ -841,7 +844,7 @@ function closeReceive(){rov.classList.remove('show');}
 $('rcv_cancel').onclick=closeReceive;
 rov.addEventListener('click',e=>{if(e.target===rov)closeReceive();});
 $('rcv_save').onclick=()=>{
-  const newLines=ENTRY.rcv.lines.map(l=>{const o={id:l.id,qty:parseFloat(l.qty)};const lot=String(l.lot||'').trim();if(lot)o.lot=lot;const p=parseFloat(String(l.price??'').replace(',','.'));if(!isNaN(p)&&p>=0)o.price=p;return o;}).filter(l=>!isNaN(l.qty)&&l.qty>0);
+  const newLines=ENTRY.rcv.lines.map(l=>{const o={id:l.id,qty:numFr(l.qty)};const lot=String(l.lot||'').trim();if(lot)o.lot=lot;const p=parseFloat(String(l.price??'').replace(',','.'));if(!isNaN(p)&&p>=0)o.price=p;return o;}).filter(l=>!isNaN(l.qty)&&l.qty>0);
   newLines.forEach(l=>{if(l.price!=null){const it=itById(l.id);if(it)it.price=l.price;}});  // dernier prix d'achat connu
   if(rcvEditId){
     const idx=(state.moves||[]).findIndex(x=>x.id===rcvEditId);
@@ -874,7 +877,7 @@ $('use_cancel').onclick=closeUse;
 uov.addEventListener('click',e=>{if(e.target===uov)closeUse();});
 $('use_save').onclick=()=>{
   const before=lowSnap();
-  const newLines=ENTRY.use.lines.map(l=>({id:l.id,qty:parseFloat(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
+  const newLines=ENTRY.use.lines.map(l=>({id:l.id,qty:numFr(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
   if(useEditId){
     const idx=(state.moves||[]).findIndex(x=>x.id===useEditId);
     if(idx>=0){const m=state.moves[idx];reapply('usage',m.lines,newLines);
@@ -924,7 +927,7 @@ $('ord_print').onclick=()=>{
 };
 $('ord_done').onclick=()=>{
   applyAutoLines();
-  const lines=ENTRY.ord.lines.map(l=>({id:l.id,qty:parseFloat(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
+  const lines=ENTRY.ord.lines.map(l=>({id:l.id,qty:numFr(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
   if(!lines.length){alert('Aucune ligne à enregistrer.');return;}
   if(ordEditId){const o=(state.orders||[]).find(x=>x.id===ordEditId);if(o){o.lines=lines;o.date=$('ord_date').value||today();o.supplier=$('ord_supplier').value.trim();}}
   else{state.orders=state.orders||[];state.orderSeq=(state.orderSeq||0)+1;const od=$('ord_date').value||today();const onum='BC-'+new Date(od+'T12:00:00').getFullYear()+'-'+String(state.orderSeq).padStart(3,'0');state.orders.push({id:genId('o'),num:onum,date:od,supplier:$('ord_supplier').value.trim(),lines,status:'pending',createdAt:Date.now()});}
@@ -1067,6 +1070,8 @@ $('rq_add').onclick=()=>{
 
 /* ============== Helpers mouvements + impression ============== */
 const genId=p=>p+Math.random().toString(36).slice(2,9);
+/* nombre saisi avec virgule ou point (« 1,15 » = 1.15) */
+function numFr(v){const n=parseFloat(String(v==null?'':v).replace(/\s/g,'').replace(',','.'));return isNaN(n)?NaN:n;}
 function reapply(type,oldLines,newLines){
   // applique le delta NET (nouveau - ancien) sur le stock, écrêtage final seulement
   const dir=type==='usage'?-1:1,delta={};
