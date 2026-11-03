@@ -543,11 +543,21 @@ function actualRecipe(d,b){
    (même amertume). Whirlpool et dry hop : quantité inchangée (apport aromatique). */
 /* AA du prochain lot en stock (le plus ancien) pour ce houblon — saisi à la réception dans l'app Stock */
 let _trace=null;
+/* article du Stock correspondant à un ingrédient de la fiche (lien du Carnet, choix déjà fait au Brew Log, ou nom) */
+const TYP_CAT={malt:['malt','malt'],hop:['houblon','houblon'],yeast:['levure','levure']};
+function stockItemFor(x,st){
+  st=st||ld(STOCK_KEY,null);if(!st||!Array.isArray(st.items))return null;const tc=TYP_CAT[x.typ]||['soft','conso'];
+  let id=x.sid&&st.items.some(i=>i.id===x.sid)?x.sid:(st.recipeMap||{})[tc[0]+'|'+stNorm(String(x.pn||x.n||'').split(' · ')[0])];
+  if(!id||id==='__skip'){id=null;const t=stTok(x.n);let bs=0;st.items.forEach(it=>{const t2=stTok(it.name),hit=t.filter(w=>t2.includes(w)).length;if(!hit||hit<t.length)return;const sc=10-(t2.length-hit)+(it.cat===tc[1]?5:0);if(sc>bs){bs=sc;id=it.id;}});}
+  return st.items.find(i=>i.id===id)||null;
+}
+/* n° de lot en stock pour l'ingrédient → suggestions du champ « N° de lot » */
+function lotDatalist(x){if(!window.BrasserieTrace)return '';const st=ld(STOCK_KEY,null);const it=stockItemFor(x,st);if(!it)return '';
+  const L=BrasserieTrace.lotChoices(st,it.id).filter(l=>l.lot);if(!L.length)return '';
+  const seen={};return `<datalist id="dl_${x.k}">${L.filter(l=>!seen[l.lot]&&(seen[l.lot]=1)).map(l=>`<option value="${esc(l.lot)}">${esc(it.name)} — ${Math.round(l.qty*100)/100} ${esc(it.unit||'')}${l.aa!=null?' · '+l.aa+' % AA':''}</option>`).join('')}</datalist>`;}
 function hopStockLot(x){
   const st=ld(STOCK_KEY,null);if(!st||!Array.isArray(st.items)||!window.BrasserieTrace)return null;
-  let id=x.sid&&st.items.some(i=>i.id===x.sid)?x.sid:(st.recipeMap||{})['houblon|'+stNorm(String(x.pn||x.n||'').split(' · ')[0])];
-  if(!id||id==='__skip'){id=null;const t=stTok(x.n);let bs=0;st.items.forEach(it=>{if(it.cat!=='houblon')return;const t2=stTok(it.name),hit=t.filter(w=>t2.includes(w)).length;if(hit&&hit>=t.length&&10-(t2.length-hit)>bs){bs=10-(t2.length-hit);id=it.id;}});}
-  const it=st.items.find(i=>i.id===id);if(!it)return null;
+  const it=stockItemFor(x,st);if(!it||it.cat!=='houblon')return null;const id=it.id;
   _trace=_trace||BrasserieTrace.compute(st);const L=(_trace.layers[id]||[]).filter(l=>l.qty>1e-9);
   const lot=L.find(l=>l.aa!=null)||null;const aa=lot?lot.aa:(it.aa!==''&&it.aa!=null?+it.aa:null);
   return aa==null?null:{aa,lot:lot&&lot.lot,name:it.name,after:lot&&L[0]!==lot};
@@ -580,13 +590,13 @@ function ingTable(d){
         <td><div class="ta"><input class="in" value="${esc(x.n)}" placeholder="Tape les premières lettres…" autocomplete="off" data-typ="${x.typ}" data-k="${x.k}" oninput="setExtra('${x.k.slice(1)}','n',this.value);taShow(this)" onfocus="taShow(this)" onkeydown="taKey(event,this)" onblur="taHide(this)"></div></td>
         <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" value="${esc(x.qty)}" oninput="setExtra('${x.k.slice(1)}','qty',this.value)">
           <select class="in u" onchange="setExtra('${x.k.slice(1)}','u',this.value)">${['kg','g','L','mL','u'].map(u=>`<option${u===x.u?' selected':''}>${u}</option>`).join('')}</select></div></td>
-        <td><input class="in" value="${esc(L[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur"></td>
+        <td><input class="in" value="${esc(L[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur" list="dl_${x.k}" autocomplete="off">${lotDatalist(x)}</td>
         <td><button class="xb" onclick="delExtra('${x.k.slice(1)}')" title="Retirer">×</button></td></tr>`
       :`<tr id="ing_${x.k}" class="${x.changed?'chg':''}"><td>${x.t}</td>
         <td><div class="ta"><input class="in" value="${esc(x.n)}" autocomplete="off" data-typ="${x.typ}" data-k="${x.k}" oninput="setSub('${x.k}','n',this.value);taShow(this)" onfocus="this.select();taShow(this)" onkeydown="taKey(event,this)" onblur="taHide(this)"></div><small class="plan" id="plan_${x.k}" style="visibility:${x.changed?'visible':'hidden'}">prévu : ${esc(x.pn)} · ${esc(x.pq)} ${esc(x.u)}${x.typ==='hop'?' · '+esc(x.pa)+' % α':''}</small></td>
         <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" id="qty_${x.k}" value="${esc(x.qty)}" oninput="setSub('${x.k}','qty',this.value);const n=document.getElementById('anote_${x.k}');if(n)n.textContent=''"><span class="u">${esc(x.u.replace(' (cold steep)',''))}</span></div>${x.typ==='hop'?`<div class="qty" style="margin-top:.25rem"><input class="in" id="alpha_${x.k}" type="number" step="0.1" inputmode="decimal" value="${esc(x.a)}" title="Acides alpha du lot" oninput="setSub('${x.k}','a',this.value)"><span class="u">% α</span></div>${hopStockHint(x)}
           <small class="plan" style="visibility:visible;color:var(--ink-soft)">${esc(x.when)}${x.use==='boil'?'':' · quantité non recalculée'}</small><small class="plan" id="anote_${x.k}" style="visibility:visible">${x.auto?`ajusté : ${esc(x.pq)} g × ${esc(x.pa)} / ${esc(x.a)} %`:''}</small>`:''}</td>
-        <td><input class="in" value="${esc(L[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur"></td>
+        <td><input class="in" value="${esc(L[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur" list="dl_${x.k}" autocomplete="off">${lotDatalist(x)}</td>
         <td><button class="xb" onclick="resetSub('${x.k}')" title="Revenir à la recette">↺</button></td></tr>`).join('')}
     </tbody></table>
     <div style="display:flex;gap:.5rem;margin-top:.6rem;align-items:center;flex-wrap:wrap">
@@ -891,7 +901,11 @@ function openStock(){
   stState.moves=stState.moves||[];
   const d=day();const prev=d.stock&&stState.moves.find(m=>m.id===d.stock.moveId);
   const prevQ={};if(prev)prev.lines.forEach(l=>prevQ[l.id]=(prevQ[l.id]||0)+(parseFloat(l.qty)||0));
-  stRows=lotIngredients(d).map(i=>{const sel=stGuess(i);const pl=prev&&prev.lines.find(l=>l.id===sel&&l.lot);return {...i,sel,ov:null,...(pl?{lot:pl.lot}:{})};});
+  // lot saisi dans la fiche (champ « N° de lot ») repris s'il existe dans le stock
+  const typed={};d.brassins.forEach(b=>{const rows=ingredientRows(d,b);Object.entries(b.lots||{}).forEach(([k,v])=>{const x=rows.find(r=>r.k===k);if(x&&String(v||'').trim())typed[(TYP_CAT[x.typ]||['soft'])[0]+'|'+stNorm(String(x.n||'').split(' · ')[0])]=String(v).trim();});});
+  stRows=lotIngredients(d).map(i=>{const sel=stGuess(i);const pl=prev&&prev.lines.find(l=>l.id===sel&&l.lot);
+    let lot=pl?pl.lot:null;if(!lot&&typed[i.key]&&window.BrasserieTrace&&sel&&BrasserieTrace.lotChoices(stState,sel,prev&&prev.id).some(l=>l.lot===typed[i.key]))lot=typed[i.key];
+    return {...i,sel,ov:null,...(lot?{lot}:{})};});
   stRows.prevQ=prevQ;stRows.prev=prev;
   document.getElementById('stHint').textContent=`Lot ${d.lot} · ${d.recipe.name} · ${d.brassins.length} brassin${d.brassins.length>1?'s':''} — total des quantités réelles. Un même ingrédient utilisé plusieurs fois (ex. houblon en ébullition et en dry hop) tient sur une ligne ; l'eau n'est pas déduite.`+(prev?' Une sortie existe déjà : elle sera corrigée, pas doublée.':'');
   document.getElementById('stGo').textContent=prev?'Mettre à jour la sortie':'Déduire';
