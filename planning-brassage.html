@@ -151,6 +151,12 @@ section { margin-bottom: 36px; }
 .week-card.brew { border-left: 4px solid var(--brew); }
 .week-card.cond { border-left: 4px solid var(--cond); }
 .week-card:hover { box-shadow: var(--shadow); }
+.week-card.now { outline: 3px solid #CF982B; outline-offset: 1px; background: #FFF6DD; box-shadow: 0 0 0 6px rgba(207,152,43,.18); }
+.week-card.now .week-num::after { content: ' · cette semaine'; font-size: .7em; font-weight: 700; color: #9A6A12; }
+.week-card.flash { animation: wkflash 1.2s ease 2; }
+@keyframes wkflash { 50% { box-shadow: 0 0 0 14px rgba(207,152,43,.35); } }
+tr.now-row td { background: #FFF6DD !important; }
+tr.now-row td.wk { font-weight: 800; color: #9A6A12; }
 
 .week-head {
   display: flex; justify-content: space-between; align-items: baseline;
@@ -793,6 +799,7 @@ footer {
   <div class="view-toggle">
     <button id="viewCalBtn" class="active">Vue calendrier</button>
     <button id="viewMatBtn">Vue matrice</button>
+    <button id="nowWeekBtn" onclick="goNowWeek()" style="margin-left:auto">📍 Semaine actuelle</button>
   </div>
   <div class="search-bar" id="searchBarWrap">
     <input type="text" id="searchBeer" placeholder="Rechercher une bière dans le planning…" list="beerOptions" autocomplete="off">
@@ -1246,6 +1253,19 @@ function brewWeekForMonth(m) {
   return cands.length ? cands[cands.length - 1] : 25;
 }
 
+/* bouton « Semaine actuelle » : fait défiler jusqu'à la semaine en cours (calendrier ou matrice) */
+function goNowWeek() {
+  const w = isoWeekOfDate(new Date());
+  const mat = document.getElementById('matrixView'), inMat = mat && mat.style.display !== 'none';
+  let el = inMat ? mat.querySelector('tr.now-row') : document.querySelector('#weeksGrid .week-card.now');
+  if (!el) { // semaine hors du planning affiché : la plus proche
+    const all = [...(inMat ? mat.querySelectorAll('tr[data-w]') : document.querySelectorAll('#weeksGrid .week-card[data-w]'))];
+    el = all.sort((a, b) => Math.abs(+a.dataset.w - w) - Math.abs(+b.dataset.w - w))[0];
+  }
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+}
 function isoWeekOfDate(date) {
   // Get ISO 8601 week number for a Date object
   const target = new Date(date.getTime());
@@ -1820,7 +1840,7 @@ function render() {
                             brewDaysNeeded === params.brewDays ? 'warn' :
                             brewDaysNeeded > 0 ? 'ok' : 'low';
 
-      html += `<div class="week-card brew">
+      html += `<div class="week-card brew${w === isoWeekOfDate(new Date()) ? ' now' : ''}" data-w="${w}">
         <div class="week-head">
           <div>
             <span class="week-num">S${w}</span>
@@ -1884,7 +1904,7 @@ function render() {
       else if (totalDays > 0) zoneClass = 'ok';
       const loadPct = Math.min(100, totalDays / params.condDays * 100);
 
-      html += `<div class="week-card cond">
+      html += `<div class="week-card cond${w === isoWeekOfDate(new Date()) ? ' now' : ''}" data-w="${w}">
         <div class="week-head">
           <div>
             <span class="week-num">S${w}</span>
@@ -2143,7 +2163,7 @@ function renderMatrix() {
       lastTrim = trim;
     }
     const isBrew = BREW_WEEKS.includes(w);
-    html += `<tr data-w="${w}" style="background:${isBrew?'#FAFAF2':'#FFFFFF'}">`;
+    html += `<tr data-w="${w}"${w === isoWeekOfDate(new Date()) ? ' class="now-row"' : ''} style="background:${isBrew?'#FAFAF2':'#FFFFFF'}">`;
     html += `<td class="wk" style="${isBrew?'border-left:3px solid var(--accent)':'border-left:3px solid #DDD'}">S${w}</td>`;
     CUVE_DISPLAY.forEach(ci => {
       const cell = state[w][ci];
