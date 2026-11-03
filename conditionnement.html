@@ -278,11 +278,14 @@ function createSession(){
 }
 function setTop(k,v){const s=cur();s[k]=v;save();renderList();}
 function open_(id){curId=id;renderList();render();window.scrollTo(0,0);}
+let showArch=false;
+function toggleArch(){const s=cur();if(!s)return;s.archived=!s.archived;save();renderList();render();}
 function renderList(){
   const L=document.getElementById('list');
   if(!S.length){L.innerHTML='<div class="empty" style="padding:1.5rem 1rem">Aucune session.</div>';return;}
-  L.innerHTML=[...S].sort((a,b)=>b.date.localeCompare(a.date)).map(s=>{const c=calc(s);
-    return `<div class="bd${s.id===curId?' on':''}" onclick="open_('${s.id}')"><b>${esc(sCode(s))} · ${esc(s.recipe)}</b><small>Lot ${esc(s.plot||s.lot)}${s.ddm?' · DDM '+fmtD(s.ddm):''} · ${fmtD(s.date)} · ${c.outL?Math.round(c.outL)+' L':'—'}</small></div>`;}).join('');
+  const nArch=S.filter(x=>x.archived).length,V=S.filter(x=>showArch?x.archived:!x.archived);
+  L.innerHTML=(nArch||showArch?`<div style="padding:.35rem .6rem .5rem;text-align:right"><button onclick="showArch=!showArch;renderList()" style="all:unset;cursor:pointer;font-size:.76rem;font-weight:700;color:var(--ink-soft)">${showArch?'← Masquer les archives':'Archives ('+nArch+')'}</button></div>`:'')+(V.length?'':'<div class="empty" style="padding:1rem">'+(showArch?'Aucune session archivée.':'Toutes les sessions sont archivées.')+'</div>')+[...V].sort((a,b)=>b.date.localeCompare(a.date)).map(s=>{const c=calc(s);
+    return `<div class="bd${s.id===curId?' on':''}" onclick="open_('${s.id}')"><b>${esc(sCode(s))} · ${esc(s.recipe)}${s.archived?' <span style="font-size:.68rem;color:var(--ink-soft)">(archivée)</span>':''}</b><small>Lot ${esc(s.plot||s.lot)}${s.ddm?' · DDM '+fmtD(s.ddm):''} · ${fmtD(s.date)} · ${c.outL?Math.round(c.outL)+' L':'—'}</small></div>`;}).join('');
 }
 
 /* ---- refermentation (sucre + levure) ---- */
@@ -469,7 +472,7 @@ function render(){
       <div class="g g2" style="margin-top:.6rem;max-width:520px">
         <label class="f">N° de lot (étiquette)<input class="in" value="${esc(s.plot||'')}" placeholder="${esc(sCode(s))}" oninput="setTop('plot',this.value)"></label>
         <label class="f">DDM<input class="in" type="date" value="${esc(s.ddm||'')}" onchange="setTop('ddm',this.value)"></label></div></div>
-    <div class="toolbar"><button class="btn-ghost btn-sm" onclick="printS()">PDF</button><button class="btn-ghost btn-sm" style="color:var(--red)" onclick="delSession()">Supprimer</button></div></div></div></div>
+    <div class="toolbar"><button class="btn-ghost btn-sm" onclick="printS()">PDF</button><button class="btn-ghost btn-sm" onclick="toggleArch()">${s.archived?'Désarchiver':'Archiver'}</button><button class="btn-ghost btn-sm" style="color:var(--red)" onclick="delSession()">Supprimer</button></div></div></div></div>
 
   <div class="card"><div class="card-h"><h2><span class="n">01</span>Analyses de la cuve de garde</h2>
     <span class="sub" style="margin:0">Cibles : CO₂ ${T.co2??'—'} ± ${T.co2Tol??'—'} g/L · O₂ ≤ ${T.o2??'—'} ppb · ${T.abv!=null?(+T.abv).toFixed(1):'—'} ± ${T.abvTol??'—'} % vol</span></div>

@@ -53,21 +53,21 @@
     var layers = {};
     (st.items || []).forEach(function (it) {
       var open = (num(it.qty) || 0) - (rec[it.id] || 0) + (use[it.id] || 0), ip = itemPrice(it);
-      layers[it.id] = open > 1e-9 ? [{ lot: '', init: true, qty: open, q0: open, price: ip.p, psrc: ip.src, date: null, party: 'Stock initial' }] : [];
+      layers[it.id] = open > 1e-9 ? [{ lot: '', init: true, qty: open, q0: open, price: ip.p, psrc: ip.src, aa: null, date: null, party: 'Stock initial' }] : [];
     });
     var alloc = {};
     moves.forEach(function (m) {
       if (m.type === 'reception') {
         (m.lines || []).forEach(function (l) {
           var it = items[l.id]; if (!it) return; var pr = num(l.price), ip = pr == null ? itemPrice(it) : null;
-          (layers[l.id] = layers[l.id] || []).push({ lot: String(l.lot || '').trim(), dluo: l.dluo || '', qty: num(l.qty) || 0, q0: num(l.qty) || 0, price: pr != null ? pr : ip.p, psrc: pr != null ? 'prix de réception' : ip.src, date: m.date, party: m.party || '', moveId: m.id });
+          (layers[l.id] = layers[l.id] || []).push({ lot: String(l.lot || '').trim(), dluo: l.dluo || '', aa: num(l.aa), qty: num(l.qty) || 0, q0: num(l.qty) || 0, price: pr != null ? pr : ip.p, psrc: pr != null ? 'prix de réception' : ip.src, date: m.date, party: m.party || '', moveId: m.id });
         });
       } else {
         alloc[m.id] = (m.lines || []).map(function (l) {
           var it = items[l.id], need = num(l.qty) || 0, parts = [], L = layers[l.id] || [];
           while (need > 1e-9 && L.length) {
             var f = L[0], t = Math.min(need, f.qty);
-            parts.push({ lot: f.lot, dluo: f.dluo, qty: t, price: f.price, psrc: f.psrc, date: f.date, party: f.party, init: !!f.init });
+            parts.push({ lot: f.lot, dluo: f.dluo, aa: f.aa, qty: t, price: f.price, psrc: f.psrc, date: f.date, party: f.party, init: !!f.init });
             f.qty -= t; need -= t; if (f.qty <= 1e-9) L.shift();
           }
           if (need > 1e-9) { var ip = it ? itemPrice(it) : { p: null }; parts.push({ lot: '', qty: need, price: ip.p, psrc: ip.src, unknown: true }); }

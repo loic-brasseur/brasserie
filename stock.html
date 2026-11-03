@@ -302,6 +302,9 @@
       <label id="f_pricel">Prix d'achat (€ HT par unité de stock)
         <input class="input" id="f_price" type="number" step="any" inputmode="decimal" placeholder="mis à jour à chaque réception avec prix">
       </label>
+      <label id="f_aal">Taux d'acides alpha (AA %) — houblon
+        <input class="input" id="f_aa" type="text" inputmode="decimal" autocomplete="off" placeholder="ex. 11,5 (mis à jour à chaque réception)">
+      </label>
       <div class="lotlist" id="f_lots"></div>
       <label>Note / fournisseur / lot (optionnel)
         <input class="input" id="f_note" placeholder="ex. Castle Malting · lot 2026-A">
@@ -601,7 +604,7 @@ function lotsHTML(it){if(!window.BrasserieTrace)return '';const r=BrasserieTrace
   const ip=BrasserieTrace.itemPrice(it);
   const pr=ip.p!=null&&(it.price===''||it.price==null)?`<div>Prix utilisé faute de prix saisi : <b>${ip.p.toFixed(3)} €</b> / ${esc(it.unit||'unité')} (${esc(ip.src)})</div>`:'';
   if(!L.length)return pr;
-  return pr+'<div><b>Lots en stock</b> (estimation, les plus anciens sortent en premier) :</div>'+L.map(x=>`<div>• ${x.init?'Stock initial (lot non renseigné)':'Lot <b>'+esc(x.lot||'non renseigné')+'</b>'} — ${num(x.qty)} ${esc(it.unit||'')}${x.date?' · reçu le '+new Date(x.date+'T12:00:00').toLocaleDateString('fr-FR')+(x.party?' ('+esc(x.party)+')':''):''}${x.price!=null?' · '+x.price.toFixed(3)+' €':''}</div>`).join('');}
+  return pr+'<div><b>Lots en stock</b> (estimation, les plus anciens sortent en premier) :</div>'+L.map(x=>`<div>• ${x.init?'Stock initial (lot non renseigné)':'Lot <b>'+esc(x.lot||'non renseigné')+'</b>'} — ${num(x.qty)} ${esc(it.unit||'')}${x.date?' · reçu le '+new Date(x.date+'T12:00:00').toLocaleDateString('fr-FR')+(x.party?' ('+esc(x.party)+')':''):''}${x.aa!=null&&x.aa!==''?' · <b>'+String(x.aa).replace('.',',')+' % AA</b>':''}${x.price!=null?' · '+x.price.toFixed(3)+' €':''}</div>`).join('');}
 // ---- modal ----
 const ov=document.getElementById('ov');
 function openModal(id){
@@ -617,6 +620,8 @@ function openModal(id){
   document.getElementById('f_price').value=it&&it.price!=null?it.price:'';
   document.getElementById('f_pricel').firstChild.textContent="Prix d'achat (€ HT par "+((it&&it.unit)||'unité')+')';
   document.getElementById('f_lots').innerHTML=it?lotsHTML(it):'';
+  document.getElementById('f_aa').value=it&&it.aa!=null&&it.aa!==''?String(it.aa).replace('.',','):'';
+  const showAA=()=>document.getElementById('f_aal').style.display=document.getElementById('f_cat').value==='houblon'?'':'none';showAA();document.getElementById('f_cat').onchange=showAA;
   document.getElementById('f_alt').innerHTML='<option value="">— Aucun —</option>'+state.items.filter(i=>i.id!==id&&(!it||i.cat===it.cat)).sort((a,b)=>a.name.localeCompare(b.name,'fr')).map(i=>`<option value="${i.id}"${it&&it.alt===i.id?' selected':''}>${esc(i.name)}</option>`).join('');
   document.getElementById('mDelete').classList.toggle('hidden',!it);
   ov.classList.add('show');
@@ -642,7 +647,8 @@ document.getElementById('mSave').onclick=()=>{
     min:document.getElementById('f_min').value!==''?parseFloat(document.getElementById('f_min').value):'',
     note:document.getElementById('f_note').value.trim(),
     alt:document.getElementById('f_alt').value||'',
-    price:document.getElementById('f_price').value!==''?parseFloat(document.getElementById('f_price').value):''
+    price:document.getElementById('f_price').value!==''?parseFloat(document.getElementById('f_price').value):'',
+    aa:(v=>isNaN(v)?'':v)(numFr(document.getElementById('f_aa').value))
   };
   let created=null;
   if(editId){Object.assign(state.items.find(i=>i.id===editId),data);}
@@ -790,7 +796,7 @@ function updateSum(key){
 }
 function renderBasket(key){
   const cfg=ENTRY[key];
-  $(cfg.list).innerHTML=cfg.lines.length?cfg.lines.map((l,li)=>{const it=itById(l.id);if(!it)return '';const c=cat(it.cat);return `<div class="recv-row ${cfg.tone}${key==='rcv'?' has-sub':''}"><div class="rn"><b><span class="rdot" style="background:${c?c.color:'#999'}"></span>${it.name}</b><small>en stock : ${num(it.qty)} ${it.unit||''}</small></div><input type="text" inputmode="decimal" autocomplete="off" data-id="${l.id}" data-i="${li}" value="${l.qty}"><span class="u">${it.unit||''}</span><button class="lineDel" data-id="${l.id}" data-i="${li}" title="Retirer la ligne">✕</button>${key==='rcv'?`<div class="recv-sub"><input data-lot="${li}" placeholder="Lot fournisseur" title="N° de lot fournisseur" value="${esc(l.lot||'')}"><input data-pr="${li}" type="text" inputmode="decimal" autocomplete="off" placeholder="€ HT / ${esc(it.unit||'u')}${it.price!=null&&it.price!==''?' ('+it.price+')':''}" title="Prix d'achat HT par ${esc(it.unit||'unité')}" value="${l.price??''}"><button type="button" class="lotAdd" data-i="${li}" title="Ajouter un autre lot pour cet article" style="all:unset;cursor:pointer;font-size:.78rem;font-weight:700;color:var(--green);padding:.3rem .4rem">+ lot</button></div>`:''}</div>`;}).join(''):'<div class="empty-cat" style="padding:.8rem 1.2rem">Aucune ligne pour le moment.</div>';
+  $(cfg.list).innerHTML=cfg.lines.length?cfg.lines.map((l,li)=>{const it=itById(l.id);if(!it)return '';const c=cat(it.cat);return `<div class="recv-row ${cfg.tone}${key==='rcv'?' has-sub':''}"><div class="rn"><b><span class="rdot" style="background:${c?c.color:'#999'}"></span>${it.name}</b><small>en stock : ${num(it.qty)} ${it.unit||''}</small></div><input type="text" inputmode="decimal" autocomplete="off" data-id="${l.id}" data-i="${li}" value="${l.qty}"><span class="u">${it.unit||''}</span><button class="lineDel" data-id="${l.id}" data-i="${li}" title="Retirer la ligne">✕</button>${key==='rcv'?`<div class="recv-sub"><input data-lot="${li}" placeholder="Lot fournisseur" title="N° de lot fournisseur" value="${esc(l.lot||'')}">${it.cat==='houblon'?`<input data-aa="${li}" type="text" inputmode="decimal" autocomplete="off" placeholder="AA %${it.aa!=null&&it.aa!==''?' ('+it.aa+')':''}" title="Taux d'acides alpha du lot" value="${l.aa??''}" style="max-width:90px">`:''}<input data-pr="${li}" type="text" inputmode="decimal" autocomplete="off" placeholder="€ HT / ${esc(it.unit||'u')}${it.price!=null&&it.price!==''?' ('+it.price+')':''}" title="Prix d'achat HT par ${esc(it.unit||'unité')}" value="${l.price??''}"><button type="button" class="lotAdd" data-i="${li}" title="Ajouter un autre lot pour cet article" style="all:unset;cursor:pointer;font-size:.78rem;font-weight:700;color:var(--green);padding:.3rem .4rem">+ lot</button></div>`:''}</div>`;}).join(''):'<div class="empty-cat" style="padding:.8rem 1.2rem">Aucune ligne pour le moment.</div>';
   updateSum(key);
 }
 function wireEntry(key){
@@ -801,11 +807,11 @@ function wireEntry(key){
   res.addEventListener('mousedown',e=>{const r=e.target.closest('.r');if(!r)return;e.preventDefault();if(r.dataset.create)openCreate(pick.value.trim(),key);else entryPick(key,r.dataset.id);});
   qty.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();entryAdd(key);}});
   $(cfg.add).addEventListener('click',()=>entryAdd(key));
-  list.addEventListener('input',e=>{const li=e.target.closest('input[data-lot],input[data-pr]');if(li){const l=cfg.lines[+(li.dataset.lot??li.dataset.pr)];if(l){if(li.dataset.lot!=null)l.lot=li.value;else l.price=li.value;}return;}
+  list.addEventListener('input',e=>{const li=e.target.closest('input[data-lot],input[data-pr],input[data-aa]');if(li){const l=cfg.lines[+(li.dataset.lot??li.dataset.pr??li.dataset.aa)];if(l){if(li.dataset.lot!=null)l.lot=li.value;else if(li.dataset.aa!=null)l.aa=li.value;else l.price=li.value;}return;}
     const inp=e.target.closest('input[data-i]');if(!inp)return;const l=cfg.lines[+inp.dataset.i];if(l)l.qty=inp.value;updateSum(key);});
   list.addEventListener('click',e=>{const a=e.target.closest('.lotAdd');if(a){const i=+a.dataset.i,l=cfg.lines[i];if(!l)return;
       // nouvelle ligne pour le même article (autre n° de lot, sa propre quantité), placée juste dessous
-      cfg.lines.splice(i+1,0,{id:l.id,qty:'',lot:'',price:l.price??''});renderBasket(key);setTimeout(()=>{const q=$(cfg.list).querySelector(`input[data-i="${i+1}"]`);if(q)q.focus();},30);return;}
+      cfg.lines.splice(i+1,0,{id:l.id,qty:'',lot:'',price:l.price??'',aa:''});renderBasket(key);setTimeout(()=>{const q=$(cfg.list).querySelector(`input[data-i="${i+1}"]`);if(q)q.focus();},30);return;}
     const d=e.target.closest('.lineDel');if(!d)return;cfg.lines.splice(+d.dataset.i,1);renderBasket(key);});
 }
 wireEntry('rcv');wireEntry('use');wireEntry('ord');
@@ -829,7 +835,7 @@ $('rcv_order').addEventListener('change',e=>{
   renderBasket('rcv');
 });
 function openReceive(edit){
-  ENTRY.rcv.lines=edit?edit.lines.filter(l=>itById(l.id)).map(l=>({id:l.id,qty:String(l.qty),lot:l.lot||'',price:l.price??''})):[];
+  ENTRY.rcv.lines=edit?edit.lines.filter(l=>itById(l.id)).map(l=>({id:l.id,qty:String(l.qty),lot:l.lot||'',price:l.price??'',aa:l.aa??''})):[];
   pickSel.rcv=null;rcvEditId=edit?edit.id:null;rcvOrderId=edit?(edit.orderId||null):null;
   $('rcv_h2').textContent=edit?'Modifier la réception':'Réception de livraison';
   $('rcv_save').textContent=edit?'Enregistrer les modifications':'Valider la réception';
@@ -844,8 +850,8 @@ function closeReceive(){rov.classList.remove('show');}
 $('rcv_cancel').onclick=closeReceive;
 rov.addEventListener('click',e=>{if(e.target===rov)closeReceive();});
 $('rcv_save').onclick=()=>{
-  const newLines=ENTRY.rcv.lines.map(l=>{const o={id:l.id,qty:numFr(l.qty)};const lot=String(l.lot||'').trim();if(lot)o.lot=lot;const p=parseFloat(String(l.price??'').replace(',','.'));if(!isNaN(p)&&p>=0)o.price=p;return o;}).filter(l=>!isNaN(l.qty)&&l.qty>0);
-  newLines.forEach(l=>{if(l.price!=null){const it=itById(l.id);if(it)it.price=l.price;}});  // dernier prix d'achat connu
+  const newLines=ENTRY.rcv.lines.map(l=>{const o={id:l.id,qty:numFr(l.qty)};const lot=String(l.lot||'').trim();if(lot)o.lot=lot;const p=parseFloat(String(l.price??'').replace(',','.'));if(!isNaN(p)&&p>=0)o.price=p;const aa=numFr(l.aa);if(aa>0)o.aa=aa;return o;}).filter(l=>!isNaN(l.qty)&&l.qty>0);
+  newLines.forEach(l=>{const it=itById(l.id);if(!it)return;if(l.price!=null)it.price=l.price;if(l.aa!=null)it.aa=l.aa;});  // dernier prix d'achat connu
   if(rcvEditId){
     const idx=(state.moves||[]).findIndex(x=>x.id===rcvEditId);
     if(idx>=0){const m=state.moves[idx];reapply('reception',m.lines,newLines);
