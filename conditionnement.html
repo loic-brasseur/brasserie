@@ -153,6 +153,7 @@
   .chip.out{background:rgba(168,57,43,.10);border-color:rgba(168,57,43,.35);color:var(--red)}
   @media(max-width:700px){.fmt-row,.fmt-head{grid-template-columns:1.2fr .8fr .8fr 30px}.fmt-row .u,.fmt-head .u{display:none}}
 </style>
+<script src="tracabilite.js"></script>
 </head>
 <body>
 <a href="index.html" id="backHome" style="position:fixed;left:14px;bottom:14px;z-index:99;display:inline-flex;align-items:center;gap:7px;background:#1A1612;color:#FBF5EC;font-family:'Manrope',system-ui,sans-serif;font-size:13px;font-weight:600;text-decoration:none;padding:10px 14px;border-radius:999px;box-shadow:0 4px 16px rgba(26,22,18,.28)"><span style="font-size:15px;line-height:1">←</span> Accueil</a>
@@ -278,11 +279,14 @@ function createSession(){
 }
 function setTop(k,v){const s=cur();s[k]=v;save();renderList();}
 function open_(id){curId=id;renderList();render();window.scrollTo(0,0);}
+let showArch=false;
+function toggleArch(){const s=cur();if(!s)return;s.archived=!s.archived;save();renderList();render();}
 function renderList(){
   const L=document.getElementById('list');
   if(!S.length){L.innerHTML='<div class="empty" style="padding:1.5rem 1rem">Aucune session.</div>';return;}
-  L.innerHTML=[...S].sort((a,b)=>b.date.localeCompare(a.date)).map(s=>{const c=calc(s);
-    return `<div class="bd${s.id===curId?' on':''}" onclick="open_('${s.id}')"><b>${esc(sCode(s))} · ${esc(s.recipe)}</b><small>Lot ${esc(s.plot||s.lot)}${s.ddm?' · DDM '+fmtD(s.ddm):''} · ${fmtD(s.date)} · ${c.outL?Math.round(c.outL)+' L':'—'}</small></div>`;}).join('');
+  const nArch=S.filter(x=>x.archived).length,V=S.filter(x=>showArch?x.archived:!x.archived);
+  L.innerHTML=(nArch||showArch?`<div style="padding:.35rem .6rem .5rem;text-align:right"><button onclick="showArch=!showArch;renderList()" style="all:unset;cursor:pointer;font-size:.76rem;font-weight:700;color:var(--ink-soft)">${showArch?'← Masquer les archives':'Archives ('+nArch+')'}</button></div>`:'')+(V.length?'':'<div class="empty" style="padding:1rem">'+(showArch?'Aucune session archivée.':'Toutes les sessions sont archivées.')+'</div>')+[...V].sort((a,b)=>b.date.localeCompare(a.date)).map(s=>{const c=calc(s);
+    return `<div class="bd${s.id===curId?' on':''}" onclick="open_('${s.id}')"><b>${esc(sCode(s))} · ${esc(s.recipe)}${s.archived?' <span style="font-size:.68rem;color:var(--ink-soft)">(archivée)</span>':''}</b><small>Lot ${esc(s.plot||s.lot)}${s.ddm?' · DDM '+fmtD(s.ddm):''} · ${fmtD(s.date)} · ${c.outL?Math.round(c.outL)+' L':'—'}</small></div>`;}).join('');
 }
 
 /* ---- refermentation (sucre + levure) ---- */
@@ -409,17 +413,23 @@ function matRows(s){
       if(alt&&have<q)split=[{id:item.id,item,q:have},{id:alt.id,item:alt,q:q-have}].filter(x=>x.q>0);}
     return {k,l,auto,id,q,split,fromRecipe:!o.id&&!!(P[k]&&P[k].id),item};}).filter(r=>(r.auto>0||(s.mat[r.k]&&s.mat[r.k].qty))&&(!Object.keys(P).length||P[r.k]||(s.mat[r.k]&&(s.mat[r.k].id||s.mat[r.k].qty))));
 }
+/* « Lot utilisé » : vide = le plus ancien en stock */
+function lotSel(item,chosen,onch,s){if(!item||!window.BrasserieTrace)return '';const st=ld(STOCK_KEY,null);if(!st)return '';
+  const lo=BrasserieTrace.lotOptions(st,item.id,chosen,item.unit,s&&s.ref&&s.ref.move&&s.ref.move.id);if(!lo)return '';
+  return `<div style="display:flex;gap:.35rem;align-items:center;margin-top:.3rem"><small style="color:var(--ink-soft);white-space:nowrap;text-transform:none;letter-spacing:0;font-weight:500">Lot utilisé</small><select class="in" style="font-size:.8rem;padding:.3rem .45rem" onchange="${onch}">${lo}</select></div>`;}
+function setRefLot(kind,v){const s=cur();s.ref.lots=s.ref.lots||{};if(v)s.ref.lots[kind]=v;else delete s.ref.lots[kind];save();}
 function setMat(k,f,v){const s=cur();s.mat=s.mat||{};s.mat[k]=s.mat[k]||{};s.mat[k][f]=v;if(f==='qty'&&v==='')delete s.mat[k].qty;save();if(f==='id')render();}
 function deductStock(){
   const s=cur(),c=calc(s),r=refCalc(s,c);const st=ld(STOCK_KEY,null);
   if(!st||!Array.isArray(st.items)){alert("Le stock n'est pas encore initialisé : ouvre une fois l'app Stock, puis reviens ici.");return;}
   const lines=[],miss=[];
   const add=(kind,qG,label)=>{const id=s.ref.map[kind];if(id==='__skip'||!(qG>0))return;const it=st.items.find(i=>i.id===id);if(!it){miss.push(label);return;}
-    lines.push({id,qty:String(Math.round(toUnit(qG,it.unit)*1000)/1000),k:kind});};
+    const lot=(s.ref.lots||{})[kind];lines.push({id,qty:String(Math.round(toUnit(qG,it.unit)*1000)/1000),k:kind,...(lot?{lot}:{})});};
   if(s.ref&&s.ref.on){add('sugar',r.sugarKg!=null?r.sugarKg*1000:null,'sucre');add('yeast',r.yeastG,'levure');}
   matRows(s).forEach(m=>{if(!(m.q>0))return;if(!m.id||m.id==='__skip'){if(!m.id)miss.push(m.l.toLowerCase());return;}
     if(!st.items.some(i=>i.id===m.id)){miss.push(m.l.toLowerCase());return;}
-    (m.split||[{id:m.id,q:m.q}]).forEach(p=>{const ex=lines.find(l=>l.id===p.id);if(ex)ex.qty=String((parseFloat(ex.qty)||0)+p.q);else lines.push({id:p.id,qty:String(p.q),k:m.k});});});
+    const mlot=s.mat&&s.mat[m.k]&&s.mat[m.k].lot;
+    (m.split||[{id:m.id,q:m.q}]).forEach(p=>{const lot=p.id===m.id?mlot:null;const ex=lines.find(l=>l.id===p.id&&(l.lot||'')===(lot||''));if(ex)ex.qty=String((parseFloat(ex.qty)||0)+p.q);else lines.push({id:p.id,qty:String(p.q),k:m.k,...(lot?{lot}:{})});});});
   if(miss.length&&!confirm('Aucun article de stock choisi pour : '+miss.join(', ')+'. Continuer sans ?'))return;
   if(!lines.length&&!s.ref.move){const im=toInventory(s);render();alert(im?'Rien à déduire du stock (aucun article choisi).'+im:'Rien à déduire : saisis les formats conditionnés (et le sucre / la levure si refermentation).');return;}
   st.moves=st.moves||[];const prev=s.ref.move&&st.moves.find(m=>m.id===s.ref.move.id);
@@ -469,7 +479,7 @@ function render(){
       <div class="g g2" style="margin-top:.6rem;max-width:520px">
         <label class="f">N° de lot (étiquette)<input class="in" value="${esc(s.plot||'')}" placeholder="${esc(sCode(s))}" oninput="setTop('plot',this.value)"></label>
         <label class="f">DDM<input class="in" type="date" value="${esc(s.ddm||'')}" onchange="setTop('ddm',this.value)"></label></div></div>
-    <div class="toolbar"><button class="btn-ghost btn-sm" onclick="printS()">PDF</button><button class="btn-ghost btn-sm" style="color:var(--red)" onclick="delSession()">Supprimer</button></div></div></div></div>
+    <div class="toolbar"><button class="btn-ghost btn-sm" onclick="printS()">PDF</button><button class="btn-ghost btn-sm" onclick="toggleArch()">${s.archived?'Désarchiver':'Archiver'}</button><button class="btn-ghost btn-sm" style="color:var(--red)" onclick="delSession()">Supprimer</button></div></div></div></div>
 
   <div class="card"><div class="card-h"><h2><span class="n">01</span>Analyses de la cuve de garde</h2>
     <span class="sub" style="margin:0">Cibles : CO₂ ${T.co2??'—'} ± ${T.co2Tol??'—'} g/L · O₂ ≤ ${T.o2??'—'} ppb · ${T.abv!=null?(+T.abv).toFixed(1):'—'} ± ${T.abvTol??'—'} % vol</span></div>
@@ -505,8 +515,8 @@ function render(){
       </div>
       <div class="kpis">${kpi('rco2','CO₂ final attendu')}${kpi('rabv','Alcool final attendu')}${kpi('rpu','Sucre par contenant')}</div>
       <div class="stockline">
-        <label class="f">Article sucre (stock)<select class="in" onchange="setMap('sugar',this.value)">${stockOptions('conso',s.ref.map.sugar)}</select></label>
-        <label class="f">Article levure (stock)<select class="in" onchange="setMap('yeast',this.value)">${stockOptions('levure',s.ref.map.yeast)}</select></label>
+        <label class="f">Article sucre (stock)<select class="in" onchange="setMap('sugar',this.value);render()">${stockOptions('conso',s.ref.map.sugar)}</select>${lotSel(stockItems().find(i=>i.id===s.ref.map.sugar),(s.ref.lots||{}).sugar||'',`setRefLot('sugar',this.value)`,s)}</label>
+        <label class="f">Article levure (stock)<select class="in" onchange="setMap('yeast',this.value);render()">${stockOptions('levure',s.ref.map.yeast)}</select>${lotSel(stockItems().find(i=>i.id===s.ref.map.yeast),(s.ref.lots||{}).yeast||'',`setRefLot('yeast',this.value)`,s)}</label>
         <div></div>
       </div>
       <div class="hint" id="r_hint"></div>
@@ -527,7 +537,7 @@ function render(){
       const opts=sel=>`<option value="">— Choisir —</option><option value="__skip"${sel==='__skip'?' selected':''}>Ne pas déduire</option>`+[...it].sort((a,b)=>(a.cat==='emballage'?0:1)-(b.cat==='emballage'?0:1)||a.name.localeCompare(b.name,'fr')).map(i=>`<option value="${i.id}"${i.id===sel?' selected':''}>${esc(i.name)}</option>`).join('');
       return M.length?`<table class="t"><thead><tr><th>Matériel</th><th>Article du stock</th><th class="num">Quantité</th><th class="num">En stock</th></tr></thead><tbody>
         ${M.map(m=>`<tr><td>${m.l}${m.fromRecipe?'':m.id?' <small style="color:var(--ink-soft)">(modifié)</small>':''}</td>
-          <td><select class="in${m.id?'':' unm'}" onchange="setMat('${m.k}','id',this.value)">${opts(m.id)}</select>${m.split?`<small class="alt">${m.split.map(p=>esc(p.item.name)+' : '+p.q).join(' + ')} — ${esc(m.item.name)} épuisé, remplacé automatiquement</small>`:''}</td>
+          <td><select class="in${m.id?'':' unm'}" onchange="setMat('${m.k}','id',this.value)">${opts(m.id)}</select>${lotSel(m.item,(s.mat&&s.mat[m.k]&&s.mat[m.k].lot)||'',`setMat('${m.k}','lot',this.value)`,s)}${m.split?`<small class="alt">${m.split.map(p=>esc(p.item.name)+' : '+p.q).join(' + ')} — ${esc(m.item.name)} épuisé, remplacé automatiquement</small>`:''}</td>
           <td class="num"><input class="in" style="width:96px;text-align:right" type="number" min="0" step="1" value="${s.mat&&s.mat[m.k]&&s.mat[m.k].qty!=null?esc(s.mat[m.k].qty):''}" placeholder="${m.auto}" oninput="setMat('${m.k}','qty',this.value)"></td>
           <td class="num">${m.item?(m.item.qty+' '+esc(m.item.unit||'')):'—'}</td></tr>`).join('')}</tbody></table>
         <p class="hint">Quantités calculées depuis les formats : unités + rebuts (cartons : bonnes bouteilles ÷ bouteilles par carton, arrondi au supérieur). ${M.some(m=>!m.id)?'Choisis l\'article une fois dans le Carnet de brassage (« Matériel de conditionnement ») pour qu\'il soit repris à chaque lot.':''}</p>`
