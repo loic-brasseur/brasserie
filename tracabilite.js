@@ -53,7 +53,16 @@
     var layers = {};
     (st.items || []).forEach(function (it) {
       var open = (num(it.qty) || 0) - (rec[it.id] || 0) + (use[it.id] || 0), ip = itemPrice(it);
-      layers[it.id] = open > 1e-9 ? [{ lot: '', init: true, qty: open, q0: open, price: ip.p, psrc: ip.src, aa: null, date: null, party: 'Stock initial' }] : [];
+      var L0 = [];
+      if (open > 1e-9) {
+        // stock d'avant les réceptions enregistrées : réparti dans les n° de lot saisis à la main (fiche article), le reste « non renseigné »
+        // les lots nommés décrivent ce qui reste physiquement : ils sortent après la part non renseignée
+        var rest = open, named = [];
+        (Array.isArray(it.initLots) ? it.initLots : []).forEach(function (x) { var q = Math.min(rest, num(x.qty) || 0); if (q > 1e-9 && String(x.lot || '').trim()) { named.push({ lot: String(x.lot).trim(), init: true, named: true, qty: q, q0: q, price: ip.p, psrc: ip.src, aa: num(x.aa), date: null, party: 'Stock initial' }); rest -= q; } });
+        if (rest > 1e-9) L0.push({ lot: '', init: true, qty: rest, q0: rest, price: ip.p, psrc: ip.src, aa: null, date: null, party: 'Stock initial' });
+        L0 = L0.concat(named);
+      }
+      layers[it.id] = L0;
     });
     var alloc = {};
     moves.forEach(function (m) {

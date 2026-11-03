@@ -364,7 +364,7 @@ function traceData(x){
     return {f,u,liq:perL!=null?perL*v:null,mat,tot:perL!=null?perL*v+mat:null};});
   return {R,B,P,cB,cP,miss,litres,perL:litres?(cB+cP)/litres:null,fmts,st};
 }
-function partsHTML(l){return l.parts.map(p=>`<div>${p.unknown?'<span class="bad">au-delà du stock enregistré</span>':p.init?'<i>stock initial (lot non renseigné)</i>':'Lot <b>'+esc(p.lot||'non renseigné')+'</b>'}${p.party&&!p.init?' · '+esc(p.party):''}${p.date?' · reçu le '+fmtD(p.date):''}${l.parts.length>1?' — '+qf(p.qty)+' '+esc(l.unit):''}</div>`).join('');}
+function partsHTML(l){return l.parts.map(p=>`<div>${p.unknown?'<span class="bad">au-delà du stock enregistré</span>':p.init&&!p.lot?'<i>stock initial (lot non renseigné)</i>':'Lot <b>'+esc(p.lot||'non renseigné')+'</b>'+(p.init?' <i>(stock initial)</i>':'')}${p.party&&!p.init?' · '+esc(p.party):''}${p.date?' · reçu le '+fmtD(p.date):''}${l.parts.length>1?' — '+qf(p.qty)+' '+esc(l.unit):''}</div>`).join('');}
 function traceTable(groups,label){
   if(!groups.length)return `<p class="meta" style="color:var(--ink-soft);font-size:.82rem">${label} : aucune sortie de stock enregistrée pour ce lot.</p>`;
   return groups.map(g=>`<div style="font-weight:700;margin:.6rem 0 .3rem">${esc(g.m.party||label)} <span style="color:var(--ink-soft);font-weight:400">· ${fmtD(g.m.date)}</span></div>
