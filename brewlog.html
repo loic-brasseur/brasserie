@@ -891,7 +891,7 @@ function openStock(){
   stState.moves=stState.moves||[];
   const d=day();const prev=d.stock&&stState.moves.find(m=>m.id===d.stock.moveId);
   const prevQ={};if(prev)prev.lines.forEach(l=>prevQ[l.id]=(prevQ[l.id]||0)+(parseFloat(l.qty)||0));
-  stRows=lotIngredients(d).map(i=>({...i,sel:stGuess(i),ov:null}));
+  stRows=lotIngredients(d).map(i=>{const sel=stGuess(i);const pl=prev&&prev.lines.find(l=>l.id===sel&&l.lot);return {...i,sel,ov:null,...(pl?{lot:pl.lot}:{})};});
   stRows.prevQ=prevQ;stRows.prev=prev;
   document.getElementById('stHint').textContent=`Lot ${d.lot} · ${d.recipe.name} · ${d.brassins.length} brassin${d.brassins.length>1?'s':''} — total des quantités réelles. Un même ingrédient utilisé plusieurs fois (ex. houblon en ébullition et en dry hop) tient sur une ligne ; l'eau n'est pas déduite.`+(prev?' Une sortie existe déjà : elle sera corrigée, pas doublée.':'');
   document.getElementById('stGo').textContent=prev?'Mettre à jour la sortie':'Déduire';
@@ -915,7 +915,7 @@ function stRender(){
   document.getElementById('stBody').innerHTML=stRows.length?`<table class="st"><thead><tr><th>Ingrédient</th><th>Article du stock</th><th class="hm" style="text-align:right">En stock</th><th style="text-align:right">À déduire</th></tr></thead><tbody>
     ${stRows.map((r,i)=>{const c=stCalc(r);if(!r.sel)miss++;else if(r.sel!=='__skip'&&c.q>0)n++;if(c.over)over++;
       return `<tr class="${c.over?'over':''}"${r.q>0?'':' style="opacity:.55"'}><td><b>${esc(r.n)}</b><small>${stRound(r.q,r.u)} ${esc(r.u)}${r.sub?' · '+esc(r.sub):''}${r.q>0?'':' · quantité nulle'}</small></td>
-      <td><select class="in${r.sel?'':' unmapped'}" onchange="stRows[${i}].sel=this.value;stRows[${i}].ov=null;stRender()">${stOptions(r)}</select></td>
+      <td><select class="in${r.sel?'':' unmapped'}" onchange="stRows[${i}].sel=this.value;stRows[${i}].ov=null;delete stRows[${i}].lot;stRender()">${stOptions(r)}</select>${(()=>{const it=stItem(r.sel);const lo=it&&window.BrasserieTrace?BrasserieTrace.lotOptions(stState,it.id,r.lot||'',it.unit,stRows.prev&&stRows.prev.id):'';return lo?`<div style="margin-top:.3rem;display:flex;gap:.35rem;align-items:center"><small style="color:var(--ink-soft);white-space:nowrap">Lot utilisé</small><select class="in" style="font-size:.8rem;padding:.3rem .45rem" onchange="stRows[${i}].lot=this.value||undefined">${lo}</select></div>`:'';})()}</td>
       <td class="n hm">${c.stock!=null?stRound(c.stock,c.unit)+' '+esc(c.unit):'—'}</td>
       <td class="n">${r.sel==='__skip'?'—':`<input class="in" type="number" min="0" step="any" inputmode="decimal" value="${c.q}" oninput="stRows[${i}].ov=Math.max(0,parseFloat(this.value)||0);stSum()"> ${esc(c.unit)}`}</td></tr>`;}).join('')}</tbody></table>`
     :'<p>Aucun ingrédient sur la fiche.</p>';
@@ -931,7 +931,7 @@ function applyStock(){
   stState=fresh;stState.moves=stState.moves||[];stState.recipeMap=stState.recipeMap||{};
   const d=day();const lines=[];
   stRows.forEach(r=>{if(!r.sel)return;stState.recipeMap[r.key]=r.sel;if(r.sel==='__skip')return;const c=stCalc(r);if(!(c.q>0))return;
-    const ex=lines.find(l=>l.id===r.sel);if(ex)ex.qty=String((parseFloat(ex.qty)||0)+c.q);else lines.push({id:r.sel,qty:String(c.q)});});
+    const ex=lines.find(l=>l.id===r.sel&&(l.lot||'')===(r.lot||''));if(ex)ex.qty=String((parseFloat(ex.qty)||0)+c.q);else lines.push({id:r.sel,qty:String(c.q),...(r.lot?{lot:r.lot}:{})});});
   const prev=d.stock&&stState.moves.find(m=>m.id===d.stock.moveId);
   // applique le delta net (même logique que l'app Stock) : nouvelle sortie - ancienne
   const delta={};(prev?prev.lines:[]).forEach(l=>delta[l.id]=(delta[l.id]||0)+(parseFloat(l.qty)||0));

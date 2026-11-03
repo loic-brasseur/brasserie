@@ -65,11 +65,13 @@
       } else {
         alloc[m.id] = (m.lines || []).map(function (l) {
           var it = items[l.id], need = num(l.qty) || 0, parts = [], L = layers[l.id] || [];
-          while (need > 1e-9 && L.length) {
-            var f = L[0], t = Math.min(need, f.qty);
-            parts.push({ lot: f.lot, dluo: f.dluo, aa: f.aa, qty: t, price: f.price, psrc: f.psrc, date: f.date, party: f.party, init: !!f.init });
-            f.qty -= t; need -= t; if (f.qty <= 1e-9) L.shift();
-          }
+          var take = function (f) { var t = Math.min(need, f.qty);
+            parts.push({ lot: f.lot, dluo: f.dluo, aa: f.aa, qty: t, price: f.price, psrc: f.psrc, date: f.date, party: f.party, init: !!f.init, chosen: !!want });
+            f.qty -= t; need -= t; };
+          // lot choisi à la sortie : pris en premier, le reste éventuel suit l'ordre FIFO
+          var want = String(l.lot || '').trim();
+          if (want) { L.forEach(function (f) { if (need > 1e-9 && f.lot === want && f.qty > 1e-9) take(f); }); for (var z = L.length - 1; z >= 0; z--) if (L[z].qty <= 1e-9) L.splice(z, 1); want = ''; }
+          while (need > 1e-9 && L.length) { take(L[0]); if (L[0].qty <= 1e-9) L.shift(); }
           if (need > 1e-9) { var ip = it ? itemPrice(it) : { p: null }; parts.push({ lot: '', qty: need, price: ip.p, psrc: ip.src, unknown: true }); }
           var cost = 0, miss = false; parts.forEach(function (p) { if (p.price == null) miss = true; else cost += p.price * p.qty; });
           return { id: l.id, item: it, name: it ? it.name : '(article supprimé)', unit: it ? it.unit || '' : '', cat: it ? it.cat : '', qty: num(l.qty) || 0, k: l.k || null, parts: parts, cost: cost, missingPrice: miss };
@@ -94,5 +96,32 @@
     });
     return out;
   }
-  window.BrasserieTrace = { compute: compute, itemPrice: itemPrice, unitFactor: unitFactor, stockValue: stockValue, whereUsed: whereUsed };
+  /* lots restant en stock pour un article (avant la sortie skipMoveId, pour pouvoir la modifier) */
+  function lotChoices(st, itemId, skipMoveId) {
+    var st2 = st;
+    if (skipMoveId) {
+      var mv = (st.moves || []).find(function (m) { return m.id === skipMoveId; }), back = 0;
+      if (mv) (mv.lines || []).forEach(function (l) { if (l.id === itemId) back += num(l.qty) || 0; });
+      st2 = { items: (st.items || []).map(function (i) { return i.id === itemId ? Object.assign({}, i, { qty: (num(i.qty) || 0) + (mv && mv.type === 'usage' ? back : -back) }) : i; }),
+              moves: (st.moves || []).filter(function (m) { return m.id !== skipMoveId; }) };
+    }
+    var r = compute(st2);
+    return (r.layers[itemId] || []).filter(function (L) { return L.qty > 1e-9; }).map(function (L) { return { lot: L.lot, qty: L.qty, aa: L.aa, date: L.date, init: !!L.init, party: L.party }; });
+  }
+  /* options d'un <select> « Lot utilisé » : vide = le plus ancien (FIFO) */
+  function lotOptions(st, itemId, chosen, unit, skipMoveId) {
+    var L = lotChoices(st, itemId, skipMoveId), named = L.filter(function (x) { return x.lot; });
+    if (!named.length && !chosen) return '';
+    var e = function (t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); };
+    var q = function (v) { return (+v).toLocaleString('fr-FR', { maximumFractionDigits: 2 }); };
+    var first = L[0];
+    var h = '<option value="">Le plus ancien' + (first ? ' — ' + e(first.lot || (first.init ? 'stock initial' : 'lot non renseigné')) : '') + '</option>';
+    var seen = {};
+    named.forEach(function (x) { if (seen[x.lot]) { seen[x.lot].qty += x.qty; return; } seen[x.lot] = x; });
+    Object.keys(seen).forEach(function (k) { var x = seen[k];
+      h += '<option value="' + e(k) + '"' + (k === chosen ? ' selected' : '') + '>Lot ' + e(k) + ' — ' + q(x.qty) + ' ' + e(unit || '') + (x.aa != null ? ' · ' + String(x.aa).replace('.', ',') + ' % AA' : '') + (x.date ? ' · reçu ' + x.date.slice(8, 10) + '/' + x.date.slice(5, 7) : '') + '</option>'; });
+    if (chosen && !seen[chosen]) h += '<option value="' + e(chosen) + '" selected>Lot ' + e(chosen) + ' (épuisé)</option>';
+    return h;
+  }
+  window.BrasserieTrace = { lotChoices: lotChoices, lotOptions: lotOptions, compute: compute, itemPrice: itemPrice, unitFactor: unitFactor, stockValue: stockValue, whereUsed: whereUsed };
 })();
