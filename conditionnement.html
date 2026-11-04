@@ -250,10 +250,10 @@ function autoFill(s,force){
   put('temp',src.temp,'cuve');put('ph',src.ph,'cuve');
   return got;
 }
-function refillAuto(){const s=cur();const g=autoFill(s,true);save();render();if(!g.length)alert('Aucune valeur disponible dans le Suivi des cuves ou l\'app Carbonatation pour ce lot.');}
+function refillAuto(){const s=cur();const g=autoFill(s,true);save();render();if(!g.length)alert('Aucune valeur disponible dans le Cellar Log ou l\'app Carbonatation pour ce lot.');}
 function openNew(){
   const L=lotSources();
-  if(!L.length){alert("Aucun lot trouvé. Les lots viennent du Brew Log et du Suivi des cuves.");return;}
+  if(!L.length){alert("Aucun lot trouvé. Les lots viennent du Brew Log et du Cellar Log.");return;}
   document.getElementById('n_lot').innerHTML=L.sort((a,b)=>(b.active?1:0)-(a.active?1:0)||String(b.lot).localeCompare(a.lot)).map(l=>`<option value="${esc(l.lot)}">${esc(l.lot)} — ${esc(l.recipe)}${l.tank?' · '+esc(l.tank):''}</option>`).join('');
   document.getElementById('n_date').value=today();document.getElementById('n_plot').value='';document.getElementById('n_ddm').value='';codeHint();
   document.getElementById('newOv').classList.add('show');
@@ -484,7 +484,7 @@ function render(){
   <div class="card"><div class="card-h"><h2><span class="n">01</span>Analyses de la cuve de garde</h2>
     <span class="sub" style="margin:0">Cibles : CO₂ ${T.co2??'—'} ± ${T.co2Tol??'—'} g/L · O₂ ≤ ${T.o2??'—'} ppb · ${T.abv!=null?(+T.abv).toFixed(1):'—'} ± ${T.abvTol??'—'} % vol</span></div>
     <div class="card-b"><div style="display:flex;justify-content:space-between;gap:.5rem;align-items:center;margin-bottom:.6rem;flex-wrap:wrap">
-      <span class="hint" style="margin:0">${s.auto&&Object.keys(s.auto).length?'Repris automatiquement : '+Object.entries(s.auto).map(([k,v])=>({vol:'volume',abv:'alcool',co2:'CO₂',temp:'température',ph:'pH'}[k]||k)+' ('+esc(v)+')').join(', '):'Les champs vides se remplissent depuis le Suivi des cuves et l\'app Carbonatation.'}</span>
+      <span class="hint" style="margin:0">${s.auto&&Object.keys(s.auto).length?'Repris automatiquement : '+Object.entries(s.auto).map(([k,v])=>({vol:'volume',abv:'alcool',co2:'CO₂',temp:'température',ph:'pH'}[k]||k)+' ('+esc(v)+')').join(', '):'Les champs vides se remplissent depuis le Cellar Log et l\'app Carbonatation.'}</span>
       <button class="btn-ghost btn-sm" onclick="refillAuto()">Reprendre les valeurs</button></div>
       <div class="g g3">${inA('vol','Volume en cuve','L',1)}${inA('co2','CO₂','g/L',0.01)}${inA('o2','O₂ dissous','ppb',1)}${inA('abv','Degré d\'alcool','% vol',0.01)}${inA('temp','Température','°C',0.1)}${inA('ph','pH','',0.01)}</div>
     <div class="kpis">${kpi('co2','CO₂ vs cible')}${kpi('o2','O₂ vs max')}${kpi('abv','Alcool après dilution')}</div></div></div>
@@ -618,7 +618,7 @@ function importJSON(e){const f=e.target.files[0];if(!f)return;const rd=new FileR
   const ids=new Set(S.map(x=>x.id));let n=0;arr.forEach(x=>{if(!ids.has(x.id)){S.push(x);n++;}});save();renderList();alert(n+' session(s) importée(s).');}catch(err){alert('Fichier invalide');}};rd.readAsText(f);e.target.value='';}
 
 renderList();
-/* arrivée depuis le Suivi des cuves (« Soutirer & conditionner ») : nouvelle session pré-remplie pour ce lot */
+/* arrivée depuis le Cellar Log (« Soutirer & conditionner ») : nouvelle session pré-remplie pour ce lot */
 (function(){const q=new URLSearchParams(location.search),lot=q.get('lot');if(!lot)return;window.__preVol=parseFloat(q.get('vol'))||null;history.replaceState(null,'',location.pathname);
   setTimeout(()=>{openNew();const sel=document.getElementById('n_lot');if([...sel.options].some(o=>o.value===lot)){sel.value=lot;codeHint();}},50);})();
 if(S.length)open_([...S].sort((a,b)=>b.date.localeCompare(a.date))[0].id);else render();

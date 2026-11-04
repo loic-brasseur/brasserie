@@ -20,7 +20,7 @@
   var DEFAULT_REPO = 'loic-brasseur/brasserie-donnees';
   var SP = Storage.prototype, rawSet = SP.setItem, rawRemove = SP.removeItem, rawGet = SP.getItem;
   var LABELS = {
-    brasserie_recettes_v1: 'Carnet de brassage', brasserie_stock_v2: 'Stock', brasserie_cuves_v1: 'Suivi des cuves',
+    brasserie_recettes_v1: 'Carnet de brassage', brasserie_stock_v2: 'Stock', brasserie_cuves_v1: 'Cellar Log',
     brasserie_brewlog_v1: 'Brew Log', brasserie_packaging_v1: 'Packaging Log', brasserie_carbo_v1: 'Carbonatation',
     brasserie_inventaire_v1: 'Inventaire', brasserie_qc_v1: 'Contrôle qualité', brasserie_rapports_v1: 'Rapports',
     brasserie_planning_v1: 'Planning', brasserie_planning_v3: 'Planning de brassage', brasserie_bieres_v1: 'Registre des bières'

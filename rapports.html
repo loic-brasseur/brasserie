@@ -421,7 +421,7 @@ function chainHTML(m){
 }
 function renderLot(){
   const all=collect();const M=document.getElementById('main');
-  if(!all.length){M.innerHTML=`<div class="card"><div class="empty">Pas encore de lot. Les rapports se construisent à partir du Brew Log, du Suivi des cuves et du Packaging Log.</div></div>`;return;}
+  if(!all.length){M.innerHTML=`<div class="card"><div class="empty">Pas encore de lot. Les rapports se construisent à partir du Brew Log, du Cellar Log et du Packaging Log.</div></div>`;return;}
   if(!curLot||!all.some(x=>x.lot===curLot))curLot=(all.find(x=>x.packs.length)||all[0]).lot;
   const x=all.find(l=>l.lot===curLot),m=x.m,T=x.T;
   const closed=x.packs.length&&x.cellar&&!x.cellarActive;
