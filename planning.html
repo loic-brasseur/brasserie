@@ -95,7 +95,7 @@
 <a href="index.html" id="backHome" aria-label="Retour à l'écran d'accueil" style="position:fixed;left:14px;bottom:14px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:#1A1612;color:#FBF5EC;font-family:'Manrope',system-ui,sans-serif;font-size:13px;font-weight:600;text-decoration:none;padding:10px 14px;border-radius:999px;box-shadow:0 4px 16px rgba(26,22,18,.28)"><span style="font-size:15px;line-height:1">←</span> Accueil</a>
 <div class="wrap">
   <header>
-    <div><h1>Planning des cuves</h1><div class="sub">Automatique : lots en cuve (Suivi des cuves) + brassins prévus (Planning de brassage)</div></div>
+    <div><h1>Planning des cuves</h1><div class="sub">Automatique : lots en cuve (Cellar Log) + brassins prévus (Planning de brassage)</div></div>
     <div class="tools">
       <div class="seg" id="range"><button data-w="8">8 sem.</button><button data-w="12" class="on">12 sem.</button><button data-w="26">6 mois</button></div>
       <button class="btn" onclick="render()">Actualiser</button>
@@ -105,7 +105,7 @@
 
   <div class="card"><div class="card-h"><h2>Occupation</h2><span class="meta" id="fresh"></span></div>
     <div class="tl"><div class="grid" id="grid"></div></div>
-    <div class="legend"><span><i></i>En cuve (Suivi des cuves)</span><span><i class="p"></i>Prévu (Planning de brassage)</span><span><i class="h"></i>Lot terminé</span><span><i class="l"></i>Conditionnement prévu dépassé</span><span><i class="c"></i>Conflit</span></div>
+    <div class="legend"><span><i></i>En cuve (Cellar Log)</span><span><i class="p"></i>Prévu (Planning de brassage)</span><span><i class="h"></i>Lot terminé</span><span><i class="l"></i>Conditionnement prévu dépassé</span><span><i class="c"></i>Conflit</span></div>
   </div>
 
   <div class="two">
@@ -199,7 +199,7 @@ function renderAlerts(D){
     else a.push(`<div class="al bad"><b>${esc(c.tank.name)}</b> : ${esc(short(c.plan.name))} et ${esc(short(c.other.name))} se chevauchent.</div>`);});
   D.unplaced.forEach(u=>a.push(`<div class="al bad">S${u.week} : <b>${esc(short(u.beer))}</b> (${u.brut} HL) — aucune cuve disponible dans le Planning de brassage.</div>`));
   D.tanks.forEach((t,i)=>D.B[i].filter(b=>b.kind==='act'&&b.late).forEach(b=>a.push(`<div class="al warn"><b>${esc(t.name)}</b> : conditionnement de ${esc(short(b.name))}${b.lot?' (lot '+esc(b.lot)+')':''} prévu le ${fmt(b.plannedEnd)}, le lot est toujours en cuve.</div>`)));
-  D.tanks.forEach(t=>{const b=t.batch;if(b&&!b.pack&&!b.end)a.push(`<div class="al warn"><b>${esc(t.name)}</b> : pas de date de conditionnement pour ${esc(short(b.recipe))} — occupation estimée à 3 semaines. Ajoute-la dans le Suivi des cuves (Modifier).</div>`);});
+  D.tanks.forEach(t=>{const b=t.batch;if(b&&!b.pack&&!b.end)a.push(`<div class="al warn"><b>${esc(t.name)}</b> : pas de date de conditionnement pour ${esc(short(b.recipe))} — occupation estimée à 3 semaines. Ajoute-la dans le Cellar Log (Modifier).</div>`);});
   document.getElementById('alerts').innerHTML=a.length?a.join(''):'<div class="al ok">Aucun conflit : chaque brassin prévu a une cuve libre.</div>';
 }
 function renderAvail(D){
@@ -223,7 +223,7 @@ function detail(i){const b=window._blk[i];if(!b)return;
   else body+=dl('Lot',esc(b.lot))+dl('Mise en cuve',fmt(b.s))+dl('Soutiré le',fmt(add(b.e,-1)))+dl('Volume soutiré',b.vol!=null?b.vol+' HL':'');
   body+='</dl>'+(b.conf?'<div class="al bad" style="margin-top:.4rem">En conflit avec un autre lot sur cette cuve.</div>':'');
   document.getElementById('m_b').innerHTML=body;
-  document.getElementById('m_a').innerHTML=`<a class="btn" href="${b.kind==='plan'?'planning-brassage.html':'cuves.html'}" style="text-decoration:none;color:inherit">${b.kind==='plan'?'Planning de brassage':'Suivi des cuves'}</a><button class="btn" onclick="document.getElementById('ov').classList.remove('show')">Fermer</button>`;
+  document.getElementById('m_a').innerHTML=`<a class="btn" href="${b.kind==='plan'?'planning-brassage.html':'cuves.html'}" style="text-decoration:none;color:inherit">${b.kind==='plan'?'Planning de brassage':'Cellar Log'}</a><button class="btn" onclick="document.getElementById('ov').classList.remove('show')">Fermer</button>`;
   document.getElementById('ov').classList.add('show');}
 document.getElementById('ov').addEventListener('click',e=>{if(e.target.id==='ov')e.target.classList.remove('show');});
 document.querySelectorAll('#range button').forEach(b=>{b.classList.toggle('on',+b.dataset.w===WEEKS);b.onclick=()=>{WEEKS=+b.dataset.w;try{localStorage.setItem('brasserie__planning_cuves_weeks',WEEKS);}catch(e){}
