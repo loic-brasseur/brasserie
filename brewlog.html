@@ -528,7 +528,7 @@ function ingredientRows(d,b){
   (r.hops||[]).forEach((h,i)=>{const row=mk('h'+i,'Houblon','hop',h.n,h.g,'g'),sb=S['h'+i]||{};row.pa=h.a;row.sid=h.sid;row.use=hopUse(h);row.when=hopUse(h)==='boil'?'Ébullition '+(h.time||0)+' min':hopUse(h)==='wp'?'Whirlpool':'Dry hop';row.auto=!!sb.qtyAuto;row.a=sb.a!=null&&sb.a!==''?sb.a:h.a;if(String(row.a)!==String(h.a))row.changed=true;rows.push(row);});
   if(r.yeast)rows.push(mk('y','Levure','yeast',r.yeast.n,r.yeast.g||'','g'));
   (r.soft||[]).forEach((x,i)=>rows.push(mk('s'+i,'Autre','other',x.n,x.qty,x.u)));
-  (b.extra||[]).forEach(x=>rows.push({...mk('x'+x.id,ITYPES[x.typ]||'Autre',x.typ,x.n,x.qty,x.u,true),n:x.n,qty:x.qty,q:x.qty+' '+x.u}));
+  (b.extra||[]).forEach(x=>rows.push({...mk('x'+x.id,ITYPES[x.typ]||'Autre',x.typ,x.n,x.qty,x.u,true),n:x.n,qty:x.qty,q:x.qty+' '+x.u,...(x.typ==='hop'?{a:x.a??'',use:x.use||'boil',time:x.time??''}:{})}));
   return rows;
 }
 /* recette telle que brassée : quantités / noms modifiés + ingrédients ajoutés (pour les calculs) */
@@ -536,7 +536,9 @@ function actualRecipe(d,b){
   b=b||curBr(d);const r=JSON.parse(JSON.stringify(d.recipe)),S=b.subs||{};
   const ap=(o,k,qk)=>{const sb=S[k];if(!sb||!o)return;if(sb.n)o.n=sb.n;if(sb.ppg)o.ppg=sb.ppg;if(sb.ebc!=null&&qk==='kg')o.ebc=sb.ebc;if(sb.a!==''&&sb.a!=null&&qk==='g'&&!isNaN(parseFloat(sb.a)))o.a=parseFloat(sb.a);if(sb.qty!==''&&sb.qty!=null&&!isNaN(parseFloat(sb.qty)))o[qk]=parseFloat(sb.qty);};
   (r.malts||[]).forEach((m,i)=>ap(m,'m'+i,'kg'));(r.hops||[]).forEach((h,i)=>ap(h,'h'+i,'g'));ap(r.yeast,'y','g');(r.soft||[]).forEach((x,i)=>ap(x,'s'+i,'qty'));
-  (b.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:x.ppg||37,ebc:x.ebc||0,cs:false});});
+  (b.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:x.ppg||37,ebc:x.ebc||0,cs:false});
+    // houblon ajouté : compte dans l'amertume (IBU) selon son moment d'ajout, sa durée et son α
+    if(x.typ==='hop'&&num(x.qty)!=null){const g=String(x.u||'g').toLowerCase()==='kg'?num(x.qty)*1000:num(x.qty);(r.hops=r.hops||[]).push({n:x.n,g,a:num(x.a)||0,use:x.use||'boil',time:num(x.time)??(x.use==='dh'?3:x.use==='wp'?0:60),form:'pellets',added:true});}});
   return r;
 }
 /* Houblon d'ébullition : quand l'α du lot change, la quantité est recalculée pour garder la même masse d'acides alpha
@@ -562,6 +564,10 @@ function hopStockLot(x){
   const lot=L.find(l=>l.aa!=null)||null;const aa=lot?lot.aa:(it.aa!==''&&it.aa!=null?+it.aa:null);
   return aa==null?null:{aa,lot:lot&&lot.lot,name:it.name,after:lot&&L[0]!==lot};
 }
+/* version pour un houblon ajouté (le champ α écrit dans la ligne ajoutée) */
+function hopStockHintX(x){const h=hopStockLot(x);if(!h)return '';const cur=parseFloat(String(x.a).replace(',','.'));
+  if(!isNaN(cur)&&Math.abs(cur-h.aa)<0.05)return `<div style="font-size:.7rem;color:var(--green);margin-top:.15rem">= lot en stock${h.lot?' '+esc(h.lot):''}</div>`;
+  return `<div style="font-size:.7rem;margin-top:.15rem;color:var(--ink-soft)">Stock : <b>${String(h.aa).replace('.',',')} %</b>${h.lot?' (lot '+esc(h.lot)+')':''} <a href="#" onclick="document.getElementById('alpha_${x.k}').value='${h.aa}';setExtra('${x.k.slice(1)}','a','${h.aa}');renderSheet();return false" style="color:var(--copper);font-weight:700">appliquer</a></div>`;}
 function hopStockHint(x){const h=hopStockLot(x);if(!h)return '';const cur=parseFloat(String(x.a).replace(',','.'));
   if(!isNaN(cur)&&Math.abs(cur-h.aa)<0.05)return `<div style="font-size:.7rem;color:var(--green);margin-top:.15rem">= lot en stock${h.lot?' '+esc(h.lot):''}</div>`;
   return `<div style="font-size:.7rem;margin-top:.15rem;color:var(--ink-soft)">Stock : <b>${String(h.aa).replace('.',',')} %</b>${h.lot?' (lot '+esc(h.lot)+')':''}${h.after?' — après le stock sans AA':''} <a href="#" onclick="const i=document.getElementById('alpha_${x.k}');i.value='${h.aa}';setSub('${x.k}','a','${h.aa}');return false" style="color:var(--copper);font-weight:700">appliquer</a></div>`;}
@@ -580,7 +586,8 @@ function resetSub(k){const b=curBr();if(b.subs)delete b.subs[k];save();renderShe
 function markChanged(k){const row=ingredientRows(day()).find(x=>x.k===k);const e=document.getElementById('ing_'+k);if(e&&row)e.classList.toggle('chg',row.changed);
   const p=document.getElementById('plan_'+k);if(p&&row)p.style.visibility=row.changed?'visible':'hidden';}
 function addExtra(){const b=curBr();b.extra=b.extra||[];const typ=document.getElementById('x_typ').value;
-  b.extra.push({id:Date.now().toString(36),typ,n:'',qty:'',u:typ==='malt'?'kg':'g'});save();renderSheet();}
+  b.extra.push({id:Date.now().toString(36),typ,n:'',qty:'',u:typ==='malt'?'kg':'g',...(typ==='hop'?{use:'boil',time:'',a:''}:{})});save();renderSheet();}
+function setExtraUse(id,v){const x=(curBr().extra||[]).find(e=>e.id===id);if(!x)return;x.use=v;x.time=v==='boil'?'':v==='wp'?'0':'3';save();renderSheet();}
 function setExtra(id,f,v){const x=(curBr().extra||[]).find(e=>e.id===id);if(x){x[f]=v;save();refreshCalc();}}
 function delExtra(id){const b=curBr();b.extra=(b.extra||[]).filter(e=>e.id!==id);delete (b.lots||{})['x'+id];save();renderSheet();}
 function ingTable(d){
@@ -589,7 +596,7 @@ function ingTable(d){
     ${rows.map(x=>x.extra?`<tr id="ing_${x.k}" class="added"><td>${x.t}<br><small class="tag">ajouté</small></td>
         <td><div class="ta"><input class="in" value="${esc(x.n)}" placeholder="Tape les premières lettres…" autocomplete="off" data-typ="${x.typ}" data-k="${x.k}" oninput="setExtra('${x.k.slice(1)}','n',this.value);taShow(this)" onfocus="taShow(this)" onkeydown="taKey(event,this)" onblur="taHide(this)"></div></td>
         <td><div class="qty"><input class="in" type="number" step="any" inputmode="decimal" value="${esc(x.qty)}" oninput="setExtra('${x.k.slice(1)}','qty',this.value)">
-          <select class="in u" onchange="setExtra('${x.k.slice(1)}','u',this.value)">${['kg','g','L','mL','u'].map(u=>`<option${u===x.u?' selected':''}>${u}</option>`).join('')}</select></div></td>
+          <select class="in u" onchange="setExtra('${x.k.slice(1)}','u',this.value)">${['kg','g','L','mL','u'].map(u=>`<option${u===x.u?' selected':''}>${u}</option>`).join('')}</select></div>${x.typ==='hop'?`<div class="qty" style="margin-top:.25rem;flex-wrap:wrap;gap:.25rem"><select class="in" style="flex:1;min-width:96px" title="Moment d'ajout" onchange="setExtraUse('${x.k.slice(1)}',this.value)">${[['boil','Ébullition'],['wp','Whirlpool'],['dh','Dry hop']].map(([v,l])=>`<option value="${v}"${v===(x.use||'boil')?' selected':''}>${l}</option>`).join('')}</select><input class="in" style="width:60px" type="text" inputmode="decimal" value="${esc(x.time??'')}" placeholder="${(x.use||'boil')==='dh'?'jours':'min'}" title="Durée (${(x.use||'boil')==='dh'?'jours':'minutes'})" oninput="setExtra('${x.k.slice(1)}','time',this.value.replace(',','.'))"><span class="u">${(x.use||'boil')==='dh'?'j':'min'}</span></div><div class="qty" style="margin-top:.25rem"><input class="in" id="alpha_${x.k}" type="text" inputmode="decimal" value="${esc(x.a??'')}" placeholder="α" title="Acides alpha du lot" oninput="setExtra('${x.k.slice(1)}','a',this.value.replace(',','.'))"><span class="u">% α</span></div>${hopStockHintX(x)}`:''}</td>
         <td><input class="in" value="${esc(L[x.k]||'')}" oninput="setLot('${x.k}',this.value)" placeholder="Lot fournisseur" list="dl_${x.k}" autocomplete="off">${lotDatalist(x)}</td>
         <td><button class="xb" onclick="delExtra('${x.k.slice(1)}')" title="Retirer">×</button></td></tr>`
       :`<tr id="ing_${x.k}" class="${x.changed?'chg':''}"><td>${x.t}</td>
@@ -854,7 +861,7 @@ function taPick(it){
   const el=it.parentNode,x=el._res[+it.dataset.i],inp=el._inp,k=inp.dataset.k,d=day();
   inp.value=x.n;el.remove();
   const bb=curBr(d);
-  if(k.startsWith('x')){const e=(bb.extra||[]).find(z=>'x'+z.id===k);if(e){e.n=x.n;if(x.ppg)e.ppg=x.ppg;if(x.ebc!=null)e.ebc=x.ebc;if(x.u&&!e.qty)e.u=x.u;}save();refreshCalc();}
+  if(k.startsWith('x')){const e=(bb.extra||[]).find(z=>'x'+z.id===k);if(e){e.n=x.n;if(x.ppg)e.ppg=x.ppg;if(x.ebc!=null)e.ebc=x.ebc;if(x.u&&!e.qty)e.u=x.u;if(e.typ==='hop'&&x.a!=null&&(e.a===''||e.a==null)){e.a=x.a;const ai=document.getElementById('alpha_'+k);if(ai)ai.value=x.a;}}save();refreshCalc();}
   else{bb.subs=bb.subs||{};const sb=bb.subs[k]=bb.subs[k]||{};sb.n=x.n;if(x.ppg)sb.ppg=x.ppg;else delete sb.ppg;if(x.ebc!=null)sb.ebc=x.ebc;else delete sb.ebc;if(x.a!=null){sb.a=x.a;const ai=document.getElementById('alpha_'+k);if(ai)ai.value=x.a;}save();refreshCalc();markChanged(k);}
   inp.blur();
 }
@@ -874,7 +881,7 @@ function lotIngredients(d){
   const when=h=>{const u=hopUse(h);return u==='boil'?(h.time||0)+' min':u==='wp'?'whirlpool':'dry hop';};
   d.brassins.forEach((b,bi)=>{const A=actualRecipe(d,b),code=bCode(d,bi);
     (A.malts||[]).forEach(m=>out.push({type:'malt',cat:'malt',n:base(m.n),q:q(m.kg),u:'kg',sub:'',sid:m.sid}));
-    (A.hops||[]).forEach(h=>out.push({type:'houblon',cat:'houblon',n:h.n,q:q(h.g),u:'g',sub:when(h),sid:h.sid}));
+    (A.hops||[]).filter(h=>!h.added).forEach(h=>out.push({type:'houblon',cat:'houblon',n:h.n,q:q(h.g),u:'g',sub:when(h),sid:h.sid}));
     if(A.yeast&&A.yeast.n)out.push({type:'levure',cat:'levure',n:A.yeast.n,q:q(A.yeast.g),u:'g',sub:'',sid:A.yeast.sid});
     (A.soft||[]).forEach(x=>{if(x.c==='eau'||stNorm(x.n)==='eau')return;out.push({type:'soft',cat:'conso',n:x.n,q:q(x.qty),u:x.u||'kg',sub:'',sid:x.sid});});
     const TY={hop:['houblon','houblon'],yeast:['levure','levure'],other:['soft','conso']};
