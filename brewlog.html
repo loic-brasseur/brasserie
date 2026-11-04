@@ -525,7 +525,7 @@ function ingredientRows(d,b){
   const mk=(k,t,typ,n,qty,u,extra)=>{const sb=S[k]||{};const an=sb.n!=null&&sb.n!==''?sb.n:n, aq=sb.qty!=null&&sb.qty!==''?sb.qty:qty;
     return {k,t,typ,pn:n,pq:qty,u,n:an,qty:aq,q:aq+' '+u,changed:!extra&&(an!==n||String(aq)!==String(qty)),extra:!!extra};};
   (r.malts||[]).forEach((m,i)=>rows.push(mk('m'+i,'Malt','malt',m.n,m.kg,'kg'+(m.cs?' (cold steep)':''))));
-  (r.hops||[]).forEach((h,i)=>{const row=mk('h'+i,'Houblon','hop',h.n,h.g,'g'),sb=S['h'+i]||{};row.pa=h.a;row.sid=h.sid;row.use=hopUse(h);row.when=hopUse(h)==='boil'?'Ébullition '+(h.time||0)+' min':hopUse(h)==='wp'?'Whirlpool':'Dry hop';row.auto=!!sb.qtyAuto;row.a=sb.a!=null&&sb.a!==''?sb.a:h.a;if(String(row.a)!==String(h.a))row.changed=true;rows.push(row);});
+  (r.hops||[]).forEach((h,i)=>{const row=mk('h'+i,'Houblon','hop',h.n,h.g,'g'),sb=S['h'+i]||{};row.pa=h.a;if(row.n===row.pn)row.sid=h.sid;/* ingrédient remplacé : le lien de la recette ne vaut plus */row.use=hopUse(h);row.when=hopUse(h)==='boil'?'Ébullition '+(h.time||0)+' min':hopUse(h)==='wp'?'Whirlpool':'Dry hop';row.auto=!!sb.qtyAuto;row.a=sb.a!=null&&sb.a!==''?sb.a:h.a;if(String(row.a)!==String(h.a))row.changed=true;rows.push(row);});
   if(r.yeast)rows.push(mk('y','Levure','yeast',r.yeast.n,r.yeast.g||'','g'));
   (r.soft||[]).forEach((x,i)=>rows.push(mk('s'+i,'Autre','other',x.n,x.qty,x.u)));
   (b.extra||[]).forEach(x=>rows.push({...mk('x'+x.id,ITYPES[x.typ]||'Autre',x.typ,x.n,x.qty,x.u,true),n:x.n,qty:x.qty,q:x.qty+' '+x.u,...(x.typ==='hop'?{a:x.a??'',use:x.use||'boil',time:x.time??''}:{})}));
@@ -534,7 +534,7 @@ function ingredientRows(d,b){
 /* recette telle que brassée : quantités / noms modifiés + ingrédients ajoutés (pour les calculs) */
 function actualRecipe(d,b){
   b=b||curBr(d);const r=JSON.parse(JSON.stringify(d.recipe)),S=b.subs||{};
-  const ap=(o,k,qk)=>{const sb=S[k];if(!sb||!o)return;if(sb.n)o.n=sb.n;if(sb.ppg)o.ppg=sb.ppg;if(sb.ebc!=null&&qk==='kg')o.ebc=sb.ebc;if(sb.a!==''&&sb.a!=null&&qk==='g'&&!isNaN(parseFloat(sb.a)))o.a=parseFloat(sb.a);if(sb.qty!==''&&sb.qty!=null&&!isNaN(parseFloat(sb.qty)))o[qk]=parseFloat(sb.qty);};
+  const ap=(o,k,qk)=>{const sb=S[k];if(!sb||!o)return;if(sb.n){if(sb.n!==o.n)delete o.sid;o.n=sb.n;}if(sb.ppg)o.ppg=sb.ppg;if(sb.ebc!=null&&qk==='kg')o.ebc=sb.ebc;if(sb.a!==''&&sb.a!=null&&qk==='g'&&!isNaN(parseFloat(sb.a)))o.a=parseFloat(sb.a);if(sb.qty!==''&&sb.qty!=null&&!isNaN(parseFloat(sb.qty)))o[qk]=parseFloat(sb.qty);};
   (r.malts||[]).forEach((m,i)=>ap(m,'m'+i,'kg'));(r.hops||[]).forEach((h,i)=>ap(h,'h'+i,'g'));ap(r.yeast,'y','g');(r.soft||[]).forEach((x,i)=>ap(x,'s'+i,'qty'));
   (b.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:x.ppg||37,ebc:x.ebc||0,cs:false});
     // houblon ajouté : compte dans l'amertume (IBU) selon son moment d'ajout, sa durée et son α
@@ -549,8 +549,9 @@ let _trace=null;
 const TYP_CAT={malt:['malt','malt'],hop:['houblon','houblon'],yeast:['levure','levure']};
 function stockItemFor(x,st){
   st=st||ld(STOCK_KEY,null);if(!st||!Array.isArray(st.items))return null;const tc=TYP_CAT[x.typ]||['soft','conso'];
-  let id=x.sid&&st.items.some(i=>i.id===x.sid)?x.sid:(st.recipeMap||{})[tc[0]+'|'+stNorm(String(x.pn||x.n||'').split(' · ')[0])];
-  if(!id||id==='__skip'){id=null;const t=stTok(x.n);let bs=0;st.items.forEach(it=>{const t2=stTok(it.name),hit=t.filter(w=>t2.includes(w)).length;if(!hit||hit<t.length)return;const sc=10-(t2.length-hit)+(it.cat===tc[1]?5:0);if(sc>bs){bs=sc;id=it.id;}});}
+  let id=x.sid&&st.items.some(i=>i.id===x.sid)?x.sid:(st.recipeMap||{})[tc[0]+'|'+stNorm(String(x.n||'').split(' · ')[0])];
+  const bio=recBio((day()||{}).recipe);{const si=id&&id!=='__skip'&&st.items.find(i=>i.id===id);if(si&&!x.sid&&isBioName(si.name)!==bio)id=null;}
+  if(!id||id==='__skip'){id=null;const t=stTok(x.n);let bs=-1e9;st.items.forEach(it=>{const t2=stTok(it.name),hit=t.filter(w=>t2.includes(w)).length;if(!hit||hit<t.length)return;const sc=10-(t2.length-hit)+(it.cat===tc[1]?5:0)+(isBioName(it.name)===bio?3:-3);if(sc>bs){bs=sc;id=it.id;}});}
   return st.items.find(i=>i.id===id)||null;
 }
 /* n° de lot en stock pour l'ingrédient → suggestions du champ « N° de lot » */
@@ -850,7 +851,9 @@ function taShow(inp){
     return `<div class="ta-it${i===0&&q?' on':''}" data-i="${i}" onmousedown="event.preventDefault();taPick(this)">${hi}<small>${x.src==='stock'?'stock · '+esc(x.stock):x.src}${x.ppg?' · '+x.ppg+' PPG':''}</small></div>`;}).join('');
   el._res=res;el._inp=inp;
 }
-function taHide(inp){setTimeout(()=>{const el=inp.parentNode.querySelector('.ta-list');if(el)el.remove();},120);}
+function taHide(inp){setTimeout(()=>{const el=inp.parentNode.querySelector('.ta-list');if(el)el.remove();
+  // nom modifié à la main : réaffiche la fiche pour mettre à jour les lots et l'α proposés depuis le stock
+  if(inp.isConnected&&inp.value!==inp.defaultValue&&document.activeElement!==inp)renderSheet();},150);}
 function taKey(e,inp){
   const el=inp.parentNode.querySelector('.ta-list');if(!el)return;const its=[...el.querySelectorAll('.ta-it')];let i=its.findIndex(x=>x.classList.contains('on'));
   if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();i=e.key==='ArrowDown'?Math.min(its.length-1,i+1):Math.max(0,i-1);its.forEach((x,j)=>x.classList.toggle('on',j===i));its[i].scrollIntoView({block:'nearest'});}
@@ -862,13 +865,13 @@ function taPick(it){
   inp.value=x.n;el.remove();
   const bb=curBr(d);
   if(k.startsWith('x')){const e=(bb.extra||[]).find(z=>'x'+z.id===k);if(e){e.n=x.n;if(x.ppg)e.ppg=x.ppg;if(x.ebc!=null)e.ebc=x.ebc;if(x.u&&!e.qty)e.u=x.u;if(e.typ==='hop'&&x.a!=null&&(e.a===''||e.a==null)){e.a=x.a;const ai=document.getElementById('alpha_'+k);if(ai)ai.value=x.a;}}save();refreshCalc();}
-  else{bb.subs=bb.subs||{};const sb=bb.subs[k]=bb.subs[k]||{};sb.n=x.n;if(x.ppg)sb.ppg=x.ppg;else delete sb.ppg;if(x.ebc!=null)sb.ebc=x.ebc;else delete sb.ebc;if(x.a!=null){sb.a=x.a;const ai=document.getElementById('alpha_'+k);if(ai)ai.value=x.a;}save();refreshCalc();markChanged(k);}
+  else{bb.subs=bb.subs||{};const sb=bb.subs[k]=bb.subs[k]||{};sb.n=x.n;if(x.ppg)sb.ppg=x.ppg;else delete sb.ppg;if(x.ebc!=null)sb.ebc=x.ebc;else delete sb.ebc;if(x.a!=null){sb.a=x.a;const ai=document.getElementById('alpha_'+k);if(ai)ai.value=x.a;}save();refreshCalc();markChanged(k);setTimeout(renderSheet,0);}
   inp.blur();
 }
 /* ===================== Déduction du stock (app Stock : brasserie_stock_v2) ===================== */
 const STOCK_KEY='brasserie_stock_v2';
 const stNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-const ST_STOP=new Set(['malt','malts','levure','levures','conv','bio','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
+const ST_STOP=new Set(['malt','malts','levure','levures','conv','conventionnel','bio','organic','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
 const stTok=t=>stNorm(t).split(' ').filter(w=>w&&!ST_STOP.has(w));
 const SU={g:['m',1],kg:['m',1000],ml:['v',1],l:['v',1000]};
 function stConv(q,from,to){const a=SU[String(from||'').toLowerCase()],b=SU[String(to||'').toLowerCase()];if(!a||!b||a[0]!==b[0])return q;return q*a[1]/b[1];}
@@ -892,13 +895,17 @@ function lotIngredients(d){
     else g[key]={...i,key,subs:i.sub?[i.sub]:[]};});
   return Object.values(g).map(i=>({...i,sub:i.subs.join(' + ')}));
 }
-function stGuess(ing){
+/* recette bio ou conventionnelle : choix enregistré, sinon Valmy et Orgemont = bio */
+function recBio(r){return r&&r.bio!=null?!!r.bio:/valmy|orgemont/i.test(String(r&&r.name||''));}
+const isBioName=n=>/\b(bio|organic)\b/i.test(String(n||''));
+function stGuess(ing,bio){
   if(ing.sid&&stState.items.some(i=>i.id===ing.sid))return ing.sid;   // article relié dans le Carnet de brassage
-  const saved=(stState.recipeMap||{})[ing.key];
-  if(saved&&(saved==='__skip'||stState.items.some(i=>i.id===saved)))return saved;
-  const t=stTok(ing.n);if(!t.length)return '';let best='',bs=0;
+  if(bio==null){const d=day();bio=recBio(d&&d.recipe);}
+  const saved=(stState.recipeMap||{})[ing.key],si=saved&&stState.items.find(i=>i.id===saved);
+  if(saved==='__skip'||(si&&isBioName(si.name)===bio))return saved;
+  const t=stTok(ing.n);if(!t.length)return '';let best='',bs=-1e9;
   stState.items.forEach(it=>{const t2=stTok(it.name);const hit=t.filter(w=>t2.includes(w)).length;if(!hit||hit<t.length)return;
-    const sc=10-(t2.length-hit)+(it.cat===ing.cat?5:0);if(sc>bs){bs=sc;best=it.id;}});
+    const sc=10-(t2.length-hit)+(it.cat===ing.cat?5:0)+(isBioName(it.name)===bio?3:-3);if(sc>bs){bs=sc;best=it.id;}});
   return best;
 }
 const stItem=id=>stState.items.find(i=>i.id===id);

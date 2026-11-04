@@ -967,7 +967,7 @@ const RECKEY='brasserie_recettes_v1',rqov=$('rqov');
 let rqRows=[],rqMode='ord';
 function rqRecipes(){let a=[];try{a=JSON.parse(localStorage.getItem(RECKEY))||[];}catch(e){}return (Array.isArray(a)?a:[]).filter(r=>r&&r.name).sort((x,y)=>x.name.localeCompare(y.name,'fr'));}
 const rqNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-const RQ_STOP=new Set(['malt','malts','levure','levures','conv','bio','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
+const RQ_STOP=new Set(['malt','malts','levure','levures','conv','conventionnel','bio','organic','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
 const rqTok=t=>rqNorm(t).split(' ').filter(w=>w&&!RQ_STOP.has(w));
 const U={g:['m',1],kg:['m',1000],ml:['v',1],l:['v',1000]};
 function rqConv(q,from,to){const a=U[String(from||'').toLowerCase()],b=U[String(to||'').toLowerCase()];if(!a||!b||a[0]!==b[0])return q;return q*a[1]/b[1];}
@@ -983,15 +983,18 @@ function rqIngredients(r,vol){
   const g={};out.forEach(i=>{const key=i.type+'|'+rqNorm(i.n);if(g[key]){g[key].q+=rqConv(i.q,i.u,g[key].u);if(i.sub&&g[key].type==='houblon')g[key].sub+=' + '+i.sub;}else g[key]={...i,key};});
   return Object.values(g).filter(i=>i.q>0);
 }
+/* recette bio ou conventionnelle : choix enregistré, sinon Valmy et Orgemont = bio */
+function recBio(r){return r&&r.bio!=null?!!r.bio:/valmy|orgemont/i.test(String(r&&r.name||''));}
+const isBioName=n=>/\b(bio|organic)\b/i.test(String(n||''));
 function rqGuess(ing){
   if(ing.sid&&itById(ing.sid))return ing.sid;   // article relié dans le Carnet de brassage
-  const saved=(state.recipeMap||{})[ing.key];
-  if(saved&&(saved==='__skip'||itById(saved)))return saved;
+  const bio=!!ing.bio,saved=(state.recipeMap||{})[ing.key],si=saved&&itById(saved);
+  if(saved==='__skip'||(si&&isBioName(si.name)===bio))return saved;
   const t=rqTok(ing.n);if(!t.length)return '';
-  let best='',bs=0;
+  let best='',bs=-1e9;
   state.items.forEach(it=>{const it2=rqTok(it.name);const hit=t.filter(w=>it2.includes(w)).length;if(!hit)return;
     if(hit<t.length)return; // tous les mots de l'ingrédient doivent figurer dans l'article
-    const sc=10-(it2.length-hit)+(it.cat===ing.cat?5:0);if(sc>bs){bs=sc;best=it.id;}});
+    const sc=10-(it2.length-hit)+(it.cat===ing.cat?5:0)+(isBioName(it.name)===bio?3:-3);if(sc>bs){bs=sc;best=it.id;}});
   return best;
 }
 function rqOptions(ing,sel){
@@ -1045,7 +1048,7 @@ function rqLoad(){
   const g={};
   rqSel.forEach(x=>{const r=recs[x.i];if(!r)return;const vol=(parseFloat(x.vol)||parseFloat(r.vol)||0)*(parseInt(x.n,10)||1);
     rqIngredients(r,vol).forEach(i=>{if(g[i.key]){g[i.key].q+=rqConv(i.q,i.u,g[i.key].u);if(!g[i.key].from.includes(r.name))g[i.key].from.push(r.name);}
-      else g[i.key]={...i,from:[r.name]};});});
+      else g[i.key]={...i,from:[r.name],bio:recBio(r)};});});
   rqRows=Object.values(g).map(i=>({...i,sub:rqSel.length>1?(i.sub?i.sub+' · ':'')+i.from.join(' + '):i.sub,sel:prevSel[i.key]!=null?prevSel[i.key]:rqGuess(i)}));
   rqRender();
 }
