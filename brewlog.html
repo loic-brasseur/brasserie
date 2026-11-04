@@ -550,7 +550,8 @@ const TYP_CAT={malt:['malt','malt'],hop:['houblon','houblon'],yeast:['levure','l
 function stockItemFor(x,st){
   st=st||ld(STOCK_KEY,null);if(!st||!Array.isArray(st.items))return null;const tc=TYP_CAT[x.typ]||['soft','conso'];
   let id=x.sid&&st.items.some(i=>i.id===x.sid)?x.sid:(st.recipeMap||{})[tc[0]+'|'+stNorm(String(x.pn||x.n||'').split(' · ')[0])];
-  if(!id||id==='__skip'){id=null;const t=stTok(x.n);let bs=0;st.items.forEach(it=>{const t2=stTok(it.name),hit=t.filter(w=>t2.includes(w)).length;if(!hit||hit<t.length)return;const sc=10-(t2.length-hit)+(it.cat===tc[1]?5:0);if(sc>bs){bs=sc;id=it.id;}});}
+  const bio=recBio((day()||{}).recipe);{const si=id&&id!=='__skip'&&st.items.find(i=>i.id===id);if(si&&!x.sid&&isBioName(si.name)!==bio)id=null;}
+  if(!id||id==='__skip'){id=null;const t=stTok(x.n);let bs=-1e9;st.items.forEach(it=>{const t2=stTok(it.name),hit=t.filter(w=>t2.includes(w)).length;if(!hit||hit<t.length)return;const sc=10-(t2.length-hit)+(it.cat===tc[1]?5:0)+(isBioName(it.name)===bio?3:-3);if(sc>bs){bs=sc;id=it.id;}});}
   return st.items.find(i=>i.id===id)||null;
 }
 /* n° de lot en stock pour l'ingrédient → suggestions du champ « N° de lot » */
@@ -868,7 +869,7 @@ function taPick(it){
 /* ===================== Déduction du stock (app Stock : brasserie_stock_v2) ===================== */
 const STOCK_KEY='brasserie_stock_v2';
 const stNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-const ST_STOP=new Set(['malt','malts','levure','levures','conv','bio','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
+const ST_STOP=new Set(['malt','malts','levure','levures','conv','conventionnel','bio','organic','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
 const stTok=t=>stNorm(t).split(' ').filter(w=>w&&!ST_STOP.has(w));
 const SU={g:['m',1],kg:['m',1000],ml:['v',1],l:['v',1000]};
 function stConv(q,from,to){const a=SU[String(from||'').toLowerCase()],b=SU[String(to||'').toLowerCase()];if(!a||!b||a[0]!==b[0])return q;return q*a[1]/b[1];}
@@ -892,13 +893,17 @@ function lotIngredients(d){
     else g[key]={...i,key,subs:i.sub?[i.sub]:[]};});
   return Object.values(g).map(i=>({...i,sub:i.subs.join(' + ')}));
 }
-function stGuess(ing){
+/* recette bio ou conventionnelle : choix enregistré, sinon Valmy et Orgemont = bio */
+function recBio(r){return r&&r.bio!=null?!!r.bio:/valmy|orgemont/i.test(String(r&&r.name||''));}
+const isBioName=n=>/\b(bio|organic)\b/i.test(String(n||''));
+function stGuess(ing,bio){
   if(ing.sid&&stState.items.some(i=>i.id===ing.sid))return ing.sid;   // article relié dans le Carnet de brassage
-  const saved=(stState.recipeMap||{})[ing.key];
-  if(saved&&(saved==='__skip'||stState.items.some(i=>i.id===saved)))return saved;
-  const t=stTok(ing.n);if(!t.length)return '';let best='',bs=0;
+  if(bio==null){const d=day();bio=recBio(d&&d.recipe);}
+  const saved=(stState.recipeMap||{})[ing.key],si=saved&&stState.items.find(i=>i.id===saved);
+  if(saved==='__skip'||(si&&isBioName(si.name)===bio))return saved;
+  const t=stTok(ing.n);if(!t.length)return '';let best='',bs=-1e9;
   stState.items.forEach(it=>{const t2=stTok(it.name);const hit=t.filter(w=>t2.includes(w)).length;if(!hit||hit<t.length)return;
-    const sc=10-(t2.length-hit)+(it.cat===ing.cat?5:0);if(sc>bs){bs=sc;best=it.id;}});
+    const sc=10-(t2.length-hit)+(it.cat===ing.cat?5:0)+(isBioName(it.name)===bio?3:-3);if(sc>bs){bs=sc;best=it.id;}});
   return best;
 }
 const stItem=id=>stState.items.find(i=>i.id===id);

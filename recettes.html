@@ -441,6 +441,7 @@
           <div class="field"><label>Nom de la recette</label><input id="rName" placeholder="Ex. Stout Carambar" oninput="recalc()"></div>
           <div class="field"><label>Style</label><input id="rStyle" placeholder="Ex. Sweet Stout" oninput="recalc()"></div>
         </div>
+        <div class="field"><label>Ingrédients</label><select id="rBio" onchange="setBio(this.value)"><option value="1">Bio — articles bio du Stock</option><option value="0">Conventionnel — articles conventionnels du Stock</option></select></div>
         <div class="field"><label>Notes de brassage</label><textarea id="rNotes" placeholder="Cold steep, ajouts, process…" oninput="recalc()"></textarea></div>
       </div>
     </div>
@@ -1077,7 +1078,7 @@ function renderBrowser(){
    repris par le Brew Log pour la sortie de stock et par le Stock pour les commandes. */
 const SK_KEY='brasserie_stock_v2';
 const skNorm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-const SK_STOP=new Set(['malt','malts','levure','levures','conv','bio','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
+const SK_STOP=new Set(['malt','malts','levure','levures','conv','conventionnel','bio','organic','de','du','la','le','les','d','l','en','pellets','pellet','houblon','safale','safbrew','lallemand','fermentis']);
 const skTok=t=>skNorm(t).split(' ').filter(w=>w&&!SK_STOP.has(w));
 const SK_TYPE={malt:['malt','malt'],hop:['houblon','houblon'],yeast:['levure','levure'],soft:['soft','conso']};
 const SK_U={g:['m',1],kg:['m',1000],ml:['v',1],l:['v',1000]};
@@ -1085,13 +1086,32 @@ function skConv(q,from,to){const a=SK_U[String(from||'').toLowerCase()],b=SK_U[S
 let SK=null;
 function skLoad(){try{const s=JSON.parse(localStorage.getItem(SK_KEY));SK=s&&Array.isArray(s.items)?s:null;}catch(e){SK=null;}}
 function skKey(type,o){return SK_TYPE[type][0]+'|'+skNorm(String(o.n||'').split(' · ')[0]);}
-function skGuess(type,o){
-  if(!SK)return '';if(o.sid&&SK.items.some(i=>i.id===o.sid))return o.sid;
-  const saved=(SK.recipeMap||{})[skKey(type,o)];if(saved&&saved!=='__skip'&&SK.items.some(i=>i.id===saved))return saved;
-  const t=skTok(o.n);if(!t.length)return '';let best='',bs=0;const cat=SK_TYPE[type][1];
-  SK.items.forEach(it=>{const t2=skTok(it.name);const hit=t.filter(w=>t2.includes(w)).length;if(!hit||hit<t.length)return;const sc=10-(t2.length-hit)+(it.cat===cat?5:0);if(sc>bs){bs=sc;best=it.id;}});
-  return best;
+/* recette bio ou conventionnelle : choix enregistré, sinon Valmy et Orgemont = bio */
+function recBio(r){return r&&r.bio!=null?!!r.bio:/valmy|orgemont/i.test(String(r&&r.name||''));}
+const isBioName=n=>/\b(bio|organic)\b/i.test(String(n||''));
+function curBio(){return state.bio!=null?!!state.bio:/valmy|orgemont/i.test(val('rName'));}
+/* article du Stock pour un ingrédient : lien de la ligne, sinon choix déjà fait (s'il correspond à bio/conv), sinon par le nom en préférant bio ou conv */
+function skGuess(type,o,bio,noSid){
+  if(!SK)return '';if(bio==null)bio=curBio();if(!noSid&&o.sid&&SK.items.some(i=>i.id===o.sid))return o.sid;
+  const saved=(SK.recipeMap||{})[skKey(type,o)],si=saved&&SK.items.find(i=>i.id===saved);if(si&&isBioName(si.name)===bio)return saved;
+  const t=skTok(o.n);if(!t.length)return '';let best='',bs=-1e9,part='',ps=-1e9;const cat=SK_TYPE[type][1];
+  SK.items.forEach(it=>{const t2=skTok(it.name);const hit=t.filter(w=>t2.includes(w)).length;if(!hit)return;const sc=10-(t2.length-hit)+(it.cat===cat?5:0)+(isBioName(it.name)===bio?3:-3);
+    if(hit>=t.length){if(sc>bs){bs=sc;best=it.id;}}else if(it.cat===cat&&isBioName(it.name)===bio){const p=hit*4+sc;if(p>ps){ps=p;part=it.id;}}});
+  return best||part;   // à défaut d'un nom complet, l'article de même catégorie (et même bio/conv) le plus proche
 }
+/* première fois : chaque recette reçoit bio / conv (Valmy et Orgemont = bio, le reste conv) et ses articles du Stock reliés sont alignés */
+function migrateBio(){const all=getAll();if(!all.length||all.every(r=>r.bio!=null))return;skLoad();let ch=0;
+  const fix=(r)=>{const bio=recBio(r);r.bio=bio;const re=(type,o)=>{if(!o||!o.sid||!SK)return;const it=SK.items.find(i=>i.id===o.sid);if(!it||isBioName(it.name)===bio)return;
+      const n=skGuess(type,o,bio,true),ni=n&&SK.items.find(i=>i.id===n);if(ni&&isBioName(ni.name)===bio)o.sid=n;else delete o.sid;ch++;};
+    (r.malts||[]).forEach(o=>re('malt',o));(r.hops||[]).forEach(o=>re('hop',o));re('yeast',r.yeast);(r.soft||[]).forEach(o=>re('soft',o));};
+  all.forEach(r=>{if(r.bio==null)fix(r);});try{localStorage.setItem(LSKEY,JSON.stringify(all));}catch(e){}
+  try{const a=JSON.parse(localStorage.getItem(AUTOKEY));if(a&&a.bio==null){fix(a);localStorage.setItem(AUTOKEY,JSON.stringify(a));}}catch(e){}}
+/* bascule bio / conventionnel : chaque ingrédient relié passe sur l'article équivalent du Stock */
+function setBio(v){state.bio=v==='1';skLoad();const ch=[];
+  const re=(type,o)=>{if(!o||!o.sid)return;const it=SK&&SK.items.find(i=>i.id===o.sid);if(!it||isBioName(it.name)===state.bio)return;const n=skGuess(type,o,state.bio,true),ni=n&&SK.items.find(i=>i.id===n);
+    if(ni&&isBioName(ni.name)===state.bio){o.sid=n;ch.push(it.name+' → '+ni.name);}else{delete o.sid;ch.push(it.name+' → à choisir');}};
+  state.malts.forEach(o=>re('malt',o));state.hops.forEach(o=>re('hop',o));re('yeast',state.yeast);state.soft.forEach(o=>re('soft',o));
+  renderRecipe();recalc();if(ch.length)alert('Articles du stock remplacés :\n'+ch.join('\n'));}
 function skCell(type,i,o,q,u){
   if(!SK)return '';const sel=skGuess(type,o),it=SK.items.find(x=>x.id===sel),cat=SK_TYPE[type][1];
   const items=[...SK.items].sort((a,b)=>(a.cat===cat?0:1)-(b.cat===cat?0:1)||a.name.localeCompare(b.name,'fr'));
@@ -1509,7 +1529,7 @@ function snapshot(){
     name:val('rName'),style:val('rStyle'),notes:val('rNotes'),
     vol:val('pVol'),eff:val('pEff'),mash:val('pMash'),
     mode:state.mode,malts:state.malts,hops:state.hops,yeast:state.yeast,soft:state.soft,
-    process:procGet(),pack:state.pack||{},calc:calcSnap(),rev:curRev,ts:Date.now()
+    bio:curBio(),process:procGet(),pack:state.pack||{},calc:calcSnap(),rev:curRev,ts:Date.now()
   };
 }
 function val(id){return document.getElementById(id).value;}
@@ -1522,6 +1542,7 @@ function loadInto(r){
   document.getElementById('pEff').value=r.eff||77.85;
   document.getElementById('pMash').value=r.mash||67;
   state.mode=r.mode||'biere';
+  state.bio=recBio(r);{const e=document.getElementById('rBio');if(e)e.value=state.bio?'1':'0';}
   state.malts=r.malts||[];state.hops=r.hops||[];state.yeast=r.yeast||null;state.soft=r.soft||[];
   state.process=r.process?JSON.parse(JSON.stringify(r.process)):null;
   state.pack=r.pack?JSON.parse(JSON.stringify(r.pack)):{};
@@ -1825,7 +1846,7 @@ function costLines(r){
     const k=prixKey(type,it),p=getPrix(k);
     let pc=p&&p.c!=null?p.c:null,pb=p&&p.b!=null?p.b:null,stk=null;
     /* prix d'achat de l'article du Stock relié (prioritaire sur le tarif) : converti en €/kg ou €/L */
-    const sid=SK?skGuess(type,it):'',si=sid&&SK.items.find(x=>x.id===sid);
+    const sid=SK?skGuess(type,it,recBio(r)):'',si=sid&&SK.items.find(x=>x.id===sid);
     if(si&&si.price!==''&&si.price!=null&&!isNaN(+si.price)){const u=String(si.unit||'').toLowerCase().trim(),f=u==='g'||u==='ml'?0.001:(u==='kg'||u==='l'||u==='litre'||u==='litres')?1:null;
       if(f){const v=+si.price/f;const side=/\bbio\b/i.test(si.name)?'b':'c';if(type==='yeast'){pc=v;pb=v;}else if(side==='b')pb=v;else pc=v;stk={side:type==='yeast'?'cb':side,name:si.name,linked:!!it.sid};}}
     L.push({sec,type,key:k,meta:prixMeta(type,it),n:it.n||'',sub,q,qu,qp,pu:prixUnitOf(type,it),pc,pb,stk,
@@ -2266,6 +2287,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   mergeCatalogAdds();
   publishCatalog();
   bindCostEvents();
+  migrateBio();
   let auto=null;try{auto=JSON.parse(localStorage.getItem(AUTOKEY));}catch(e){}
   if(auto && ((auto.malts&&auto.malts.length)||(auto.soft&&auto.soft.length))){
     loadInto(auto);
