@@ -165,6 +165,27 @@ table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 .head-line .t{font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:-.2px}
 .head-line .hint{font-size:12px;color:var(--mut);font-style:italic}
 .hidden{display:none}
+/* Historique pleine largeur, sans défilement */
+#histbox{width:min(1500px,calc(100vw - 36px));margin-left:50%;transform:translateX(-50%)}
+#histbox .scroll{overflow-x:visible}
+#histtable{table-layout:auto;font-size:12.5px}
+#histtable th,#histtable td{white-space:normal;padding:7px 7px}
+#histtable th{font-size:10.5px;letter-spacing:.3px}
+#histtable td[data-k]:not(.com):not([data-k="lot"]){white-space:nowrap}
+#histtable td.com{min-width:0;white-space:normal}
+#histtable td[data-k]{cursor:text}
+#histtable td[data-k]:hover{outline:1px dashed var(--amber-line);outline-offset:-3px}
+#histtable td.ed{padding:3px}
+#histtable td.ed input,#histtable td.ed select{width:100%;min-width:50px;padding:5px 6px;background:var(--bg);border:1px solid var(--amber);border-radius:4px;color:var(--ink);font:inherit}
+@media(max-width:760px){
+  #histbox{width:auto;margin-left:0;transform:none}
+  #histtable,#histtable tbody,#histtable tr,#histtable td{display:block;width:100%}
+  #histtable tr:first-child{display:none}
+  #histtable tr{border:1px solid var(--line2);border-radius:var(--radius-xs);margin-bottom:10px;padding:6px 4px}
+  #histtable td{border:none!important;display:flex;gap:10px;padding:4px 8px}
+  #histtable td::before{content:attr(data-l);flex:0 0 110px;color:var(--amber);font-size:10.5px;text-transform:uppercase;letter-spacing:.3px;padding-top:2px}
+  #histtable td.ck::before{content:"Sélection"}
+}
 /* Édition historique */
 .ht td.ck,.ht th.ck{width:34px;text-align:center;padding-left:8px;padding-right:8px}
 .ht input[type=checkbox]{width:17px;height:17px;accent-color:var(--amber);cursor:pointer}
@@ -521,23 +542,52 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
   const fav=r=>(r.pav||r.pap)?(r.pav||'—')+' → '+(r.pap||'—'):'—';
   let hsel=new Set(); // index des lignes sélectionnées
   const esc=v=>String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const COLS=[['time','Heure'],['lot','Bière / lot'],['fut','Fût'],['cont','Contenant'],['t','T (°C)'],['p','P (bar)'],['gl','g/L'],['vol','vol'],['kg','kg'],['pav','P. fût av (bar)'],['pap','P. fût ap (bar)'],['com','Commentaire']];
+  const showV=(r,k)=>{const v=r[k];if(v==null||v==='')return '—';if(k==='p'){const x=nf(v);return isNaN(x)?v:(x/100).toFixed(2);}return v;};
   function renderHist(){
     const box=$('histbox'),t=$('histtable');
     if(!hist.length){box.classList.add('hidden');hsel.clear();return;}
     box.classList.remove('hidden');
     [...hsel].forEach(i=>{if(i>=hist.length)hsel.delete(i);});
     const all=hsel.size===hist.length;
-    let h='<tr><th class="ck"><input type="checkbox" id="hs_all"'+(all?' checked':'')+' title="Tout sélectionner"></th>'+['Heure','Bière / lot','Fût','Contenant','T (°C)','P (kPa)','g/L','vol','kg','P. fût av → ap (bar)','Commentaire',''].map(x=>`<th>${x}</th>`).join('')+'</tr>';
-    hist.forEach((r,i)=>{h+=`<tr class="${hsel.has(i)?'sel':''}"><td class="ck"><input type="checkbox" data-hs="${i}"${hsel.has(i)?' checked':''}></td>`+[r.time,r.lot,r.fut||'—',r.cont,r.t,r.p,r.gl,r.vol,r.kg,fav(r)].map(x=>`<td>${esc(x)}</td>`).join('')+`<td class="com">${esc(r.com||'')}</td><td class="act"><button class="ib" data-he="${i}" title="Modifier">✎</button> <button class="ib" data-hd="${i}" title="Supprimer">🗑</button></td></tr>`;});
+    let h='<tr><th class="ck"><input type="checkbox" id="hs_all"'+(all?' checked':'')+' title="Tout sélectionner"></th>'+COLS.map(c=>`<th>${c[1]}</th>`).join('')+'<th></th></tr>';
+    hist.forEach((r,i)=>{h+=`<tr class="${hsel.has(i)?'sel':''}"><td class="ck"><input type="checkbox" data-hs="${i}"${hsel.has(i)?' checked':''}></td>`+COLS.map(([k,l])=>`<td data-i="${i}" data-k="${k}" data-l="${l}"${k==='com'?' class="com"':''}>${esc(showV(r,k))}</td>`).join('')+`<td class="act" data-l=""><button class="ib" data-hd="${i}" title="Supprimer">🗑</button></td></tr>`;});
     t.innerHTML=h;
     const n=hsel.size;
-    $('selbar').innerHTML=n?`<b style="color:var(--ink)">${n} sélectionnée${n>1?'s':''}</b><button class="ib" id="hs_edit">✎ Modifier la sélection</button><button class="ib" id="hs_del">🗑 Supprimer la sélection</button><button class="ib" id="hs_none">Désélectionner</button>`:'<span>Coche des lignes pour les modifier en lot, ou ✎ pour une ligne.</span>';
+    $('selbar').innerHTML=n?`<b style="color:var(--ink)">${n} sélectionnée${n>1?'s':''}</b><button class="ib" id="hs_edit">✎ Modifier la sélection</button><button class="ib" id="hs_del">🗑 Supprimer la sélection</button><button class="ib" id="hs_none">Désélectionner</button>`:'<span>Clique sur une valeur pour la modifier. Coche des lignes pour modifier ou supprimer en lot.</span>';
+  }
+  function recalcRow(o){
+    const T=nf(o.t),P=nf(o.p),c=contenants.find(c=>c.n===o.cont);
+    if(!isNaN(T)&&!isNaN(P)){const co2=co2PT(P,T);o.gl=co2.toFixed(2);o.vol=(co2/VPC).toFixed(2);if(c)o.kg=(c.l*co2/1000).toFixed(3);}
+  }
+  const fmtK=(k,x)=>k==='t'?x.toFixed(1):k==='p'?x.toFixed(0):k==='kg'?x.toFixed(3):x.toFixed(2);
+  const NUMK=['t','p','gl','vol','kg','pav','pap'];
+  function setVal(o,k,raw){
+    if(NUMK.includes(k)){let x=nf(raw);if(k==='p')x*=100;o[k]=isNaN(x)?'':fmtK(k,x);}
+    else o[k]=String(raw).trim();
+    if(['t','p','cont'].includes(k))recalcRow(o);
+    else if(k==='gl'){const x=nf(o.gl);if(!isNaN(x)){o.vol=(x/VPC).toFixed(2);const c=contenants.find(c=>c.n===o.cont);if(c)o.kg=(c.l*x/1000).toFixed(3);}}
+    else if(k==='vol'){const x=nf(o.vol);if(!isNaN(x)){const g=x*VPC;o.gl=g.toFixed(2);const c=contenants.find(c=>c.n===o.cont);if(c)o.kg=(c.l*g/1000).toFixed(3);}}
+  }
+  function cellEdit(td){
+    if(td.classList.contains('ed'))return;
+    const i=+td.dataset.i,k=td.dataset.k,o=hist[i];
+    let v=showV(o,k);if(v==='—')v='';
+    td.classList.add('ed');
+    td.innerHTML=k==='cont'?`<select>${contenants.map(c=>`<option${c.n===v?' selected':''}>${c.n}</option>`).join('')}${v&&!contenants.some(c=>c.n===v)?`<option selected>${esc(v)}</option>`:''}</select>`
+      :`<input type="text"${NUMK.includes(k)?' inputmode="decimal"':''} value="${esc(v)}" autocomplete="off">`;
+    const inp=td.firstElementChild;inp.focus();if(inp.select)inp.select();
+    let done=false;
+    const fin=save=>{if(done)return;done=true;if(save&&String(inp.value)!==String(v)){setVal(o,k,inp.value);persist();}renderHist();};
+    inp.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();fin(true);}else if(ev.key==='Escape')fin(false);});
+    inp.addEventListener('blur',()=>fin(true));
+    if(k==='cont')inp.addEventListener('change',()=>fin(true));
   }
   $('histtable').addEventListener('click',ev=>{
-    const b=ev.target.closest('[data-he],[data-hd],[data-hs],#hs_all');if(!b)return;
+    const b=ev.target.closest('[data-hd],[data-hs],#hs_all,td[data-k]');if(!b)return;
+    if(b.dataset.k){cellEdit(b);return;}
     if(b.id==='hs_all'){hsel=b.checked?new Set(hist.map((_,i)=>i)):new Set();renderHist();return;}
     if(b.dataset.hs!=null){const i=+b.dataset.hs;b.checked?hsel.add(i):hsel.delete(i);renderHist();return;}
-    if(b.dataset.he!=null){openEdit([+b.dataset.he]);return;}
     if(b.dataset.hd!=null){const i=+b.dataset.hd;if(!confirm('Supprimer cette mesure ?'))return;hist.splice(i,1);hsel=new Set([...hsel].filter(x=>x!==i).map(x=>x>i?x-1:x));renderHist();persist();}
   });
   $('selbar').addEventListener('click',ev=>{
