@@ -360,7 +360,7 @@ function calc(s){
 /* ---- saisie ---- */
 function setA(k,v){const s=cur();s.a[k]=v;if(s.auto)delete s.auto[k];save();refresh();}
 function setD(k,v){cur().dil[k]=v;save();refresh();}
-function setF(i,k,v){cur().formats[i][k]=v;save();if(k==='f')render();else{refresh();clearTimeout(window.__mt);window.__mt=setTimeout(()=>{const a=document.activeElement,id=a&&a.oninput?[...document.querySelectorAll('.fmt-row input')].indexOf(a):-1;render();if(id>=0){const n=document.querySelectorAll('.fmt-row input')[id];if(n){n.focus();n.setSelectionRange&&n.type==='text'&&n.setSelectionRange(99,99);}}},700);}}
+function setF(i,k,v){cur().formats[i][k]=v;save();if(k==='f')render();else{refresh();clearTimeout(window.__mt);window.__mt=setTimeout(()=>{const b=document.getElementById('matBox'),a=document.activeElement;if(b&&!(a&&b.contains(a)))b.innerHTML=matHTML(cur());},400);}}
 function addF(){cur().formats.push({f:'75cl',units:'',rej:''});save();render();}
 function delF(i){cur().formats.splice(i,1);save();render();}
 function setW(k,v){cur().w[k]=v;save();refresh();}
@@ -469,6 +469,15 @@ function delSession(){if(!confirm('Supprimer cette session ?'))return;S=S.filter
 
 function inA(k,label,unit,step){return `<label class="f">${label}${unit?' ('+unit+')':''}<input class="in" type="number" step="${step}" inputmode="decimal" value="${esc(cur().a[k])}" oninput="setA('${k}',this.value)"></label>`;}
 function kpi(id,label){return `<div class="kpi"><div class="v" id="k_${id}">—</div><div class="k">${label}</div><div class="d" id="d_${id}"></div></div>`;}
+function matHTML(s){return (()=>{const M=matRows(s);const it=stockItems();
+      const opts=sel=>`<option value="">— Choisir —</option><option value="__skip"${sel==='__skip'?' selected':''}>Ne pas déduire</option>`+[...it].sort((a,b)=>(a.cat==='emballage'?0:1)-(b.cat==='emballage'?0:1)||a.name.localeCompare(b.name,'fr')).map(i=>`<option value="${i.id}"${i.id===sel?' selected':''}>${esc(i.name)}</option>`).join('');
+      return M.length?`<table class="t"><thead><tr><th>Matériel</th><th>Article du stock</th><th class="num">Quantité</th><th class="num">En stock</th></tr></thead><tbody>
+        ${M.map(m=>`<tr><td>${m.l}${m.fromRecipe?'':m.id?' <small style="color:var(--ink-soft)">(modifié)</small>':''}</td>
+          <td><select class="in${m.id?'':' unm'}" onchange="setMat('${m.k}','id',this.value)">${opts(m.id)}</select>${lotSel(m.item,(s.mat&&s.mat[m.k]&&s.mat[m.k].lot)||'',`setMat('${m.k}','lot',this.value)`,s)}${m.split?`<small class="alt">${m.split.map(p=>esc(p.item.name)+' : '+p.q).join(' + ')} — ${esc(m.item.name)} épuisé, remplacé automatiquement</small>`:''}</td>
+          <td class="num"><input class="in" style="width:96px;text-align:right" type="number" min="0" step="1" value="${s.mat&&s.mat[m.k]&&s.mat[m.k].qty!=null?esc(s.mat[m.k].qty):''}" placeholder="${m.auto}" oninput="setMat('${m.k}','qty',this.value)"></td>
+          <td class="num">${m.item?(m.item.qty+' '+esc(m.item.unit||'')):'—'}</td></tr>`).join('')}</tbody></table>
+        <p class="hint">Quantités calculées depuis les formats : unités + rebuts (cartons : bonnes bouteilles ÷ bouteilles par carton, arrondi au supérieur). ${M.some(m=>!m.id)?'Choisis l\'article une fois dans le Carnet de brassage (« Matériel de conditionnement ») pour qu\'il soit repris à chaque lot.':''}</p>`
+      :'<p class="hint">Saisis les formats conditionnés pour calculer bouteilles, capsules et étiquettes.</p>';})();}
 function render(){
   const M=document.getElementById('sheet');const s=cur();
   if(!s){M.innerHTML=`<div class="card"><div class="empty">Crée une session de conditionnement : elle se relie au lot, à sa cuve et à ses cibles qualité.</div></div>`;return;}
@@ -533,15 +542,7 @@ function render(){
       <div class="kpis">${kpi('out','Volume conditionné')}${kpi('yield','Rendement de conditionnement')}${kpi('loss','Pertes')}</div></div></div>
 
   <div class="card"><div class="card-h"><h2><span class="n">05</span>Matériel &amp; sortie de stock</h2><span class="sub" style="margin:0">${(()=>{const r=recFind(s.recipe);return !r?`<span class="bad">⚠ Aucune recette du carnet ne correspond à « ${esc(s.recipe)} »</span>`:!Object.keys(r.pack||{}).length?`<span class="bad">⚠ Recette « ${esc(r.name)} » sans matériel : remplis « Matériel de conditionnement » dans le carnet (ou importe le fichier Excel)</span>`:`Matériel repris de la recette « ${esc(r.name)} »`;})()}</span></div>
-    <div class="card-b">${(()=>{const M=matRows(s);const it=stockItems();
-      const opts=sel=>`<option value="">— Choisir —</option><option value="__skip"${sel==='__skip'?' selected':''}>Ne pas déduire</option>`+[...it].sort((a,b)=>(a.cat==='emballage'?0:1)-(b.cat==='emballage'?0:1)||a.name.localeCompare(b.name,'fr')).map(i=>`<option value="${i.id}"${i.id===sel?' selected':''}>${esc(i.name)}</option>`).join('');
-      return M.length?`<table class="t"><thead><tr><th>Matériel</th><th>Article du stock</th><th class="num">Quantité</th><th class="num">En stock</th></tr></thead><tbody>
-        ${M.map(m=>`<tr><td>${m.l}${m.fromRecipe?'':m.id?' <small style="color:var(--ink-soft)">(modifié)</small>':''}</td>
-          <td><select class="in${m.id?'':' unm'}" onchange="setMat('${m.k}','id',this.value)">${opts(m.id)}</select>${lotSel(m.item,(s.mat&&s.mat[m.k]&&s.mat[m.k].lot)||'',`setMat('${m.k}','lot',this.value)`,s)}${m.split?`<small class="alt">${m.split.map(p=>esc(p.item.name)+' : '+p.q).join(' + ')} — ${esc(m.item.name)} épuisé, remplacé automatiquement</small>`:''}</td>
-          <td class="num"><input class="in" style="width:96px;text-align:right" type="number" min="0" step="1" value="${s.mat&&s.mat[m.k]&&s.mat[m.k].qty!=null?esc(s.mat[m.k].qty):''}" placeholder="${m.auto}" oninput="setMat('${m.k}','qty',this.value)"></td>
-          <td class="num">${m.item?(m.item.qty+' '+esc(m.item.unit||'')):'—'}</td></tr>`).join('')}</tbody></table>
-        <p class="hint">Quantités calculées depuis les formats : unités + rebuts (cartons : bonnes bouteilles ÷ bouteilles par carton, arrondi au supérieur). ${M.some(m=>!m.id)?'Choisis l\'article une fois dans le Carnet de brassage (« Matériel de conditionnement ») pour qu\'il soit repris à chaque lot.':''}</p>`
-      :'<p class="hint">Saisis les formats conditionnés pour calculer bouteilles, capsules et étiquettes.</p>';})()}
+    <div class="card-b"><div id="matBox">${matHTML(s)}</div>
       <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin-top:.8rem"><button class="btn-copper" onclick="deductStock()">${s.ref&&s.ref.move?'Mettre à jour la sortie de stock':'Déduire du stock'}</button>
         <span class="hint" style="margin:0">${s.ref&&s.ref.on?'Matériel + sucre + levure':'Matériel'} → Stock · bouteilles / fûts → Inventaire${s.inv?' (ajouté le '+fmtD(s.inv.at.slice(0,10))+')':''}</span>
         ${s.ref&&s.ref.move?`<span class="pill cave">déduit le ${fmtD(s.ref.move.at.slice(0,10))}</span>`:''}</div>
