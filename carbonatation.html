@@ -165,6 +165,24 @@ table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 .head-line .t{font-family:var(--display);font-size:16px;font-weight:600;letter-spacing:-.2px}
 .head-line .hint{font-size:12px;color:var(--mut);font-style:italic}
 .hidden{display:none}
+/* Édition historique */
+.ht td.ck,.ht th.ck{width:34px;text-align:center;padding-left:8px;padding-right:8px}
+.ht input[type=checkbox]{width:17px;height:17px;accent-color:var(--amber);cursor:pointer}
+.ht tr.sel td{background:var(--amber-bg)}
+.ht td.act{white-space:nowrap;padding:6px 8px}
+.ib{border:1px solid var(--line2);background:var(--bg2);color:var(--ink);border-radius:var(--radius-xs);padding:5px 9px;cursor:pointer;font-size:13px}
+.ib:hover{border-color:var(--amber);color:var(--amber)}
+.selbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;font-size:13px;color:var(--mut)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;z-index:50;padding:30px 12px;overflow:auto}
+.modal .box{background:var(--panel);border:1px solid var(--line2);border-radius:var(--radius);padding:20px;max-width:560px;width:100%;box-shadow:var(--shadow)}
+.modal h3{font-family:var(--display);font-size:18px;margin-bottom:6px}
+.modal .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px;margin:14px 0}
+.modal .grid .full{grid-column:1/-1}
+.modal label{display:block;font-size:11.5px;color:var(--mut);margin-bottom:4px;text-transform:uppercase;letter-spacing:.4px}
+.modal input,.modal select{width:100%;padding:9px 10px;background:var(--bg2);border:1px solid var(--line2);border-radius:var(--radius-xs);color:var(--ink);font:inherit;font-size:14px}
+.modal .chk{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--ink);text-transform:none;letter-spacing:0}
+.modal .chk input{width:auto}
+.modal .btns{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
 hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
 @media(max-width:560px){
   body{padding:28px 14px 50px}
@@ -323,7 +341,9 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
       <span class="t">Historique des mesures</span>
       <button class="btn" id="btn_clear" style="padding:7px 13px;font-size:12.5px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>Vider</button>
     </div>
+    <div class="selbar" id="selbar"></div>
     <div class="tbl-wrap"><div class="scroll"><table class="ht" id="histtable"></table></div></div>
+    <div id="hmodal"></div>
   </div>
 
   <!-- Table P/T -->
@@ -499,15 +519,78 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
   // Historique
   let hist=[];
   const fav=r=>(r.pav||r.pap)?(r.pav||'—')+' → '+(r.pap||'—'):'—';
+  let hsel=new Set(); // index des lignes sélectionnées
+  const esc=v=>String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   function renderHist(){
     const box=$('histbox'),t=$('histtable');
-    if(!hist.length){box.classList.add('hidden');return;}
+    if(!hist.length){box.classList.add('hidden');hsel.clear();return;}
     box.classList.remove('hidden');
-    const e=v=>String(v==null?'':v).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-    let h='<tr>'+['Heure','Bière / lot','Fût','Contenant','T (°C)','P (kPa)','g/L','vol','kg','P. fût av → ap (bar)','Commentaire'].map(x=>`<th>${x}</th>`).join('')+'</tr>';
-    hist.forEach(r=>{h+='<tr>'+[r.time,r.lot,r.fut||'—',r.cont,r.t,r.p,r.gl,r.vol,r.kg,fav(r)].map(x=>`<td>${e(x)}</td>`).join('')+`<td class="com">${e(r.com||'')}</td></tr>`;});
+    [...hsel].forEach(i=>{if(i>=hist.length)hsel.delete(i);});
+    const all=hsel.size===hist.length;
+    let h='<tr><th class="ck"><input type="checkbox" id="hs_all"'+(all?' checked':'')+' title="Tout sélectionner"></th>'+['Heure','Bière / lot','Fût','Contenant','T (°C)','P (kPa)','g/L','vol','kg','P. fût av → ap (bar)','Commentaire',''].map(x=>`<th>${x}</th>`).join('')+'</tr>';
+    hist.forEach((r,i)=>{h+=`<tr class="${hsel.has(i)?'sel':''}"><td class="ck"><input type="checkbox" data-hs="${i}"${hsel.has(i)?' checked':''}></td>`+[r.time,r.lot,r.fut||'—',r.cont,r.t,r.p,r.gl,r.vol,r.kg,fav(r)].map(x=>`<td>${esc(x)}</td>`).join('')+`<td class="com">${esc(r.com||'')}</td><td class="act"><button class="ib" data-he="${i}" title="Modifier">✎</button> <button class="ib" data-hd="${i}" title="Supprimer">🗑</button></td></tr>`;});
     t.innerHTML=h;
+    const n=hsel.size;
+    $('selbar').innerHTML=n?`<b style="color:var(--ink)">${n} sélectionnée${n>1?'s':''}</b><button class="ib" id="hs_edit">✎ Modifier la sélection</button><button class="ib" id="hs_del">🗑 Supprimer la sélection</button><button class="ib" id="hs_none">Désélectionner</button>`:'<span>Coche des lignes pour les modifier en lot, ou ✎ pour une ligne.</span>';
   }
+  $('histtable').addEventListener('click',ev=>{
+    const b=ev.target.closest('[data-he],[data-hd],[data-hs],#hs_all');if(!b)return;
+    if(b.id==='hs_all'){hsel=b.checked?new Set(hist.map((_,i)=>i)):new Set();renderHist();return;}
+    if(b.dataset.hs!=null){const i=+b.dataset.hs;b.checked?hsel.add(i):hsel.delete(i);renderHist();return;}
+    if(b.dataset.he!=null){openEdit([+b.dataset.he]);return;}
+    if(b.dataset.hd!=null){const i=+b.dataset.hd;if(!confirm('Supprimer cette mesure ?'))return;hist.splice(i,1);hsel=new Set([...hsel].filter(x=>x!==i).map(x=>x>i?x-1:x));renderHist();persist();}
+  });
+  $('selbar').addEventListener('click',ev=>{
+    const id=ev.target.id;
+    if(id==='hs_none'){hsel.clear();renderHist();}
+    else if(id==='hs_edit')openEdit([...hsel].sort((a,b)=>a-b));
+    else if(id==='hs_del'){if(!confirm('Supprimer '+hsel.size+' mesure(s) ?'))return;hist=hist.filter((_,i)=>!hsel.has(i));hsel.clear();renderHist();persist();}
+  });
+  const nf=v=>{v=String(v).trim().replace(',','.');return v===''?NaN:parseFloat(v);};
+  const HF=[ // champ, libellé, type
+    ['time','Heure / date','text'],['lot','Bière / lot','text'],['fut','N° fût','text'],['cont','Contenant','cont'],
+    ['t','Température (°C)','num'],['p','Pression (bar)','num'],['gl','CO₂ (g/L)','num'],['vol','CO₂ (vol)','num'],['kg','CO₂ (kg)','num'],
+    ['pav','P. fût avant (bar)','num'],['pap','P. fût après (bar)','num'],['com','Commentaire','text']];
+  function openEdit(idx){
+    if(!idx.length)return;
+    const one=idx.length===1,r=one?hist[idx[0]]:{};
+    const fld=([k,l,ty])=>{
+      let v=one?(r[k]??''):'';if(k==='p'&&v!==''&&!isNaN(nf(v)))v=(nf(v)/100).toFixed(2);const ph=one?'':' placeholder="inchangé"';
+      const inp=ty==='cont'?`<select id="he_${k}">${one?'':'<option value="">— inchangé —</option>'}${contenants.map(c=>`<option${c.n===v?' selected':''}>${c.n}</option>`).join('')}${one&&v&&!contenants.some(c=>c.n===v)?`<option selected>${esc(v)}</option>`:''}</select>`
+        :`<input id="he_${k}" type="text"${ty==='num'?' inputmode="decimal"':''} value="${esc(v)}"${ph} autocomplete="off">`;
+      return `<div class="${k==='com'||k==='lot'?'full':''}"><label for="he_${k}">${l}</label>${inp}</div>`;
+    };
+    $('hmodal').innerHTML=`<div class="modal" id="hm_bg"><div class="box">
+      <h3>${one?'Modifier la mesure':'Modifier '+idx.length+' mesures'}</h3>
+      <div class="note">${one?'Toutes les valeurs sont modifiables.':'Seuls les champs remplis seront appliqués à toutes les lignes sélectionnées. Les champs vides restent inchangés.'}</div>
+      <div class="grid">${HF.map(fld).join('')}
+        <div class="full"><label class="chk"><input type="checkbox" id="he_rc" checked> Recalculer g/L, vol et kg à partir de T, P et contenant</label></div>
+      </div>
+      <div class="btns"><button class="btn" id="he_x">Annuler</button><button class="btn primary" id="he_ok">Enregistrer</button></div>
+    </div></div>`;
+    $('he_x').onclick=closeEdit;
+    $('hm_bg').onclick=ev=>{if(ev.target.id==='hm_bg')closeEdit();};
+    ['gl','vol','kg'].forEach(k=>$('he_'+k).addEventListener('input',()=>{$('he_rc').checked=false;}));
+    $('he_ok').onclick=()=>{
+      const rc=$('he_rc').checked;
+      idx.forEach(i=>{
+        const o=hist[i];
+        HF.forEach(([k,,ty])=>{
+          const raw=$('he_'+k).value;
+          if(!one&&String(raw).trim()==='')return;
+          if(ty==='num'){let x=nf(raw);if(k==='p')x*=100;
+            o[k]=isNaN(x)?'':(k==='t'?x.toFixed(1):k==='p'?x.toFixed(0):k==='kg'?x.toFixed(3):x.toFixed(2));}
+          else o[k]=String(raw).trim();
+        });
+        if(rc){
+          const T=nf(o.t),P=nf(o.p),c=contenants.find(c=>c.n===o.cont);
+          if(!isNaN(T)&&!isNaN(P)){const co2=co2PT(P,T);o.gl=co2.toFixed(2);o.vol=(co2/VPC).toFixed(2);if(c)o.kg=(c.l*co2/1000).toFixed(3);}
+        }
+      });
+      closeEdit();renderHist();persist();
+    };
+  }
+  function closeEdit(){$('hmodal').innerHTML='';}
   $('btn_save').onclick=()=>{
     const V=volL(),T=parseFloat($('temp').value);
     if(isNaN(V)||isNaN(T))return;
@@ -524,7 +607,7 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
     ['com','pav','pap'].forEach(id=>$(id).value=''); // le commentaire est propre à chaque mesure ; le n° de fût reste pour la suivante
     renderHist();persist();
   };
-  $('btn_clear').onclick=()=>{hist=[];renderHist();persist();};
+  $('btn_clear').onclick=()=>{if(!confirm('Vider tout l\'historique ?'))return;hist=[];hsel.clear();renderHist();persist();};
 
   // Table P/T
   let ptShown=false;
