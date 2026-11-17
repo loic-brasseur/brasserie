@@ -124,6 +124,10 @@
   .rd{display:flex;justify-content:space-between;align-items:center;gap:.5rem;font-family:var(--mono);font-size:.85rem;
     padding:.5rem .65rem;background:var(--bg);border:1px solid var(--line);border-radius:9px}
   .rd .d{color:var(--ink-soft);font-size:.76rem}
+  [data-rk]{cursor:text;border-radius:4px}[data-rk]:hover{outline:1px dashed var(--line-strong,#c9b48f);outline-offset:2px}
+  .rd-in{font:inherit;width:100%;min-width:56px;padding:.15rem .3rem;border:1px solid var(--amber,#cf982b);border-radius:4px;background:#fff;color:inherit}
+  .rd .nt{flex-basis:100%;font-family:var(--sans);font-size:.78rem;color:var(--ink-soft);font-style:italic}
+  .rd{flex-wrap:wrap}
   .rd button{padding:.25rem .45rem;font-size:.7rem;background:transparent;color:var(--red);border:none}
   .empty-rd{padding:0 1.2rem 1rem;color:var(--ink-soft);font-style:italic;font-family:var(--serif);font-size:.85rem}
 
@@ -715,16 +719,38 @@ function renderReadings(){
   const rs=[...(t.batch.readings||[])].sort((a,b)=>a.date<b.date?1:-1);
   document.getElementById('readEmpty').classList.toggle('hidden',rs.length>0);
   list.innerHTML=rs.map(r=>`<div class="rd">
-      <span class="d">${fmtDate(r.date)}</span>
-      <span>${r.plato!=null?parseFloat(r.plato).toFixed(1)+' °P':'—'}</span>
-      <span>${r.temp!=null?parseFloat(r.temp).toFixed(0)+' °C':'—'}</span>
-      <span>${r.ph!=null?'pH '+parseFloat(r.ph).toFixed(2):''}</span>
-      <button data-rdate="${r.date}">✕</button>
+      <span class="d" data-rk="date" data-rd="${r.date}">${fmtDate(r.date)}</span>
+      <span data-rk="plato" data-rd="${r.date}">${r.plato!=null?parseFloat(r.plato).toFixed(1)+' °P':'— °P'}</span>
+      <span data-rk="temp" data-rd="${r.date}">${r.temp!=null?parseFloat(r.temp).toFixed(1)+' °C':'— °C'}</span>
+      <span data-rk="ph" data-rd="${r.date}">${r.ph!=null?'pH '+parseFloat(r.ph).toFixed(2):'pH —'}</span>
+      <button data-rdate="${r.date}" title="Supprimer le relevé">✕</button>
+      <span class="nt" data-rk="note" data-rd="${r.date}">${r.note?esc(r.note):'+ note'}</span>
     </div>`).join('');
   list.querySelectorAll('button[data-rdate]').forEach(b=>b.onclick=()=>{
+    if(!confirm('Supprimer le relevé du '+fmtDate(b.dataset.rdate)+' ?'))return;
     t.batch.readings=t.batch.readings.filter(x=>!(x.date===b.dataset.rdate));save();renderReadings();render();
   });
 }
+/* modifier une valeur d'un relevé en cliquant dessus (fenêtre Relevés et fiche de cuve) */
+function editReading(tankId,el,after){
+  const t=tank(tankId),b=t&&t.batch;if(!b||el.querySelector('input'))return;
+  const k=el.dataset.rk,d=el.dataset.rd,r=(b.readings||[]).find(x=>x.date===d);if(!r)return;
+  const v=r[k]==null?'':String(r[k]);
+  el.innerHTML=`<input class="rd-in" type="${k==='date'?'date':'text'}"${k==='note'||k==='date'?'':' inputmode="decimal"'} value="${esc(v)}">`;
+  const inp=el.firstElementChild;inp.focus();if(inp.select&&k!=='date')inp.select();
+  let done=false;
+  const fin=ok=>{if(done)return;done=true;
+    if(ok&&inp.value!==v){
+      if(k==='date'){const nd=inp.value;if(nd&&nd!==d){if(b.readings.some(x=>x.date===nd)){alert('Il y a déjà un relevé le '+fmtDate(nd)+'.');}else r.date=nd;}}
+      else if(k==='note')r.note=inp.value.trim();
+      else{const x=parseFloat(String(inp.value).replace(',','.'));r[k]=inp.value.trim()===''||isNaN(x)?null:x;}
+      save();render();}
+    after();};
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();fin(true);}else if(e.key==='Escape')fin(false);});
+  inp.addEventListener('blur',()=>fin(true));
+}
+document.getElementById('readList').addEventListener('click',e=>{const el=e.target.closest('[data-rk]');if(el&&readId)editReading(readId,el,renderReadings);});
+document.getElementById('shBody').addEventListener('click',e=>{const el=e.target.closest('[data-rk]');if(el&&sheetId)editReading(sheetId,el,renderSheet);});
 document.getElementById('readAdd').onclick=()=>{
   const t=tank(readId);const date=document.getElementById('r_date').value||todayStr();
   const plato=document.getElementById('r_plato').value;
@@ -789,8 +815,8 @@ function sheetHTML(t,b,printing){
     ${prot.map(p=>`<tr class="${p.done?'tr-done':p.date<todayStr()?'tr-late':''}"><td>${fmtDate(p.date)}</td><td>J+${p.d}</td><td>${FERM_ACT[p.a]||p.a}</td><td class="n">${p.t!==''&&p.t!=null?p.t+' °C':''}</td><td class="w">${esc(p.note)}</td>
       <td>${printing?(p.done?fmtDate(p.done):''):`<input type="checkbox" class="chk" ${p.done?'checked':''} onchange="markStep('${t.id}','${p.id}',this.checked)"> ${p.done?fmtDate(p.done):''}`}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun protocole. '+(printing?'':'<button class="mini" onclick="relink()">Installer depuis la recette</button>')+'</p>'}</div>
   ${relChart(b,rs)}
-  <div class="sec"><h3>Relevés (${rs.length})</h3>${rs.length?`<table class="t"><thead><tr><th>Date</th><th class="n">J+</th><th class="n">°P</th><th class="n">T° (°C)</th><th class="n">pH</th><th class="w">Note</th></tr></thead><tbody>
-    ${rs.map(r=>`<tr><td>${fmtDate(r.date)}</td><td class="n">${b.start?daysBetween(b.start,r.date):''}</td><td class="n">${r.plato!=null?(+r.plato).toFixed(1):'—'}</td><td class="n">${r.temp!=null?(+r.temp).toFixed(1):'—'}</td><td class="n">${r.ph!=null?(+r.ph).toFixed(2):'—'}</td><td class="w">${esc(r.note||'')}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun relevé.</p>'}</div>
+  <div class="sec"><h3>Relevés (${rs.length})</h3>${printing||!rs.length?'':'<p class="meta" style="margin:-.2rem 0 .3rem">Clique sur une valeur pour la modifier.</p>'}${rs.length?`<table class="t"><thead><tr><th>Date</th><th class="n">J+</th><th class="n">°P</th><th class="n">T° (°C)</th><th class="n">pH</th><th class="w">Note</th></tr></thead><tbody>
+    ${rs.map(r=>{const E=k=>printing?'':` data-rk="${k}" data-rd="${r.date}"`;return `<tr><td${E('date')}>${fmtDate(r.date)}</td><td class="n">${b.start?daysBetween(b.start,r.date):''}</td><td class="n"${E('plato')}>${r.plato!=null?(+r.plato).toFixed(1):'—'}</td><td class="n"${E('temp')}>${r.temp!=null?(+r.temp).toFixed(1):'—'}</td><td class="n"${E('ph')}>${r.ph!=null?(+r.ph).toFixed(2):'—'}</td><td class="w"${E('note')}>${esc(r.note||'')||(printing?'':'<span class="meta">+ note</span>')}</td></tr>`;}).join('')}</tbody></table>`:'<p class="meta">Aucun relevé.</p>'}</div>
   ${(b.sout||[]).length?`<div class="sec"><h3>Soutirages (${b.sout.length})</h3><table class="t"><thead><tr><th>Date</th><th class="n">Volume</th><th class="n">DF</th><th class="w">Destination</th>${printing?'':'<th></th>'}</tr></thead><tbody>
     ${b.sout.map(x=>`<tr><td>${fmtDate(x.date)}</td><td class="n">${x.volHL??'—'} HL</td><td class="n">${x.fg!=null?(+x.fg).toFixed(1)+' °P':'—'}</td><td class="w">${esc(x.dest)}</td>${printing?'':`<td><button class="mini" style="color:#B3261E" onclick="delSout('${x.id}')">Supprimer</button></td>`}</tr>`).join('')}</tbody></table></div>`:''}
   <div class="sec"><h3>Note fermentation</h3>
