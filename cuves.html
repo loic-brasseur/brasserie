@@ -193,7 +193,7 @@
     </div>
     <div class="toolbar">
       <a class="btn-ghost" href="brewlog.html" style="text-decoration:none;border-radius:10px;padding:.6rem .9rem;font-size:.85rem;font-weight:600;color:var(--ink)">Brew Log</a>
-      <button class="btn-ghost" id="btnHist">Historique</button>
+      <button class="btn-ghost" id="btnHist">Archives</button>
       <button class="btn-ghost" id="btnExport">Exporter</button>
       <button class="btn-ghost" id="btnImport">Importer</button>
       <input type="file" id="fileInput" accept="application/json" class="hidden">
@@ -347,8 +347,8 @@
 <!-- Modal historique -->
 <div class="overlay" id="histOverlay">
   <div class="modal wide">
-    <h2>Historique des lots</h2>
-    <div class="mhint">Chaque lot clôturé reste compilé ici avec ses relevés, d'un brassin à l'autre.</div>
+    <h2 id="histTitle">Archives des lots</h2>
+    <div class="mhint" id="histHint">Chaque lot soutiré reste ici avec ses relevés. Clique sur un lot pour ouvrir sa fiche complète.</div>
     <div class="sec" id="histBody" style="overflow-x:auto"></div>
     <div class="modal-actions"><button class="btn-primary" id="histClose">Fermer</button></div>
   </div>
@@ -926,13 +926,36 @@ document.getElementById('trSave').onclick=()=>{
 
 // ---- historique ----
 const ho=document.getElementById('histOverlay');
-document.getElementById('btnHist').onclick=()=>{
-  const A=state.archive.map((a,i)=>({...a,_i:i})).sort((a,b)=>a.closed.date<b.closed.date?1:-1);
-  document.getElementById('histBody').innerHTML=A.length?`<table class="t"><thead><tr><th></th><th>Lot</th><th>Bière</th><th>Cuve</th><th>Mise en cuve</th><th>Soutirage</th><th class="n">DI</th><th class="n">DF</th><th class="n">Att.</th><th class="n">Vol. in → out</th><th class="n">Note</th></tr></thead><tbody>
+let histQ='';
+function histList(){
+  document.getElementById('histTitle').textContent='Archives des lots';
+  document.getElementById('histHint').style.display='';
+  const q=histQ.trim().toLowerCase();
+  const A=state.archive.map((a,i)=>({...a,_i:i})).filter(a=>!q||[a.lot,a.recipe,a.tankName,a.style,a.closed&&a.closed.dest].join(' ').toLowerCase().includes(q)).sort((a,b)=>a.closed.date<b.closed.date?1:-1);
+  document.getElementById('histBody').innerHTML=`<input class="input" id="histSearch" placeholder="Rechercher un lot, une bière, une cuve…" value="${esc(histQ)}" style="font-family:var(--sans);width:100%;margin-bottom:.7rem">`+
+    (A.length?`<table class="t"><thead><tr><th>Lot</th><th>Bière</th><th>Cuve</th><th>Mise en cuve</th><th>Soutirage</th><th class="n">DI</th><th class="n">DF</th><th class="n">Att.</th><th class="n">Vol. in → out</th><th class="n">Note</th><th></th></tr></thead><tbody>
     ${A.map(a=>{const og=a.og!=null?+a.og:null,fg=a.closed.fg;const att=og&&fg!=null?((og-fg)/og*100).toFixed(0)+' %':'—';
-      return `<tr><td><button class="mini" style="color:#B3261E;white-space:nowrap" title="Supprimer ce soutirage" onclick="delArch(${a._i})">🗑 Supprimer</button></td><td>${esc(a.lot||'')}</td><td>${esc(a.recipe)}</td><td>${esc(a.tankName)}</td><td>${fmtDate(a.start)}</td><td>${fmtDate(a.closed.date)}</td><td class="n">${og!=null?og.toFixed(1):'—'}</td><td class="n">${fg!=null?fg.toFixed(1):'—'}</td><td class="n">${att}</td><td class="n">${a.volume||'—'} → ${a.closed.volHL??'—'} HL</td><td class="n">${a.fermScore!=null?a.fermScore+'/5':'—'}</td></tr>`;}).join('')}</tbody></table>`:'<p class="meta">Aucun lot clôturé pour l\'instant. Utilise « Soutirer & conditionner » sur une cuve pour archiver un lot.</p>';
-  ho.classList.add('show');
-};
+      return `<tr style="cursor:pointer" onclick="histOpen(${a._i})"><td><b>${esc(a.lot||'—')}</b></td><td>${esc(a.recipe)}</td><td>${esc(a.tankName)}</td><td>${fmtDate(a.start)}</td><td>${fmtDate(a.closed.date)}</td><td class="n">${og!=null?og.toFixed(1):'—'}</td><td class="n">${fg!=null?fg.toFixed(1):'—'}</td><td class="n">${att}</td><td class="n">${a.volume||'—'} → ${a.closed.volHL??'—'} HL</td><td class="n">${a.fermScore!=null?a.fermScore+'/5':'—'}</td><td><button class="mini" onclick="event.stopPropagation();histOpen(${a._i})">Ouvrir</button></td></tr>`;}).join('')}</tbody></table>`
+    :`<p class="meta">${state.archive.length?'Aucun lot ne correspond.':'Aucun lot archivé. Un lot est archivé quand tu le soutires en totalité (« Soutirer et conditionner »).'}</p>`);
+  const inp=document.getElementById('histSearch');inp.oninput=()=>{histQ=inp.value;const p=inp.selectionStart;histList();const n=document.getElementById('histSearch');n.focus();n.setSelectionRange(p,p);};
+}
+function archHint(a){return [a.style,a.lot?'lot '+a.lot:'',a.tankName,'mise en cuve '+fmtDate(a.start),'soutiré le '+fmtDate(a.closed.date),a.og!=null?'DI '+a.og+' °P':'',a.closed.fg!=null?'DF '+a.closed.fg+' °P':'',(a.closed.volHL??'—')+' HL'+(a.closed.dest?' → '+a.closed.dest:'')].filter(Boolean).join(' · ');}
+function histOpen(i){
+  const a=state.archive[i];if(!a)return;
+  document.getElementById('histTitle').textContent=(a.lot?'Lot '+a.lot+' — ':'')+(a.recipe||'Brassin');
+  document.getElementById('histHint').textContent=archHint(a);
+  const t={id:a.tankId,name:a.tankName};
+  document.getElementById('histBody').innerHTML=`<div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:.6rem">
+      <button class="mini" onclick="histList()">← Toutes les archives</button>
+      <button class="mini" onclick="histPrint(${i})">Imprimer / PDF</button>
+      <button class="mini" style="color:#B3261E" onclick="delArch(${i})">🗑 Supprimer / remettre en cuve</button></div>`+sheetHTML(t,a,true);
+  document.getElementById('histBody').scrollTop=0;
+}
+function histPrint(i){const a=state.archive[i];
+  document.getElementById('printSheet').innerHTML=`<h1>${esc(a.tankName)} — ${esc(a.recipe)} (archive)</h1><div>${esc(archHint(a))}</div>`+
+    sheetHTML({id:a.tankId,name:a.tankName},a,true).replace(/<h3>/g,'<h2>').replace(/<\/h3>/g,'</h2>')+`<p style="color:#8a7a64">Fiche de lot archivée — imprimée le ${new Date().toLocaleString('fr-FR')}</p>`;
+  window.print();}
+document.getElementById('btnHist').onclick=()=>{histList();ho.classList.add('show');};
 document.getElementById('histClose').onclick=()=>ho.classList.remove('show');
 ho.addEventListener('click',e=>{if(e.target===ho)ho.classList.remove('show');});
 
