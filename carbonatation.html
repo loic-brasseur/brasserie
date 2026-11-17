@@ -10,11 +10,12 @@
 
 <meta charset="UTF-8">
 <script src="sync.js"></script>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#FBF5EC">
 <title>Carbonatation CO₂ — Outil brasseur</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{
@@ -210,6 +211,78 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
   .brand h1{font-size:24px}.brand .mark{width:44px;height:44px;font-size:22px}
   .card .val{font-size:27px}.panel{padding:18px}
 }
+
+/* ===== Thème clair — identique aux autres apps (Brew Log, Cellar Log, Packaging Log) ===== */
+:root{
+  --bg:#FBF5EC; --bg2:#FFFFFF; --panel:#FFFDF7; --panel2:#F7F0E3; --panel3:#F1E7D5;
+  --line:rgba(26,22,18,.12); --line2:#E0D4BE;
+  --ink:#1A1612; --mut:#7A6F5C; --hint:#9A8F7A;
+  --amber:#B8842F; --amber-d:#A8541B; --amber-bg:rgba(207,152,43,.12); --amber-line:rgba(184,132,47,.38);
+  --green:#4F6B2F; --green-bg:rgba(79,107,47,.08); --green-ink:#4F6B2F; --green-line:rgba(79,107,47,.32);
+  --warn:#B8842F; --warn-bg:rgba(207,152,43,.10); --warn-ink:#8A5F1C; --warn-line:rgba(207,152,43,.42);
+  --info:#A8541B; --info-bg:rgba(168,84,27,.06); --info-ink:#A8541B; --info-line:rgba(168,84,27,.28);
+  --copper:#A8541B; --mono:'JetBrains Mono',ui-monospace,monospace;
+  --radius:14px; --radius-s:10px; --radius-xs:8px;
+  --display:'Fraunces',Georgia,serif; --sans:'Manrope',system-ui,-apple-system,sans-serif;
+  --shadow:0 1px 2px rgba(26,22,18,.05),0 8px 24px rgba(26,22,18,.09);
+  --shadow-card:0 1px 2px rgba(26,22,18,.04);
+}
+body{background:radial-gradient(ellipse at top,#FBF5EC 0%,#F4ECDC 100%);background-attachment:fixed;color:var(--ink);
+  padding:max(1rem,env(safe-area-inset-top)) max(.9rem,env(safe-area-inset-right)) max(4.5rem,env(safe-area-inset-bottom)) max(.9rem,env(safe-area-inset-left))}
+.wrap{max-width:980px;gap:1rem}
+header{align-items:flex-end;padding:0 0 1rem;border-bottom:1px solid var(--line)}
+header::after{display:none}
+.brand{gap:.85rem}
+.brand .mark{width:42px;height:42px;border-radius:11px;background:var(--copper);color:#FBF5EC;font-family:var(--display);font-size:1.35rem;font-weight:600;box-shadow:none}
+.brand h1{font-weight:500;font-size:clamp(1.7rem,5vw,2.3rem);letter-spacing:-.02em}
+.brand .sub{font-family:var(--display);font-style:italic;text-transform:none;letter-spacing:0;font-size:.92rem;font-weight:400;margin-top:.3rem}
+.seg{background:transparent;border:1.5px solid var(--line2);box-shadow:none;border-radius:999px}
+.seg button{color:var(--ink);font-weight:600}
+.seg button:hover{background:rgba(26,22,18,.05)}
+.seg button.on{background:var(--ink);color:#FBF5EC;box-shadow:none}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:0 1rem 1rem;box-shadow:var(--shadow)}
+.panel-num{font-family:var(--display);font-size:1.1rem;font-weight:600;color:var(--ink);text-transform:none;letter-spacing:0;
+  margin:0 -1rem 1rem;padding:.8rem 1rem;border-bottom:1px solid var(--line);gap:.5rem}
+.panel-num::before{width:auto;height:auto;border:none;border-radius:0;background:none;font-family:var(--mono);font-size:.75rem;color:var(--copper);font-weight:600}
+.panel-num::after{display:none}
+.fld{gap:.25rem}
+.fld label,.modal label{font-size:.68rem;text-transform:uppercase;letter-spacing:.07em;color:var(--mut);font-weight:700}
+input[type=text],input[type=number],select{background:#fff;border:1px solid var(--line2);border-radius:9px;font-size:.95rem;padding:.5rem .6rem;min-height:40px;font-weight:500}
+input[type=number],#lot,#fut{font-family:var(--mono)}
+select{background-repeat:no-repeat;background-position:right 12px center;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237A6F5C' stroke-width='3'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");padding-right:34px}
+input:focus,select:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(184,132,47,.12)}
+.row{gap:.6rem;margin-bottom:.6rem}.grid3{gap:.6rem;align-items:end}
+.measrow{display:grid;grid-template-columns:repeat(3,minmax(110px,1fr)) 2fr;gap:.6rem;align-items:end}
+@media(max-width:700px){.measrow{grid-template-columns:repeat(3,1fr)}.measrow .com{grid-column:1/-1}}
+.cards{gap:.6rem}
+.card{border-radius:11px;padding:.75rem .9rem;box-shadow:none}
+.card .lab{font-size:.62rem;letter-spacing:.08em;font-weight:700}
+.card .val{font-family:var(--mono);font-size:1.7rem;letter-spacing:-.02em}
+.card .u{font-family:var(--sans);font-size:.8rem}
+.card.main{background:var(--info-bg)}.card.main .val{color:var(--copper)}
+.card.sec{background:var(--panel2);border-color:var(--line)}
+.card.ok{background:var(--green-bg)}.card.warn{background:var(--warn-bg)}
+.btn{background:transparent;border:1.5px solid var(--line2);border-radius:10px;font-weight:600;font-size:.85rem;padding:.6rem .9rem;box-shadow:none}
+.btn:hover{background:rgba(26,22,18,.05);border-color:var(--line2);transform:none}
+.btn.primary{background:var(--copper);border-color:var(--copper);color:#fff}
+.btn.primary:hover{box-shadow:0 6px 18px rgba(168,84,27,.32);filter:none;background:var(--copper)}
+.btn.save{background:var(--ink);border-color:var(--ink);color:#FBF5EC;padding:.75rem;font-size:.92rem}
+.btn.save:hover{background:#2c251e;border-color:#2c251e}
+.tbl-wrap{border:1px solid var(--line);border-radius:11px;box-shadow:none}
+.ht th{color:var(--mut);background:var(--panel2);border-bottom:1px solid var(--line);font-size:.64rem;letter-spacing:.07em;font-weight:700}
+.ht td{font-family:var(--mono);font-size:.82rem}
+.ht td.com,.ht td[data-k="lot"]{font-family:var(--sans)}
+.ht tr:nth-child(even) td{background:rgba(26,22,18,.018)}
+.ht tr:hover td{background:rgba(207,152,43,.08)}
+.ptt td{font-family:var(--mono)}
+.head-line .t,.stylerow .t{font-size:1.1rem}
+.note,.foot{color:var(--mut)}
+.ib{background:#fff;border-color:var(--line2)}
+.modal{background:rgba(26,22,18,.42);backdrop-filter:blur(3px)}
+.modal .box{background:var(--panel);border-color:var(--line);border-radius:18px}
+.modal input,.modal select{background:#fff}
+#histtable td.ed input,#histtable td.ed select{background:#fff}
+@media(max-width:560px){.panel{padding:0 1rem 1rem}.card .val{font-size:1.45rem}}
 </style>
 </head>
 <body>
@@ -220,7 +293,7 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
 
   <header>
     <div class="brand">
-      <div class="mark">🍺</div>
+      <div class="mark">C</div>
       <div>
         <h1>Carbonatation CO₂</h1>
         <div class="sub">Outil brasseur · g/L · volumes</div>
@@ -234,7 +307,7 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
 
   <!-- Saisie -->
   <div class="panel">
-    <div class="panel-num" data-n="1">Mesure</div>
+    <div class="panel-num" data-n="01">Mesure</div>
     <div class="row">
       <div class="fld" style="flex:2;min-width:200px">
         <label for="biere">Bière</label>
@@ -272,6 +345,26 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
         <input type="number" id="target" value="4.9" step="0.1">
       </div>
     </div>
+  <!-- Fût mesuré + commentaire -->
+    <div class="measrow" style="margin:16px 0 0">
+      <div class="fld">
+        <label for="fut">N° du fût</label>
+        <input type="text" id="fut" placeholder="ex. F-112" autocomplete="off">
+      </div>
+      <div class="fld">
+        <label for="pav">P. fût avant (bar)</label>
+        <input type="number" id="pav" step="0.01" inputmode="decimal" placeholder="ex. 1.20">
+      </div>
+      <div class="fld">
+        <label for="pap">P. fût après (bar)</label>
+        <input type="number" id="pap" step="0.01" inputmode="decimal" placeholder="ex. 1.05">
+      </div>
+      <div class="fld com">
+        <label for="com">Commentaire</label>
+        <input type="text" id="com" placeholder="ex. après 48 h au froid, mousse fine…" autocomplete="off">
+      </div>
+    </div>
+
     <p class="warnmsg" id="warn"></p>
   </div>
 
@@ -291,32 +384,12 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
     </div>
   </div>
 
-  <!-- Fût mesuré + commentaire -->
-  <div class="measrow">
-    <div class="fld" style="flex:1;min-width:120px;max-width:180px">
-      <label for="fut">N° du fût</label>
-      <input type="text" id="fut" placeholder="ex. F-112" autocomplete="off">
-    </div>
-    <div class="fld" style="flex:1;min-width:120px;max-width:170px">
-      <label for="pav">Pression fût avant (bar)</label>
-      <input type="number" id="pav" step="0.01" inputmode="decimal" placeholder="ex. 1.20">
-    </div>
-    <div class="fld" style="flex:1;min-width:120px;max-width:170px">
-      <label for="pap">Pression fût après (bar)</label>
-      <input type="number" id="pap" step="0.01" inputmode="decimal" placeholder="ex. 1.05">
-    </div>
-    <div class="fld" style="flex:3;min-width:200px">
-      <label for="com">Commentaire</label>
-      <input type="text" id="com" placeholder="ex. après 48 h au froid, mousse fine…" autocomplete="off">
-    </div>
-  </div>
-
   <!-- Enregistrer la mesure -->
   <button class="btn save" id="btn_save"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Enregistrer la mesure dans l'historique</button>
 
   <!-- Contre-pression à régler -->
   <div class="panel" id="keepbox">
-    <div class="panel-num" data-n="2">Contre-pression dans le fût</div>
+    <div class="panel-num" data-n="02">Contre-pression dans le fût</div>
     <div class="cards" style="margin-bottom:18px">
       <div class="card main" style="margin:0">
         <div class="lab">À régler maintenant <span style="opacity:.7">(au remplissage)</span></div>
@@ -336,7 +409,7 @@ hr.soft{border:none;border-top:1px solid var(--line);margin:18px 0}
 
   <!-- Repère style -->
   <div class="panel">
-    <div class="panel-num" data-n="3">Cible &amp; repère style</div>
+    <div class="panel-num" data-n="03">Cible &amp; repère style</div>
     <div class="stylerow">
       <div class="t">Style de bière</div>
       <select id="style" style="min-width:220px"></select>
