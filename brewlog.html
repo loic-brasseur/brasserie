@@ -89,6 +89,7 @@
   table.t th{text-align:left;font-size:.66rem;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);padding:.35rem .4rem;border-bottom:1px solid var(--line)}
   table.t td{padding:.35rem .4rem;border-bottom:1px solid var(--line);vertical-align:middle}
   table.t td.num,table.t th.num{text-align:right;font-family:var(--mono)}
+  table.t td.ok{color:var(--green);font-weight:600}table.t td.warn{color:var(--amber);font-weight:600}table.t td.bad{color:var(--red);font-weight:600}
   table.t .in{min-height:34px;padding:.3rem .45rem;font-size:.85rem}
 
   .kpis{display:flex;gap:.6rem;flex-wrap:wrap;margin:.8rem 0}
@@ -712,6 +713,30 @@ function history(d){
 }
 function bNorm(n){return String(n||'').trim().toLowerCase().replace(/^bi[eèé]re\s+/,'');}
 function dayEff(x){const v=x.brassins.map(b=>calc(x,b).effPre).filter(v=>v!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
+
+/* ===== Comparatif du brassin en cours vs moyenne des brassins précédents de la même bière ===== */
+function prevAll(d){return days.filter(x=>x.id!==d.id&&bNorm(x.recipe.name)===bNorm(d.recipe.name)&&x.date<=d.date);}
+function brMetrics(x,b){const c=calc(x,b),m=b.m;const mn=(a,z)=>a&&z?(new Date(z)-new Date(a))/6e4:null;
+  const sc=STEPS.map(([k])=>score(x,b,k)).filter(v=>v!=null);
+  return {eff:c.effPre,pPre:num(m.pPre),di:c.pPost,ph:num(m.ph),vPre:c.vPre,vPost:num(m.vPost),evap:c.evapPct,vFerm:c.vFerm,loss:c.lossL,
+    tFerm:num(m.tFerm),phFerm:num(m.phFerm),o2:num(m.o2),ebc:c.ebc,ibu:c.ibu,laut:mn(b.ev.lautStart,b.ev.lautEnd),dur:mn(b.ev.mashIn,b.ev.coolEnd),
+    note:sc.length?sc.reduce((p,q)=>p+q,0)/sc.length:null};}
+function compAvgHTML(d,b){
+  const P=prevAll(d);const B=[];P.forEach(x=>x.brassins.forEach(bb=>B.push(brMetrics(x,bb))));
+  if(!B.length)return '';
+  const M=brMetrics(d,b);const av=k=>{const v=B.map(m=>m[k]).filter(x=>x!=null&&!isNaN(x));return v.length?{m:v.reduce((p,q)=>p+q,0)/v.length,n:v.length}:null;};
+  const hm=v=>v==null?'—':Math.floor(v/60)+' h '+String(Math.round(v%60)).padStart(2,'0');
+  const R=[['eff','Rendement brassage','%',1,1],['pPre','Densité avant ébullition','°P',1,.3],['di','DI (fin d\'ébullition)','°P',1,.3],['ph','pH empâtage','',2,.1],
+    ['vPre','Volume avant ébullition','L',0,null],['vPost','Volume fin d\'ébullition','L',0,null],['evap','Évaporation','%/h',1,null],['vFerm','Volume en fermenteur','L',0,null],['loss','Pertes (chaud → fermenteur)','L',0,null],
+    ['tFerm','T° ensemencement','°C',1,.5],['phFerm','pH moût','',2,.1],['o2','O₂ aération','mg/L',1,null],['ebc','Couleur','EBC',0,null],['ibu','Amertume','IBU',0,null],
+    ['laut','Durée filtration','t',0,null],['dur','Durée du brassin','t',0,null],['note','Note moyenne','/5',1,null]];
+  const fmt=(v,u,dg)=>v==null?'—':u==='t'?hm(v):v.toFixed(dg)+(u==='/5'?'/5':u?' '+u:'');
+  const rows=R.map(([k,l,u,dg,tol])=>{const a=av(k),v=M[k];if(v==null&&!a)return '';const dv=v!=null&&a?v-a.m:null;
+    const cls=dv==null||tol==null?'':Math.abs(dv)<=tol?'ok':Math.abs(dv)<=tol*2?'warn':'bad';
+    return `<tr><td>${l}</td><td class="num">${fmt(v,u,dg)}</td><td class="num">${a?fmt(a.m,u,dg):'—'}</td><td class="num ${cls}">${dv==null?'':u==='t'?(dv>=0?'+':'−')+Math.round(Math.abs(dv))+' min':(dv>=0?'+':'')+dv.toFixed(dg)}</td></tr>`;}).join('');
+  return `<div style="margin-top:1rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700">Brassin ${bCode(d,curB)} vs moyenne des ${B.length} brassin${B.length>1?'s':''} précédent${B.length>1?'s':''} de ${esc(d.recipe.name)} (${P.length} lot${P.length>1?'s':''})</div>
+    <table class="t" style="margin-top:.3rem"><thead><tr><th></th><th class="num">Ce brassin</th><th class="num">Moyenne</th><th class="num">Écart</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
 function refreshCalc(){
   const d=day();if(!d)return;const b=d.brassins[curB];const c=calc(d,b);
   const cls=(dv,tol)=>dv==null?'':Math.abs(dv)<=tol?'ok':Math.abs(dv)<=tol*2?'warn':'bad';
@@ -740,7 +765,7 @@ function refreshCalc(){
   if(hEff.length>=2&&d.recipe.eff){const avg=hEff.concat(curEff!=null?[curEff]:[]).reduce((a,b)=>a+b,0)/(hEff.length+(curEff!=null?1:0));
     if(Math.abs(avg-num(d.recipe.eff))>1.5)advice=`Rendement moyen réel ${avg.toFixed(1)} % contre ${d.recipe.eff} % dans la recette : ajuste le rendement de la recette pour viser juste au prochain brassin.`;}
   cmp.innerHTML=(low.length?`<div class="advice"><b>Où le brassin a décroché :</b> ${low.join(', ')}.</div>`:'')+
-    (advice?`<div class="advice"><b>Pour le prochain :</b> ${advice}</div>`:'')+
+    (advice?`<div class="advice"><b>Pour le prochain :</b> ${advice}</div>`:'')+compAvgHTML(d,b)+
     (hist.length?`<div style="margin-top:1rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700">Comparaison aux brassages précédents de ${esc(d.recipe.name)}</div>
     <table class="t" style="margin-top:.3rem"><thead><tr><th>Lot</th><th>Date</th><th class="num">Rendement</th><th class="num">DI</th><th class="num">Vol. fermenteur</th><th class="num">Note moy.</th></tr></thead><tbody>
     ${[d].concat(hist).map(x=>{const bs=x.brassins;const di=bs.map(bb=>num(bb.m.pPost)).filter(v=>v!=null);const vf=bs.map(bb=>num(bb.m.vFerm)).filter(v=>v!=null);

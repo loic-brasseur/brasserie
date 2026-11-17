@@ -154,6 +154,7 @@
   table.t td{padding:.38rem .35rem;border-bottom:1px solid var(--line)}
   table.t td.n{font-family:var(--mono);text-align:right}
   table.t th.n{text-align:right}
+  table.t td.ok{color:var(--green);font-weight:600}table.t td.warn{color:var(--amber);font-weight:600}
   .rcharts{display:flex;flex-direction:column;gap:2px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:6px 8px}
   .rchart{width:100%;height:auto;display:block}
   .rc-legend{display:flex;gap:14px;flex-wrap:wrap;font:600 11px var(--sans);padding:2px 2px 4px}
@@ -773,6 +774,45 @@ function openSheet(id){sheetId=id;renderSheet();so.classList.add('show');}
 function closeSheet(){so.classList.remove('show');sheetId=null;}
 document.getElementById('shClose').onclick=closeSheet;
 so.addEventListener('click',e=>{if(e.target===so)closeSheet();});
+
+/* ===== Comparatif aux lots précédents de la même bière (archives) ===== */
+function peersOf(b){const n=rNorm(b.recipe);if(!n)return [];
+  return state.archive.filter(a=>a!==b&&(!b.aid||a.aid!==b.aid)&&rNorm(a.recipe)===n&&(!b.start||!a.start||a.start<b.start));}
+function platoAt(a,J){const pts=(a.readings||[]).filter(r=>r.plato!=null&&a.start).map(r=>({x:daysBetween(a.start,r.date),y:+r.plato})).sort((p,q)=>p.x-q.x);
+  if(!pts.length)return null;if(J<pts[0].x)return a.og!=null&&J>=0?(+a.og)+(pts[0].y-(+a.og))*(J/(pts[0].x||1)):null;if(J>pts[pts.length-1].x)return null;
+  for(let i=1;i<pts.length;i++){const p=pts[i-1],q=pts[i];if(J<=q.x)return q.x===p.x?q.y:p.y+(q.y-p.y)*(J-p.x)/(q.x-p.x);}return pts[pts.length-1].y;}
+function avgCurve(P){const mx=Math.max(-1,...P.map(a=>Math.max(-1,...(a.readings||[]).filter(r=>r.plato!=null&&a.start).map(r=>daysBetween(a.start,r.date)))));
+  const out=[];for(let J=0;J<=mx;J++){const v=P.map(a=>platoAt(a,J)).filter(x=>x!=null);if(v.length)out.push({x:J,y:v.reduce((p,q)=>p+q,0)/v.length,n:v.length});}return out;}
+function lotMetrics(a){
+  const rs=(a.readings||[]).filter(r=>a.start).sort((x,y)=>x.date<y.date?-1:1);
+  const og=a.og!=null?+a.og:null,lr=[...rs].reverse().find(r=>r.plato!=null);
+  const fg=a.closed&&a.closed.fg!=null?+a.closed.fg:lr?+lr.plato:null;
+  let jFg=null;if(fg!=null){const r=rs.find(r=>r.plato!=null&&+r.plato<=fg+0.3);if(r)jFg=daysBetween(a.start,r.date);}
+  const ts=rs.filter(r=>r.temp!=null).map(r=>+r.temp),phs=rs.filter(r=>r.ph!=null);
+  const vin=a.volume!=null?+a.volume:null,vout=a.closed&&a.closed.volHL!=null?+a.closed.volHL:null;
+  return {og,fg,att:og&&fg!=null?(og-fg)/og*100:null,abv:abvP(og,fg),jFg,
+    dur:a.closed&&a.start?daysBetween(a.start,a.closed.date):null,tmax:ts.length?Math.max(...ts):null,
+    ph:phs.length?+phs[phs.length-1].ph:null,loss:vin&&vout!=null?(vin-vout)/vin*100:null,score:fermScore(a)};}
+function compHTML(b){
+  const P=peersOf(b);if(!P.length)return '';
+  const M=lotMetrics(b),PM=P.map(lotMetrics),closed=!!b.closed;
+  const av=k=>{const v=PM.map(m=>m[k]).filter(x=>x!=null&&!isNaN(x));return v.length?v.reduce((p,q)=>p+q,0)/v.length:null;};
+  const rows=closed?[['og','DI','°P',1],['fg','DF finale','°P',1],['att','Atténuation','%',0],['abv','Alcool estimé','%',1],['jFg','Jours pour atteindre la DF','j',0],
+    ['tmax','T° max','°C',1],['ph','pH (dernier relevé)','',2],['dur','Durée en cuve','j',0],['loss','Pertes en cuve','%',1],['score','Note fermentation','/5',1]]
+    :[['og','DI','°P',1],['tmax','T° max (jusqu\'ici)','°C',1],['ph','pH (dernier relevé)','',2]];
+  const PMc=PM;
+  let jRow='';
+  if(!closed&&b.start){const lr=[...(b.readings||[])].filter(r=>r.plato!=null).sort((x,y)=>x.date<y.date?-1:1).pop();const J=lr?daysBetween(b.start,lr.date):null,cur=lr?+lr.plato:null,a=avgCurve(P).find(p=>p.x===J);
+    const fm=av('fg'),jm=av('jFg');
+    if(cur!=null&&a){const d=cur-a.y;jRow=`<tr><td>Densité à J+${J}</td><td class="n">${cur.toFixed(1)} °P</td><td class="n">${a.y.toFixed(1)} °P</td><td class="n ${Math.abs(d)<=.5?'ok':'warn'}">${d>=0?'+':''}${d.toFixed(1)} ${Math.abs(d)<=.5?'· dans la moyenne':d>0?'· en retard':'· en avance'}</td></tr>`;}
+    if(fm!=null)jRow+=`<tr><td>DF finale attendue</td><td class="n">${b.targets&&b.targets.fg!=null?'cible '+(+b.targets.fg).toFixed(1)+' °P':'—'}</td><td class="n">${fm.toFixed(1)} °P</td><td class="n"></td></tr>`;
+    if(jm!=null)jRow+=`<tr><td>DF atteinte en moyenne à</td><td class="n">${J!=null?'auj. J+'+daysBetween(b.start,todayStr()):'—'}</td><td class="n">J+${Math.round(jm)}</td><td class="n"></td></tr>`;}
+  return `<div class="sec"><h3>Comparatif — moyenne des ${P.length} lot${P.length>1?'s':''} précédent${P.length>1?'s':''} de ${esc(b.recipe)}</h3>
+    <table class="t"><thead><tr><th class="w"></th><th class="n">Ce lot</th><th class="n">Moyenne</th><th class="n">Écart</th></tr></thead><tbody>${jRow}
+    ${rows.map(([k,l,u,dg])=>{const v=M[k],m=av(k);if(v==null&&m==null)return '';const f=x=>x==null?'—':x.toFixed(u==='/5'?0:dg)+(u==='/5'?'/5':u?' '+u:'');const d=v!=null&&m!=null?v-m:null;
+      return `<tr><td>${l}</td><td class="n">${f(v)}</td><td class="n">${f(m)}</td><td class="n">${d==null?'':(d>=0?'+':'')+d.toFixed(dg)}</td></tr>`;}).join('')}
+    </tbody></table><p class="meta" style="margin-top:.3rem">Lots comparés : ${P.map(a=>esc(a.lot||fmtDate(a.start))).join(', ')}. Courbe en pointillés gris = densité moyenne de ces lots.</p></div>`;
+}
 function sheetHTML(t,b,printing){
   const T=b.targets,F=batchFigures(b);
   const prot=(b.protocol||[]).slice().sort((x,y)=>x.date<y.date?-1:1);
@@ -789,6 +829,7 @@ function sheetHTML(t,b,printing){
     ${prot.map(p=>`<tr class="${p.done?'tr-done':p.date<todayStr()?'tr-late':''}"><td>${fmtDate(p.date)}</td><td>J+${p.d}</td><td>${FERM_ACT[p.a]||p.a}</td><td class="n">${p.t!==''&&p.t!=null?p.t+' °C':''}</td><td class="w">${esc(p.note)}</td>
       <td>${printing?(p.done?fmtDate(p.done):''):`<input type="checkbox" class="chk" ${p.done?'checked':''} onchange="markStep('${t.id}','${p.id}',this.checked)"> ${p.done?fmtDate(p.done):''}`}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun protocole. '+(printing?'':'<button class="mini" onclick="relink()">Installer depuis la recette</button>')+'</p>'}</div>
   ${relChart(b,rs)}
+  ${compHTML(b)}
   <div class="sec"><h3>Relevés (${rs.length})</h3>${rs.length?`<table class="t"><thead><tr><th>Date</th><th class="n">J+</th><th class="n">°P</th><th class="n">T° (°C)</th><th class="n">pH</th><th class="w">Note</th></tr></thead><tbody>
     ${rs.map(r=>`<tr><td>${fmtDate(r.date)}</td><td class="n">${b.start?daysBetween(b.start,r.date):''}</td><td class="n">${r.plato!=null?(+r.plato).toFixed(1):'—'}</td><td class="n">${r.temp!=null?(+r.temp).toFixed(1):'—'}</td><td class="n">${r.ph!=null?(+r.ph).toFixed(2):'—'}</td><td class="w">${esc(r.note||'')}</td></tr>`).join('')}</tbody></table>`:'<p class="meta">Aucun relevé.</p>'}</div>
   ${(b.sout||[]).length?`<div class="sec"><h3>Soutirages (${b.sout.length})</h3><table class="t"><thead><tr><th>Date</th><th class="n">Volume</th><th class="n">DF</th><th class="w">Destination</th>${printing?'':'<th></th>'}</tr></thead><tbody>
@@ -805,12 +846,14 @@ function relChart(b,rs){
   const S=[{k:'plato',l:'Densité',u:'°P',c:'#A8541B',dg:1,min:1},{k:'temp',l:'Température',u:'°C',c:'#C9A227',dg:1,min:2},{k:'ph',l:'pH',u:'',c:'#4F6B2F',dg:2,min:0.3}];
   const day=r=>b.start?daysBetween(b.start,r.date):0;
   const all=rs.filter(r=>S.some(x=>r[x.k]!=null));if(!all.length)return '';
-  const xs=all.map(day),x0=Math.min(0,...xs),x1=Math.max(x0+1,...xs);
+  const AV0=avgCurve(peersOf(b));
+  const xs=all.map(day).concat(AV0.map(p=>p.x)),x0=Math.min(0,...xs),x1=Math.max(x0+1,...xs);
   const W=640,H=230,L=40,R=40,T=14,B=22;const X=v=>L+(v-x0)/(x1-x0)*(W-L-R);
   const step=x1-x0<=10?1:x1-x0<=21?2:x1-x0<=45?5:7;const ticks=[];for(let v=Math.ceil(x0/step)*step;v<=x1;v+=step)ticks.push(v);
   const fg=b.targets&&b.targets.fg!=null?+b.targets.fg:null;
+  const AV=avgCurve(peersOf(b));
   const ser=S.map(sr=>{const pts=rs.filter(r=>r[sr.k]!=null).map(r=>({x:day(r),y:+r[sr.k]})).sort((a,c)=>a.x-c.x);if(!pts.length)return null;
-    let lo=Math.min(...pts.map(p=>p.y)),hi=Math.max(...pts.map(p=>p.y));if(sr.k==='plato'&&fg!=null){lo=Math.min(lo,fg);hi=Math.max(hi,fg);}
+    let lo=Math.min(...pts.map(p=>p.y)),hi=Math.max(...pts.map(p=>p.y));if(sr.k==='plato'&&fg!=null){lo=Math.min(lo,fg);hi=Math.max(hi,fg);}if(sr.k==='plato'&&AV.length){lo=Math.min(lo,...AV.map(p=>p.y));hi=Math.max(hi,...AV.map(p=>p.y));}
     if(hi-lo<sr.min){const m=(hi+lo)/2;lo=m-sr.min/2;hi=m+sr.min/2;}const pad=(hi-lo)*0.1;lo-=pad;hi+=pad;
     return {...sr,pts,lo,hi,Y:v=>T+(1-(v-lo)/(hi-lo))*(H-T-B)};}).filter(Boolean);
   const axis=(sr,side)=>{if(!sr)return '';const n=4;let h='';for(let i=0;i<=n;i++){const v=sr.lo+(sr.hi-sr.lo)*i/n;const y=sr.Y(v);
@@ -823,12 +866,12 @@ function relChart(b,rs){
       sr.pts.map((p,i)=>`<circle cx="${X(p.x).toFixed(1)}" cy="${sr.Y(p.y).toFixed(1)}" r="3.2" fill="#fff" stroke="${sr.c}" stroke-width="1.8"><title>J${p.x} · ${sr.l} ${p.y.toFixed(sr.dg)} ${sr.u}</title></circle>`+
         (sr.k==='ph'?`<text x="${X(p.x).toFixed(1)}" y="${(sr.Y(p.y)-7).toFixed(1)}" class="rc-v" text-anchor="middle" fill="${sr.c}">${p.y.toFixed(2)}</text>`:'')).join('');}).join('');
   const fgl=sP&&fg!=null?`<line x1="${L}" x2="${W-R}" y1="${sP.Y(fg)}" y2="${sP.Y(fg)}" stroke="${sP.c}" stroke-dasharray="3 4" stroke-width="1" opacity=".55"/><text x="${L+4}" y="${sP.Y(fg)-4}" class="rc-t" fill="${sP.c}">DF cible ${fg.toFixed(1)} °P</text>`:'';
-  const legend=ser.map(sr=>{const l=sr.pts[sr.pts.length-1];return `<span class="rc-leg"><i style="background:${sr.c}${sr.k==='ph'?';background:repeating-linear-gradient(90deg,'+sr.c+' 0 6px,transparent 6px 9px)':''}"></i>${sr.l} <b style="color:${sr.c}">${l.y.toFixed(sr.dg)}${sr.u?' '+sr.u:''}</b></span>`;}).join('');
+  const legend=(AV.length&&sP?`<span class="rc-leg"><i style="background:repeating-linear-gradient(90deg,#9a9184 0 5px,transparent 5px 9px)"></i>Moyenne lots précédents</span>`:'')+ser.map(sr=>{const l=sr.pts[sr.pts.length-1];return `<span class="rc-leg"><i style="background:${sr.c}${sr.k==='ph'?';background:repeating-linear-gradient(90deg,'+sr.c+' 0 6px,transparent 6px 9px)':''}"></i>${sr.l} <b style="color:${sr.c}">${l.y.toFixed(sr.dg)}${sr.u?' '+sr.u:''}</b></span>`;}).join('');
   return `<div class="sec"><h3>Courbe des relevés</h3><div class="rcharts"><div class="rc-legend">${legend}</div>
     <svg viewBox="0 0 ${W} ${H}" class="rchart" role="img" aria-label="Courbe densité, température et pH">
       ${grid}<line x1="${L}" x2="${W-R}" y1="${H-B}" y2="${H-B}" class="rc-ax"/>
       ${ticks.map(v=>`<text x="${X(v)}" y="${H-6}" class="rc-t" text-anchor="middle">J${v}</text>`).join('')}
-      ${axis(sP,'l')}${axis(sT,'r')}${fgl}${lines}
+      ${axis(sP,'l')}${axis(sT,'r')}${fgl}${sP&&AV.length?`<path d="${AV.map((p,i)=>(i?'L':'M')+X(p.x).toFixed(1)+' '+sP.Y(p.y).toFixed(1)).join(' ')}" fill="none" stroke="#9a9184" stroke-width="2" stroke-dasharray="5 4" opacity=".8"><title>Densité moyenne des lots précédents</title></path>`:''}${lines}
     </svg></div></div>`;
 }
 function renderSheet(){
