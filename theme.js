@@ -81,11 +81,13 @@
     return 'bg';
   }
   var COLOR_PROPS = /color|background|border|outline|shadow|fill|stroke|^--/;
-  function convDecl(st) {
+  var RULES = [];   // déclarations des feuilles de style converties : remises en clair pour l'impression / le PDF
+  function convDecl(st, isRule) {
     for (var i = st.length - 1; i >= 0; i--) {
       var p = st[i]; if (!COLOR_PROPS.test(p)) continue;
       var v = st.getPropertyValue(p); if (!v || !/#|rgb|white|black/i.test(v)) continue;
-      var nv = convStr(v, kindOf(p, v)); if (nv !== v) st.setProperty(p, nv, st.getPropertyPriority(p));
+      var nv = convStr(v, kindOf(p, v));
+      if (nv !== v) { var pr = st.getPropertyPriority(p); st.setProperty(p, nv, pr); if (isRule) RULES.push({ st: st, p: p, old: v, nv: st.getPropertyValue(p), pr: pr }); }
     }
   }
   function walk(rules) {
@@ -93,7 +95,7 @@
       var r = rules[i];
       if (r.media && /print/.test(r.media.mediaText) && !/screen/.test(r.media.mediaText)) continue;
       if (r.cssRules && !r.style) { walk(r.cssRules); continue; }
-      if (r.style) convDecl(r.style);
+      if (r.style) convDecl(r.style, true);
       if (r.cssRules && r.cssRules.length) walk(r.cssRules);
     }
   }
@@ -114,10 +116,10 @@
     if (el.nodeType !== 1 || el.id === 'themeBtn' || el.id === 'backHome') return;
     var memo = el.__thm || (el.__thm = {});
     var sv = el.getAttribute('style');
-    if (sv && memo.style !== sv) { convDecl(el.style); memo.style = el.getAttribute('style'); }
+    if (sv && memo.style !== sv) { convDecl(el.style); memo.style = el.getAttribute('style'); memo.ostyle = sv; }
     for (var i = 0; i < SVG_ATTRS.length; i++) {
       var a = SVG_ATTRS[i], v = el.getAttribute(a);
-      if (v && memo[a] !== v && /#|rgb|white|black/i.test(v)) { var nv = convStr(v, a === 'fill' && el.tagName.toLowerCase() === 'rect' ? 'bg' : 'fg'); memo[a] = nv; if (nv !== v) el.setAttribute(a, nv); }
+      if (v && memo[a] !== v && /#|rgb|white|black/i.test(v)) { var nv = convStr(v, a === 'fill' && el.tagName.toLowerCase() === 'rect' ? 'bg' : 'fg'); memo[a] = nv; memo['o' + a] = v; if (nv !== v) el.setAttribute(a, nv); }
     }
   }
   function convTree(n) {
@@ -145,22 +147,58 @@
     ps.textContent = '@media print{#themeBtn{display:none!important}}'; document.head.appendChild(ps);
   }
 
+  /* ---------- impression et PDF : toujours en clair ---------- */
+  var paused = false, pending = [], printLight = false;
+  function eachConverted(f) { var all = document.querySelectorAll('[style],[fill],[stroke],[stop-color]'); for (var i = 0; i < all.length; i++) if (all[i].__thm) f(all[i], all[i].__thm); }
+  function toLight() {
+    if (!dark || printLight) return; printLight = true; paused = true;
+    root.classList.remove('dark');
+    if (own) return;
+    if (pre && pre.sheet) pre.sheet.disabled = true;
+    RULES.forEach(function (e) { try { e.st.setProperty(e.p, e.old, e.pr); } catch (x) {} });
+    eachConverted(function (el, m) {
+      if (m.ostyle != null && el.getAttribute('style') === m.style) el.setAttribute('style', m.ostyle);
+      SVG_ATTRS.forEach(function (a) { if (m['o' + a] != null && el.getAttribute(a) === m[a]) el.setAttribute(a, m['o' + a]); });
+    });
+  }
+  function toDark() {
+    if (!printLight) return; printLight = false;
+    root.classList.add('dark');
+    if (!own) {
+      if (pre && pre.sheet) pre.sheet.disabled = false;
+      RULES.forEach(function (e) { try { e.st.setProperty(e.p, e.nv, e.pr); } catch (x) {} });
+      eachConverted(function (el, m) {
+        if (m.ostyle != null && el.getAttribute('style') === m.ostyle) el.setAttribute('style', m.style);
+        SVG_ATTRS.forEach(function (a) { if (m['o' + a] != null && el.getAttribute(a) === m['o' + a]) el.setAttribute(a, m[a]); });
+      });
+    }
+    paused = false; var p = pending; pending = []; if (p.length) handle(p);
+  }
+  if (dark) {
+    window.addEventListener('beforeprint', toLight);
+    window.addEventListener('afterprint', toDark);
+    try { var mq = window.matchMedia('print'), onMq = function (e) { if (e.matches) toLight(); else toDark(); };
+      if (mq.addEventListener) mq.addEventListener('change', onMq); else if (mq.addListener) mq.addListener(onMq); } catch (e) {}
+  }
+  function handle(ms) {
+    if (paused) { pending = pending.concat(ms); return; }
+    for (var i = 0; i < ms.length; i++) {
+      var m = ms[i];
+      if (m.type === 'attributes') { convEl(m.target); continue; }
+      for (var j = 0; j < m.addedNodes.length; j++) {
+        var n = m.addedNodes[j];
+        if (n.nodeName === 'STYLE' || n.nodeName === 'LINK') { setTimeout(convSheets, 0); continue; }
+        convTree(n);
+      }
+    }
+  }
+
   function start() {
     addButton();
     if (!dark || own) return;
     convSheets();
     convTree(document.body);
-    new MutationObserver(function (ms) {
-      for (var i = 0; i < ms.length; i++) {
-        var m = ms[i];
-        if (m.type === 'attributes') { convEl(m.target); continue; }
-        for (var j = 0; j < m.addedNodes.length; j++) {
-          var n = m.addedNodes[j];
-          if (n.nodeName === 'STYLE' || n.nodeName === 'LINK') { setTimeout(convSheets, 0); continue; }
-          convTree(n);
-        }
-      }
-    }).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'fill', 'stroke'] });
+    new MutationObserver(handle).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'fill', 'stroke'] });
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
 })();

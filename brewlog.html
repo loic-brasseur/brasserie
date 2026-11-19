@@ -727,10 +727,17 @@ function brMetrics(x,b){const c=calc(x,b),m=b.m;const mn=(a,z)=>a&&z?(new Date(z
   return {eff:c.effPre,pPre:num(m.pPre),di:c.pPost,ph:num(m.ph),vPre:c.vPre,vPost:num(m.vPost),evap:c.evapPct,vFerm:c.vFerm,loss:c.lossL,
     tFerm:num(m.tFerm),phFerm:num(m.phFerm),o2:num(m.o2),ebc:c.ebc,ibu:c.ibu,laut:mn(b.ev.lautStart,b.ev.lautEnd),dur:mn(b.ev.mashIn,b.ev.coolEnd),
     note:sc.length?sc.reduce((p,q)=>p+q,0)/sc.length:null};}
+/* moyenne de plusieurs brassins, mesure par mesure (valeurs saisies uniquement) */
+function avgMetrics(L){const o={};if(!L.length)return o;Object.keys(L[0]).forEach(k=>{const v=L.map(m=>m[k]).filter(x=>x!=null&&!isNaN(x));o[k]=v.length?v.reduce((a,b)=>a+b,0)/v.length:null;});return o;}
+let cmpSel=null;   // comparatif : 'lot' (moyenne des brassins du lot) ou n° du brassin
 function compAvgHTML(d,b){
   const P=prevAll(d);const B=[];P.forEach(x=>x.brassins.forEach(bb=>B.push(brMetrics(x,bb))));
   if(!B.length)return '';
-  const M=brMetrics(d,b);const av=k=>{const v=B.map(m=>m[k]).filter(x=>x!=null&&!isNaN(x));return v.length?{m:v.reduce((p,q)=>p+q,0)/v.length,n:v.length}:null;};
+  const multi=d.brassins.length>1;let sel=cmpSel;if(sel==null||(sel!=='lot'&&!d.brassins[sel]))sel=multi?'lot':curB;
+  const M=sel==='lot'?avgMetrics(d.brassins.map(bb=>brMetrics(d,bb))):brMetrics(d,d.brassins[sel]);
+  const who=sel==='lot'?`Moyenne du lot (${d.brassins.length} brassins)`:'Brassin '+bCode(d,sel);
+  const chips=multi?`<div class="tabs" style="margin:.45rem 0 .2rem">${[['lot','Moyenne du lot']].concat(d.brassins.map((bb,i)=>[i,'Brassin '+bCode(d,i)])).map(([v,l])=>`<button class="tab${v===sel?' on':''}" style="padding:.35rem .7rem;font-size:.76rem" onclick="cmpSel=${v==='lot'?"'lot'":v};refreshCalc()">${l}</button>`).join('')}</div>`:'';
+  const av=k=>{const v=B.map(m=>m[k]).filter(x=>x!=null&&!isNaN(x));return v.length?{m:v.reduce((p,q)=>p+q,0)/v.length,n:v.length}:null;};
   const hm=v=>v==null?'—':Math.floor(v/60)+' h '+String(Math.round(v%60)).padStart(2,'0');
   const R=[['eff','Rendement brassage','%',1,1],['pPre','Densité avant ébullition','°P',1,.3],['di','DI (fin d\'ébullition)','°P',1,.3],['ph','pH empâtage','',2,.1],
     ['vPre','Volume avant ébullition','L',0,null],['vPost','Volume fin d\'ébullition','L',0,null],['evap','Évaporation','%/h',1,null],['vFerm','Volume en fermenteur','L',0,null],['loss','Pertes (chaud → fermenteur)','L',0,null],
@@ -740,8 +747,8 @@ function compAvgHTML(d,b){
   const rows=R.map(([k,l,u,dg,tol])=>{const a=av(k),v=M[k];if(v==null&&!a)return '';const dv=v!=null&&a?v-a.m:null;
     const cls=dv==null||tol==null?'':Math.abs(dv)<=tol?'ok':Math.abs(dv)<=tol*2?'warn':'bad';
     return `<tr><td>${l}</td><td class="num">${fmt(v,u,dg)}</td><td class="num">${a?fmt(a.m,u,dg):'—'}</td><td class="num ${cls}">${dv==null?'':u==='t'?(dv>=0?'+':'−')+Math.round(Math.abs(dv))+' min':(dv>=0?'+':'')+dv.toFixed(dg)}</td></tr>`;}).join('');
-  return `<div style="margin-top:1rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700">Brassin ${bCode(d,curB)} vs moyenne des ${B.length} brassin${B.length>1?'s':''} précédent${B.length>1?'s':''} de ${esc(d.recipe.name)} (${P.length} lot${P.length>1?'s':''})</div>
-    <table class="t" style="margin-top:.3rem"><thead><tr><th></th><th class="num">Ce brassin</th><th class="num">Moyenne</th><th class="num">Écart</th></tr></thead><tbody>${rows}</tbody></table>`;
+  return `<div style="margin-top:1rem;font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700">${who} vs moyenne des ${B.length} brassin${B.length>1?'s':''} précédent${B.length>1?'s':''} de ${esc(d.recipe.name)} (${P.length} lot${P.length>1?'s':''})</div>
+    ${chips}<table class="t" style="margin-top:.3rem"><thead><tr><th></th><th class="num">${sel==='lot'?'Ce lot (moy.)':'Ce brassin'}</th><th class="num">Moy. précédents</th><th class="num">Écart</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function refreshCalc(){
   const d=day();if(!d)return;refreshStockWarn();const b=d.brassins[curB];const c=calc(d,b);
@@ -761,7 +768,11 @@ function refreshCalc(){
     const stars=a.parentNode.querySelectorAll('button');stars.forEach((s,i)=>s.classList.toggle('on',v!=null&&i<v));}});
   // bilan
   const sr=document.getElementById('scoreRows');
-  sr.innerHTML=d.brassins.map(bb=>`<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700;margin:.4rem 0">Brassin ${bCode(d,bb.n-1)} · ${fmtD(bb.date||d.date)}</div>
+  const avgRow=d.brassins.length>1?(()=>{const A=STEPS.map(([k,l])=>{const v=d.brassins.map(bb=>score(d,bb,k)).filter(x=>x!=null);return {l,v:v.length?v.reduce((a,b)=>a+b,0)/v.length:null};});
+    const g=A.filter(x=>x.v!=null);const glob=g.length?g.reduce((a,x)=>a+x.v,0)/g.length:null;const f=v=>v.toFixed(1).replace('.',',');
+    return `<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--copper);font-weight:700;margin:.4rem 0">Moyenne du lot · ${d.brassins.length} brassins${glob!=null?' · note globale '+f(glob)+'/5':''}</div>
+    <div class="score-row" style="margin-bottom:.6rem">${A.map(x=>`<div class="score${x.v!=null&&x.v<2.5?' low':''}" style="border-color:rgba(168,84,27,.45)"><div class="s">${x.v!=null?f(x.v)+'<span style="font-size:.8rem;color:var(--ink-soft)">/5</span>':'—'}</div><div class="l">${x.l}</div></div>`).join('')}</div>`;})():'';
+  sr.innerHTML=avgRow+d.brassins.map(bb=>`<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700;margin:.4rem 0">Brassin ${bCode(d,bb.n-1)} · ${fmtD(bb.date||d.date)}</div>
     <div class="score-row">${STEPS.map(([k,l])=>{const s=score(d,bb,k);return `<div class="score${s!=null&&s<=2?' low':''}"><div class="s">${s!=null?s+'<span style="font-size:.8rem;color:var(--ink-soft)">/5</span>':'—'}</div><div class="l">${l}</div></div>`;}).join('')}</div>`).join('');
   const low=[];d.brassins.forEach(bb=>STEPS.forEach(([k,l])=>{const s=score(d,bb,k);if(s!=null&&s<=3)low.push(l+' ('+bCode(d,bb.n-1)+')');}));
   const hist=history(d);
