@@ -189,6 +189,7 @@
   .badge-order{background:rgba(207,152,43,.20);color:#8a6418}
   .badge-reception{background:rgba(79,107,47,.20);color:var(--green)}
   .badge-usage{background:rgba(168,57,43,.16);color:var(--red)}
+  .badge-ajust{background:rgba(62,110,142,.16);color:#3E6E8E}
   .hist-acts{display:flex;gap:.1rem;flex:0 0 auto}
   .hist-acts button{background:transparent;border:none;color:var(--ink-soft);font-size:1.05rem;
     padding:.3rem .35rem;cursor:pointer;line-height:1}
@@ -294,14 +295,14 @@
       </div>
       <div class="two">
         <label>Quantité actuelle
-          <input class="input" id="f_qty" type="number" step="any" inputmode="decimal">
+          <input class="input" id="f_qty" type="text" inputmode="decimal" autocomplete="off">
         </label>
         <label>Seuil bas
-          <input class="input" id="f_min" type="number" step="any" inputmode="decimal" placeholder="alerte si <">
+          <input class="input" id="f_min" type="text" inputmode="decimal" autocomplete="off" placeholder="alerte si <">
         </label>
       </div>
       <label id="f_pricel">Prix d'achat (€ HT par unité de stock)
-        <input class="input" id="f_price" type="number" step="any" inputmode="decimal" placeholder="mis à jour à chaque réception avec prix">
+        <input class="input" id="f_price" type="text" inputmode="decimal" autocomplete="off" placeholder="mis à jour à chaque réception avec prix">
       </label>
       <label id="f_aal">Taux d'acides alpha (AA %) — houblon
         <input class="input" id="f_aa" type="text" inputmode="decimal" autocomplete="off" placeholder="ex. 11,5 (mis à jour à chaque réception)">
@@ -458,6 +459,7 @@
       <button class="chip" data-hf="order">Commandes</button>
       <button class="chip" data-hf="reception">Réceptions</button>
       <button class="chip" data-hf="usage">Sorties</button>
+      <button class="chip" data-hf="ajust">Ajustements</button>
     </div>
     <div class="recv-list" id="hist_list"></div>
     <div class="modal-actions">
@@ -490,7 +492,7 @@ const SEED=[
 ];
 function uid(){return 'a'+Math.random().toString(36).slice(2,9);}
 let state=load();
-let filter='all', search='', editId=null, afterCreate=null;
+let filter='all', search='', editId=null, afterCreate=null, editQty0=0;
 
 function migrate(s){
   let ch0=false;
@@ -532,6 +534,20 @@ function load(){
   return s;
 }
 function save(){localStorage.setItem(STORE,JSON.stringify(state));}
+/* relit le stock enregistré juste avant une modification : un autre onglet, une autre app (Brew Log, Packaging Log)
+   ou la synchronisation a pu le changer depuis l'ouverture de la page — sans ça, leurs sorties seraient écrasées */
+function fresh(){state=load();}
+const rnd6=x=>Math.round(x*1e6)/1e6;
+/* trace d'une modification manuelle de quantité (boutons + / −, fiche article, import Excel) dans l'historique */
+function logAdjust(party,deltas,merge){
+  const lines=Object.keys(deltas).filter(id=>Math.abs(deltas[id])>1e-9).map(id=>({id,qty:rnd6(deltas[id])}));if(!lines.length)return;
+  state.moves=state.moves||[];
+  const last=state.moves[state.moves.length-1];
+  if(merge&&last&&last.type==='ajust'&&last.party===party&&Date.now()-(last.createdAt||0)<120000){
+    lines.forEach(l=>{const ex=last.lines.find(x=>x.id===l.id);if(ex)ex.qty=rnd6((+ex.qty||0)+l.qty);else last.lines.push(l);});
+    last.lines=last.lines.filter(x=>Math.abs(+x.qty)>1e-9);if(!last.lines.length)state.moves.pop();return;}
+  state.moves.push({id:genId('m'),type:'ajust',date:today(),party,lines,createdAt:Date.now()});
+}
 function cat(id){return CATS.find(c=>c.id===id);}
 const num=n=>{const v=Number(n);return Number.isInteger(v)?v.toLocaleString('fr-FR'):v.toLocaleString('fr-FR',{maximumFractionDigits:2});};
 const isLow=it=>it.min!=null&&it.min!==''&&Number(it.qty)<=Number(it.min);
@@ -594,7 +610,7 @@ function itemRow(it){
     </div>
     <div class="qtybox">
       <button class="step" data-act="minus" data-id="${it.id}">−</button>
-      <div class="q">${num(it.qty)} <small>${it.unit||''}</small></div>
+      <div class="q"${Number(it.qty)<0?' style="color:var(--red)" title="Stock négatif : une réception n\'a sans doute pas été saisie (ou le stock de départ était faux). Corrige la quantité après comptage."':''}>${num(it.qty)} <small>${it.unit||''}</small></div>
       <button class="step" data-act="plus" data-id="${it.id}">+</button>
       <button class="icbtn" data-act="edit" data-id="${it.id}" title="Modifier">✎</button>
     </div>
@@ -629,10 +645,10 @@ function openModal(id){
   document.getElementById('f_name').value=it?.name||'';
   document.getElementById('f_cat').value=it?.cat||(filter!=='all'&&filter!=='low'?filter:'malt');
   document.getElementById('f_unit').value=it?.unit||'';
-  document.getElementById('f_qty').value=it?.qty??'';
-  document.getElementById('f_min').value=it?.min??'';
+  document.getElementById('f_qty').value=it?String(it.qty??'').replace('.',','):'';editQty0=it?Number(it.qty)||0:0;
+  document.getElementById('f_min').value=it&&it.min!=null?String(it.min).replace('.',','):'';
   document.getElementById('f_note').value=it?.note||'';
-  document.getElementById('f_price').value=it&&it.price!=null?it.price:'';
+  document.getElementById('f_price').value=it&&it.price!=null?String(it.price).replace('.',','):'';
   document.getElementById('f_pricel').firstChild.textContent="Prix d'achat (€ HT par "+((it&&it.unit)||'unité')+')';
   document.getElementById('f_lots').innerHTML=it?lotsHTML(it):'';
   initRows=it&&Array.isArray(it.initLots)?it.initLots.map(x=>({...x})):[];initOpen=it?openingQty(it):0;renderInit(it);
@@ -655,41 +671,52 @@ ov.addEventListener('click',e=>{if(e.target===ov)closeModal();});
 document.getElementById('mSave').onclick=()=>{
   const name=document.getElementById('f_name').value.trim();
   if(!name){document.getElementById('f_name').focus();return;}
+  const fv=id=>document.getElementById(id).value.trim();
+  const qv=fv('f_qty')===''?0:numFr(fv('f_qty')),mv=fv('f_min')===''?'':numFr(fv('f_min')),pv=fv('f_price')===''?'':numFr(fv('f_price'));
+  if(Number.isNaN(qv)){alert('Quantité illisible : « '+fv('f_qty')+' ».');document.getElementById('f_qty').focus();return;}
+  if(Number.isNaN(mv)){alert('Seuil d\'alerte illisible : « '+fv('f_min')+' ».');document.getElementById('f_min').focus();return;}
+  if(Number.isNaN(pv)){alert('Prix illisible : « '+fv('f_price')+' ».');document.getElementById('f_price').focus();return;}
   const data={
     cat:document.getElementById('f_cat').value,
     name,
     unit:document.getElementById('f_unit').value.trim(),
-    qty:parseFloat(document.getElementById('f_qty').value)||0,
-    min:document.getElementById('f_min').value!==''?parseFloat(document.getElementById('f_min').value):'',
+    qty:qv,
+    min:mv,
     note:document.getElementById('f_note').value.trim(),
     alt:document.getElementById('f_alt').value||'',
-    price:document.getElementById('f_price').value!==''?parseFloat(document.getElementById('f_price').value):'',
+    price:pv,
     aa:(v=>isNaN(v)?'':v)(numFr(document.getElementById('f_aa').value)),
     initLots:initRows.map(x=>({lot:String(x.lot||'').trim(),qty:numFr(x.qty),aa:(v=>isNaN(v)?null:v)(numFr(x.aa))})).filter(x=>x.lot&&x.qty>0)
   };
+  fresh();   // stock relu : une sortie faite ailleurs pendant que la fiche était ouverte n'est pas écrasée
   let created=null;
-  if(editId){Object.assign(state.items.find(i=>i.id===editId),data);}
-  else{created={id:uid(),...data};state.items.push(created);}
+  if(editId){const it=state.items.find(i=>i.id===editId);if(!it){alert('Article introuvable (supprimé entre-temps ?).');closeModal();return;}
+    // quantité : n'est modifiée que si elle a été changée dans la fiche (sinon on garde la valeur enregistrée, éventuellement mise à jour ailleurs)
+    if(Math.abs(data.qty-(Number(editQty0)||0))<1e-9)data.qty=Number(it.qty)||0;
+    else logAdjust('Correction de quantité (fiche article)',{[it.id]:data.qty-(Number(it.qty)||0)});
+    Object.assign(it,data);}
+  else{created={id:uid(),...data};state.items.push(created);if(data.qty)logAdjust('Création d\'article',{[created.id]:data.qty});}
   const cb=afterCreate;afterCreate=null;
   save();render();closeModal();
   if(created&&cb)cb(created);  // seuils modifiés : pas de fenêtre, le bandeau « au seuil d'alerte » s'en charge
 };
 document.getElementById('mDelete').onclick=()=>{
-  if(confirm('Supprimer cet article ?')){state.items=state.items.filter(i=>i.id!==editId);save();render();closeModal();}
+  if(confirm('Supprimer cet article ?')){fresh();state.items=state.items.filter(i=>i.id!==editId);save();render();closeModal();}
 };
 document.getElementById('btnAdd').onclick=()=>openModal(null);
 
 // ---- list actions ----
 document.getElementById('list').addEventListener('click',e=>{
   const btn=e.target.closest('button[data-act]');if(!btn)return;
-  const it=state.items.find(i=>i.id===btn.dataset.id);if(!it)return;
   const act=btn.dataset.act;
-  if(act==='edit')return openModal(it.id);
+  if(act==='edit')return openModal(btn.dataset.id);
+  fresh();const it=state.items.find(i=>i.id===btn.dataset.id);if(!it)return;
   // smart step: 1 for small stocks, else 10
   const base=Math.abs(Number(it.qty))>=200?10:1;
-  if(act==='plus')it.qty=Number(it.qty)+base;
-  const before=lowSnap();
-  if(act==='minus')it.qty=Math.max(0,Number(it.qty)-base);
+  const before=lowSnap(),q0=Number(it.qty)||0;
+  if(act==='plus')it.qty=rnd6(q0+base);
+  if(act==='minus')it.qty=rnd6(Math.max(Math.min(q0,0),q0-base));
+  logAdjust('Boutons + / −',{[it.id]:(Number(it.qty)||0)-q0},true);
   save();render();
   if(act==='minus')proposeOrder(before);
 });
@@ -750,6 +777,7 @@ function importStockRows(aoa,all){
   const pk=sheets.map(a=>rowsFrom(a,'Recette')).find(x=>x);if(pk&&!rowsFrom(aoa,'Section')){importPackRowsStock(pk);return;}
   let R=rowsFrom(aoa,'Article');if(!R||!rowsFrom(aoa,'Quantité')){const a2=sheets.find(a=>rowsFrom(a,'Article')&&rowsFrom(a,'Quantité'));R=a2?rowsFrom(a2,'Article'):null;}
   if(!R){alert("Colonnes « Article » / « Quantité » introuvables : utilise le fichier modèle Stock_a_remplir.xlsx.");return;}
+  fresh();const adj={};
   const catOf=v=>{const n=xNorm(v);if(!n)return null;const c=CATS.find(c=>xNorm(c.label)===n||xNorm(c.label).startsWith(n)||n.startsWith(xNorm(c.label).split(' ')[0])||c.id===n);return c?c.id:null;};
   const numv=v=>{if(v===''||v==null)return null;const x=parseFloat(String(v).replace(',','.'));return isNaN(x)?null:x;};
   let up=0,cr=0,skip=0,priced=0;const pendAlt=[];
@@ -759,7 +787,7 @@ function importStockRows(aoa,all){
     if(!it){it={id:uid(),cat:cat||'conso',name,unit:'',qty:0,min:'',note:''};state.items.push(it);cr++;}else up++;
     it.name=name;if(cat)it.cat=cat;
     if(String(r['unite']||'').trim())it.unit=String(r['unite']).trim();
-    const q=numv(r['quantite']);if(q!=null)it.qty=q;
+    const q=numv(r['quantite']);if(q!=null){const d=q-(Number(it.qty)||0);if(Math.abs(d)>1e-9)adj[it.id]=(adj[it.id]||0)+d;it.qty=q;}
     {const m=numv(r['seuil d alerte']);if(m!=null)it.min=m;}   // case vide = seuil inchangé
     if(String(r['note']||'').trim())it.note=String(r['note']).trim();
     {const pk=Object.keys(r).find(k=>k.startsWith('prix'));const pv=pk?numv(r[pk]):null;if(pv!=null&&pv>=0){it.price=pv;priced++;}}  // colonne « Prix d'achat » (ex. relevé des factures)
@@ -767,7 +795,7 @@ function importStockRows(aoa,all){
   });
   pendAlt.forEach(([it,alt])=>{const a=state.items.find(i=>xNorm(i.name)===xNorm(alt));if(a&&a.id!==it.id)it.alt=a.id;});
   if(!confirm(`Import du fichier Stock :\n• ${up} article(s) mis à jour\n• ${cr} article(s) créé(s)${skip?`\n• ${skip} ligne(s) sans nom ignorée(s)`:''}${priced?`\n• ${priced} prix d\'achat mis à jour`:''}\n\nLes quantités saisies remplacent celles du stock (une case vide garde la quantité actuelle). Valider ?`)){state=load();render();return;}
-  save();render();alert('Stock mis à jour.');
+  logAdjust('Import Excel (quantités)',adj);save();render();alert('Stock mis à jour.');
 }
 
 /* ============== Saisie ligne par ligne — réception / utilisation / commande ============== */
@@ -869,6 +897,7 @@ function closeReceive(){rov.classList.remove('show');}
 $('rcv_cancel').onclick=closeReceive;
 rov.addEventListener('click',e=>{if(e.target===rov)closeReceive();});
 $('rcv_save').onclick=()=>{
+  fresh();
   const newLines=ENTRY.rcv.lines.map(l=>{const o={id:l.id,qty:numFr(l.qty)};const lot=String(l.lot||'').trim();if(lot)o.lot=lot;const p=parseFloat(String(l.price??'').replace(',','.'));if(!isNaN(p)&&p>=0)o.price=p;const aa=numFr(l.aa);if(aa>0)o.aa=aa;return o;}).filter(l=>!isNaN(l.qty)&&l.qty>0);
   newLines.forEach(l=>{const it=itById(l.id);if(!it)return;if(l.price!=null)it.price=l.price;if(l.aa!=null)it.aa=l.aa;});  // dernier prix d'achat connu
   if(rcvEditId){
@@ -901,6 +930,7 @@ function closeUse(){uov.classList.remove('show');}
 $('use_cancel').onclick=closeUse;
 uov.addEventListener('click',e=>{if(e.target===uov)closeUse();});
 $('use_save').onclick=()=>{
+  fresh();
   const before=lowSnap();
   const newLines=ENTRY.use.lines.map(l=>({id:l.id,qty:numFr(l.qty),...(l.lot?{lot:l.lot}:{})})).filter(l=>!isNaN(l.qty)&&l.qty>0);
   if(useEditId){
@@ -951,6 +981,7 @@ $('ord_print').onclick=()=>{
   printOrder(o);
 };
 $('ord_done').onclick=()=>{
+  fresh();
   applyAutoLines();
   const lines=ENTRY.ord.lines.map(l=>({id:l.id,qty:numFr(l.qty)})).filter(l=>!isNaN(l.qty)&&l.qty>0);
   if(!lines.length){alert('Aucune ligne à enregistrer.');return;}
@@ -987,15 +1018,26 @@ function rqIngredients(r,vol){
 /* recette bio ou conventionnelle : choix enregistré, sinon Valmy et Orgemont = bio */
 function recBio(r){return r&&r.bio!=null?!!r.bio:/valmy|orgemont/i.test(String(r&&r.name||''));}
 const isBioName=n=>/\b(bio|organic)\b/i.test(String(n||''));
-function rqGuess(ing){
-  if(ing.sid&&itById(ing.sid))return ing.sid;   // article relié dans le Carnet de brassage
-  const bio=!!ing.bio,saved=(state.recipeMap||{})[ing.key],si=saved&&itById(saved);
-  if(saved==='__skip'||(si&&isBioName(si.name)===bio))return saved;
+/* bio ou conv d'un ingrédient : « bio » ou « conv » écrit dans son nom prime sur le choix de la recette */
+function ingBio(n,recipeBio){const t=' '+rqNorm(n)+' ';if(/ (bio|organic) /.test(t))return true;if(/ (conv|conventionnel|conventionnelle) /.test(t))return false;return !!recipeBio;}
+const mapKey=(key,bio)=>key+'|'+(bio?'bio':'conv');
+function rqByName(ing,bio){
   const t=rqTok(ing.n);if(!t.length)return '';
   let best='',bs=-1e9;
   state.items.forEach(it=>{const it2=rqTok(it.name);const hit=t.filter(w=>it2.includes(w)).length;if(!hit)return;
     if(hit<t.length)return; // tous les mots de l'ingrédient doivent figurer dans l'article
     const sc=10-(it2.length-hit)+(it.cat===ing.cat?5:0)+(isBioName(it.name)===bio?3:-3);if(sc>bs){bs=sc;best=it.id;}});
+  return best;
+}
+/* article du stock : lien du Carnet ; choix mémorisé pour cet ingrédient en bio / en conv ;
+   ancien choix fait à la main, gardé s'il n'existe pas d'article plus juste en bio / conv ; sinon par le nom */
+function rqGuess(ing){
+  if(ing.sid&&itById(ing.sid))return ing.sid;   // article relié dans le Carnet de brassage
+  const bio=ingBio(ing.n,ing.bio),M=state.recipeMap||{},m2=M[mapKey(ing.key,bio)];
+  if(m2==='__skip'||(m2&&itById(m2)))return m2;
+  const best=rqByName(ing,bio),saved=M[ing.key],si=saved&&itById(saved);
+  if(saved==='__skip')return saved;
+  if(si){if(isBioName(si.name)===bio)return saved;const bi=best&&itById(best);if(!bi||isBioName(bi.name)!==bio)return saved;}
   return best;
 }
 function rqOptions(ing,sel){
@@ -1007,16 +1049,18 @@ function rqOptions(ing,sel){
   return h+(lastCat!==null?'</optgroup>':'');
 }
 function rqCalc(row){
-  // besoin et quantité à commander, dans l'unité de l'article de stock
+  // besoin et quantité à commander, dans l'unité de l'article de stock (g ↔ kg, mL ↔ L ; g ↔ mL à densité 1)
   const net=rqMode==='ord'&&$('rq_net').checked,it=itById(row.sel);
   const unit=it?(it.unit||row.u):(row.sel==='__new'?rqDefUnit(row):row.u);
-  const need=rqConv(row.q,row.u,unit);
+  const cv=window.BrasserieTrace?BrasserieTrace.conv(row.q,row.u,unit):{q:rqConv(row.q,row.u,unit),ok:true};
+  const bad=!!it&&!cv.ok&&row.q>0,need=cv.q;
+  if(bad)return {unit,need,stock:Math.max(0,Number(it.qty)||0),ord:row.ov!=null?row.ov:0,bad:row.ov==null,approx:false};
   if(!it){return {unit,need,stock:0,ord:row.sel==='__skip'?0:(row.ov!=null?row.ov:rqRound(need,unit))};}
   const stock=Math.max(0,Number(it.qty)||0);
-  if(rqMode==='use'){const prevU=(ENTRY.use.need||{})[it.id]||0;const o=row.ov!=null?row.ov:rqRound(need,unit);return {unit,need,stock,ord:o,over:o+prevU>stock+1e-9};}
+  if(rqMode==='use'){const prevU=(ENTRY.use.need||{})[it.id]||0;const o=row.ov!=null?row.ov:rqRound(need,unit);return {unit,need,stock,ord:o,over:o+prevU>stock+1e-9,approx:!!cv.approx};}
   const prev=(ENTRY.ord.need||{})[it.id]||0;
   const ord=net?Math.max(0,need+prev-stock)-Math.max(0,prev-stock):need;
-  return {unit,need,stock,ord:row.ov!=null?row.ov:rqRound(Math.max(0,ord),unit)};
+  return {unit,need,stock,ord:row.ov!=null?row.ov:rqRound(Math.max(0,ord),unit),approx:!!cv.approx};
 }
 function rqDefUnit(row){return row.cat==='houblon'?'g':(row.cat==='conso'?((row.u==='L'||row.u==='ml')?'L':'kg'):'kg');}
 function rqRender(){
@@ -1026,11 +1070,11 @@ function rqRender(){
   body.innerHTML=`<table class="rq-tbl"><thead><tr><th>Ingrédient</th><th>Article du stock</th><th class="hide-m" style="text-align:right">Besoin</th><th class="hide-m" style="text-align:right">En stock</th><th style="text-align:right">${rqMode==='ord'?'À cder':'À sortir'}</th></tr></thead><tbody>${rqRows.map((r,i)=>{
     const c=rqCalc(r);if(!r.sel)miss++;else if(c.ord>0)n++;
     if(c.over)over++;
-    return `<tr class="${c.ord>0?'':'zero'}${c.over?' over':''}"><td class="ing"><b>${esc(r.n)}</b>${r.sub?`<small>${esc(r.sub)}</small>`:''}${c.over?`<small class="ov">stock : ${num(c.stock)} ${esc(c.unit)}</small>`:''}</td>
+    return `<tr class="${c.ord>0||c.bad?'':'zero'}${c.over||c.bad?' over':''}"><td class="ing"><b>${esc(r.n)}</b>${r.sub?`<small>${esc(r.sub)}</small>`:''}${c.over?`<small class="ov">stock : ${num(c.stock)} ${esc(c.unit)}</small>`:''}${c.bad?`<small class="ov">unités différentes (${esc(r.u)} → ${esc(c.unit)}) : saisis la quantité</small>`:c.approx?`<small>converti ${esc(r.u)} → ${esc(c.unit)} (1 g = 1 mL)</small>`:''}</td>
       <td><select data-i="${i}" class="${r.sel?'':'unmapped'}">${rqOptions(r,r.sel)}</select></td>
       <td class="n hide-m">${num(rqRound(c.need,c.unit))} ${esc(c.unit)}</td>
       <td class="n hide-m">${itById(r.sel)?num(c.stock)+' '+esc(c.unit):'—'}</td>
-      <td class="n ord">${r.sel==='__skip'?'—':`<input class="rq-q" type="number" min="0" step="any" inputmode="decimal" data-q="${i}" value="${c.ord}"> ${esc(c.unit)}`}</td></tr>`;}).join('')}</tbody></table>`;
+      <td class="n ord">${r.sel==='__skip'?'—':`<input class="rq-q" type="text" inputmode="decimal" autocomplete="off" data-q="${i}" value="${c.bad?'':c.ord}" placeholder="?"> ${esc(c.unit)}`}</td></tr>`;}).join('')}</tbody></table>`;
   sum.innerHTML=(miss?`<span style="color:var(--red)">${miss} ingrédient(s) à associer à un article</span> · `:'')+(over?`<span style="color:var(--red)">${over} au-delà du stock</span> · `:'')+`<b>${n}</b> ligne(s) ${rqMode==='ord'?'à ajouter au bon':'à déduire du stock'}`;
 }
 /* plusieurs recettes à la fois : besoins additionnés (recette × volume × nb de brassins) */
@@ -1071,19 +1115,22 @@ $('rq_recs').addEventListener('click',e=>{const b=e.target.closest('[data-rdel]'
 $('rq_more').onclick=()=>{const recs=rqRecipes();const used=new Set(rqSel.map(x=>x.i));const i=recs.findIndex((r,j)=>!used.has(j));const k=i<0?0:i;rqSel.push({i:k,vol:recs[k]&&recs[k].vol||'',n:1});rqRecsRender();rqRows.forEach(r=>r.ov=null);rqLoad();};
 $('rq_net').onchange=()=>{rqRows.forEach(r=>r.ov=null);rqRender();};
 $('rq_body').addEventListener('change',e=>{const s=e.target.closest('select[data-i]');if(!s)return;rqRows[+s.dataset.i].sel=s.value;rqRows[+s.dataset.i].ov=null;rqRender();});
-$('rq_body').addEventListener('input',e=>{const q=e.target.closest('input[data-q]');if(!q)return;const v=parseFloat(q.value);rqRows[+q.dataset.q].ov=isNaN(v)?0:Math.max(0,v);});
+$('rq_body').addEventListener('input',e=>{const q=e.target.closest('input[data-q]');if(!q)return;const v=numFr(q.value);rqRows[+q.dataset.q].ov=isNaN(v)?null:Math.max(0,v);});
 $('rq_cancel').onclick=()=>rqov.classList.remove('show');
 rqov.addEventListener('click',e=>{if(e.target===rqov)rqov.classList.remove('show');});
 $('rq_add').onclick=()=>{
+  const bad=rqRows.filter(r=>r.sel&&r.sel!=='__skip'&&r.ov==null&&rqCalc(r).bad);
+  if(bad.length){alert('Unités différentes entre la recette et le stock pour : '+bad.map(r=>r.n).join(', ')+'.\nSaisis la quantité dans l\'unité du stock (dernière colonne).');return;}
   if(rqRows.some(r=>!r.sel)&&!confirm('Certains ingrédients ne sont associés à aucun article et seront ignorés. Continuer ?'))return;
+  fresh();
   const E=ENTRY[rqMode];
   state.recipeMap=state.recipeMap||{};E.need=E.need||{};
   let added=0;
   rqRows.forEach(r=>{
     if(!r.sel)return;
-    if(r.sel==='__skip'){state.recipeMap[r.key]='__skip';return;}
+    if(r.sel==='__skip'){state.recipeMap[r.key]='__skip';state.recipeMap[mapKey(r.key,ingBio(r.n,r.bio))]='__skip';return;}
     if(r.sel==='__new'){const ni={id:uid(),cat:r.cat,name:r.n,unit:rqDefUnit(r),qty:0,min:'',note:''};state.items.push(ni);r.sel=ni.id;}
-    state.recipeMap[r.key]=r.sel;
+    state.recipeMap[r.key]=r.sel;state.recipeMap[mapKey(r.key,ingBio(r.n,r.bio))]=r.sel;
     const c=rqCalc(r);
     E.need[r.sel]=(E.need[r.sel]||0)+(rqMode==='use'?c.ord:c.need);
     if(c.ord<=0)return;
@@ -1101,11 +1148,12 @@ const genId=p=>p+Math.random().toString(36).slice(2,9);
 /* nombre saisi avec virgule ou point (« 1,15 » = 1.15) */
 function numFr(v){const n=parseFloat(String(v==null?'':v).replace(/\s/g,'').replace(',','.'));return isNaN(n)?NaN:n;}
 function reapply(type,oldLines,newLines){
-  // applique le delta NET (nouveau - ancien) sur le stock, écrêtage final seulement
-  const dir=type==='usage'?-1:1,delta={};
+  // applique le delta NET (nouveau - ancien) sur le stock
+  const dir=type==='usage'?-1:1,delta={};   // « ajust » : quantités signées
   (oldLines||[]).forEach(l=>{delta[l.id]=(delta[l.id]||0)-dir*(parseFloat(l.qty)||0);});
   (newLines||[]).forEach(l=>{delta[l.id]=(delta[l.id]||0)+dir*(parseFloat(l.qty)||0);});
-  Object.keys(delta).forEach(id=>{const it=itById(id);if(it)it.qty=Math.max(0,Number(it.qty)+delta[id]);});
+  // le stock peut passer en négatif : ainsi annuler / corriger un mouvement plus tard redonne la bonne valeur
+  Object.keys(delta).forEach(id=>{const it=itById(id);if(it)it.qty=rnd6((Number(it.qty)||0)+delta[id]);});
 }
 function rowsByCat(lines){
   const rows=[];CATS.forEach(c=>{(lines||[]).forEach(l=>{const it=itById(l.id);if(it&&it.cat===c.id){const q=parseFloat(l.qty);if(!isNaN(q)&&q>0)rows.push({name:it.name,unit:it.unit||'',qty:q,note:it.note||''});}});});return rows;
@@ -1160,17 +1208,18 @@ function allHistory(){
 }
 function renderHistory(){
   let a=allHistory();if(histFilter!=='all')a=a.filter(x=>x.type===histFilter);
-  const lab={order:'Commande',reception:'Réception',usage:'Sortie'};
+  const lab={order:'Commande',reception:'Réception',usage:'Sortie',ajust:'Ajustement'};
   $('hist_list').innerHTML=a.length?a.map(x=>{
     const dateFr=x.date?new Date(x.date+'T12:00:00').toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}):'—';
-    const n=(x.lines||[]).filter(l=>parseFloat(l.qty)>0).length;
+    const n=(x.lines||[]).filter(l=>x.type==='ajust'?parseFloat(l.qty)!==0:parseFloat(l.qty)>0).length;
+    const adjTxt=x.type==='ajust'?' · '+(x.lines||[]).slice(0,4).map(l=>{const it=itById(l.id);const q=+l.qty;return esc(it?it.name:'?')+' '+(q>0?'+':'')+num(q)+' '+esc(it&&it.unit||'');}).join(', ')+((x.lines||[]).length>4?'…':''):'';
     const st=x.kind==='order'?` · ${x.status==='received'?'reçue':'en attente'}`:'';
     return `<div class="hist-row">
       <div class="hist-main"><span class="hist-badge badge-${x.type}">${lab[x.type]}</span><b>${dateFr}</b>${x.party?' · '+esc(x.party):''}
-        <small>${x.num?esc(x.num)+' · ':''}${n} article(s)${st}</small></div>
+        <small>${x.num?esc(x.num)+' · ':''}${n} article(s)${st}${adjTxt}</small></div>
       <div class="hist-acts">
-        <button data-hact="print" data-kind="${x.kind}" data-id="${x.id}" title="Réimprimer" aria-label="Réimprimer">⎙</button>
-        <button data-hact="edit" data-kind="${x.kind}" data-id="${x.id}" title="Modifier" aria-label="Modifier">✎</button>
+        ${x.type==='ajust'?'':`<button data-hact="print" data-kind="${x.kind}" data-id="${x.id}" title="Réimprimer" aria-label="Réimprimer">⎙</button>`}
+        ${x.type==='ajust'?'':`<button data-hact="edit" data-kind="${x.kind}" data-id="${x.id}" title="Modifier" aria-label="Modifier">✎</button>`}
         <button data-hact="del" data-kind="${x.kind}" data-id="${x.id}" title="Supprimer" aria-label="Supprimer">🗑</button>
       </div></div>`;
   }).join(''):'<div class="empty-cat" style="padding:1rem 1.2rem">Aucun mouvement enregistré.</div>';
@@ -1188,12 +1237,12 @@ $('hist_list').addEventListener('click',e=>{
     const o=(state.orders||[]).find(x=>x.id===id);if(!o)return;
     if(act==='print')printOrder(o);
     else if(act==='edit'){closeHistory();openOrder(o);}
-    else if(act==='del'){if(confirm('Supprimer cette commande de l’historique ?')){state.orders=state.orders.filter(x=>x.id!==id);save();render();renderHistory();}}
+    else if(act==='del'){if(confirm('Supprimer cette commande de l’historique ?')){fresh();state.orders=(state.orders||[]).filter(x=>x.id!==id);save();render();renderHistory();}}
   }else{
     const m=(state.moves||[]).find(x=>x.id===id);if(!m)return;
     if(act==='print')printMove(m);
     else if(act==='edit'){closeHistory();m.type==='usage'?openUse(m):openReceive(m);}
-    else if(act==='del'){if(confirm('Supprimer ce mouvement ? Le stock sera ré-ajusté en conséquence.')){reapply(m.type,m.lines,[]);state.moves=state.moves.filter(x=>x.id!==id);save();render();renderHistory();}}
+    else if(act==='del'){if(confirm('Supprimer ce mouvement ? Le stock sera ré-ajusté en conséquence.')){fresh();const m2=(state.moves||[]).find(x=>x.id===id);if(!m2)return;reapply(m2.type,m2.lines,[]);state.moves=state.moves.filter(x=>x.id!==id);save();render();renderHistory();}}
   }
 });
 
@@ -1209,11 +1258,22 @@ sov.addEventListener('click',e=>{if(e.target===sov)closeSettings();});
 $('co_logo').onchange=e=>{const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{pendingLogo=rd.result;renderLogoPrev();};rd.readAsDataURL(f);};
 $('co_logo_clear').onclick=()=>{pendingLogo='';renderLogoPrev();};
 $('co_save').onclick=()=>{
+  fresh();
   state.company={name:$('co_name').value.trim(),address:$('co_addr').value.trim(),contact:$('co_contact').value.trim(),legal:$('co_legal').value.trim()};
   if(pendingLogo!=null){companyLogo=pendingLogo;try{companyLogo?localStorage.setItem('brasserie_logo',companyLogo):localStorage.removeItem('brasserie_logo');}catch(e){}}
   save();closeSettings();
 };
 $('btnSettings').onclick=openSettings;
+
+/* stock modifié ailleurs (autre onglet, Brew Log, Packaging Log, synchronisation) : la page se met à jour d'elle-même */
+function reloadFromStorage(){
+  fresh();render();
+  ['rcv','use','ord'].forEach(k=>{const cfg=ENTRY[k];if(cfg.lines.length)renderBasket(k);});
+  if(hov.classList.contains('show'))renderHistory();
+}
+window.addEventListener('storage',e=>{if(e.key===STORE)reloadFromStorage();});
+window.addEventListener('brasserie-sync',e=>{const k=e.detail&&e.detail.keys;if(!k||k.includes(STORE))reloadFromStorage();});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){const raw=localStorage.getItem(STORE);if(raw&&raw!==JSON.stringify(state))reloadFromStorage();}});
 
 render();
 </script>

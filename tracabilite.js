@@ -24,6 +24,25 @@
     if (/^(cl)$/.test(u)) return 1 / 100;
     return null;
   }
+  /* ---------- conversion d'unités (commune au Stock, au Brew Log et au Packaging Log) ----------
+     masse g / kg, volume mL / cL / L, pièces ; masse <-> volume avec une densité de 1 (1 g = 1 mL), signalée « approx ».
+     Unités inconnues ou différentes : ok = false, la quantité n'est pas convertie (à vérifier). */
+  var UNITS = {
+    g: ['m', 1], gr: ['m', 1], grs: ['m', 1], gramme: ['m', 1], grammes: ['m', 1], mg: ['m', 0.001],
+    kg: ['m', 1000], kgs: ['m', 1000], kilo: ['m', 1000], kilos: ['m', 1000], kilogramme: ['m', 1000], kilogrammes: ['m', 1000],
+    ml: ['v', 1], millilitre: ['v', 1], millilitres: ['v', 1], cl: ['v', 10], centilitre: ['v', 10], centilitres: ['v', 10],
+    l: ['v', 1000], lt: ['v', 1000], litre: ['v', 1000], litres: ['v', 1000], hl: ['v', 100000],
+    u: ['n', 1], un: ['n', 1], unite: ['n', 1], unites: ['n', 1], 'unite s': ['n', 1], pce: ['n', 1], pces: ['n', 1], piece: ['n', 1], pieces: ['n', 1]
+  };
+  function unitOf(u) { var k = pN(u).replace(/'/g, ''); return UNITS[k] || null; }
+  function conv(q, from, to) {
+    q = num(q); if (q == null) return { q: null, ok: false };
+    var a = unitOf(from), b = unitOf(to);
+    if (!a || !b) return pN(from) === pN(to) || !pN(from) || !pN(to) ? { q: q, ok: pN(from) === pN(to), same: pN(from) === pN(to) } : { q: q, ok: false };
+    if (a[0] === b[0]) return { q: q * a[1] / b[1], ok: true };
+    if (a[0] !== 'n' && b[0] !== 'n') return { q: q * a[1] / b[1], ok: true, approx: true };   // g <-> mL, densité 1
+    return { q: q, ok: false };
+  }
   var tarifCache = null;
   function tarifs() {
     if (tarifCache) return tarifCache;
@@ -46,10 +65,11 @@
   function compute(st) {
     tarifCache = null;
     st = st || {}; var items = {}; (st.items || []).forEach(function (i) { items[i.id] = i; });
-    var moves = (st.moves || []).filter(function (m) { return m && (m.type === 'reception' || m.type === 'usage'); }).slice()
+    var moves = (st.moves || []).filter(function (m) { return m && (m.type === 'reception' || m.type === 'usage' || m.type === 'ajust'); }).slice()
       .sort(function (a, b) { return String(a.date || '').localeCompare(String(b.date || '')) || (a.createdAt || 0) - (b.createdAt || 0); });
     var rec = {}, use = {};
-    moves.forEach(function (m) { (m.lines || []).forEach(function (l) { var q = num(l.qty) || 0; if (m.type === 'reception') rec[l.id] = (rec[l.id] || 0) + q; else use[l.id] = (use[l.id] || 0) + q; }); });
+    // ajustement (comptage, correction à la main) : positif = entrée sans n° de lot, négatif = sortie
+    moves.forEach(function (m) { (m.lines || []).forEach(function (l) { var q = num(l.qty) || 0; if (m.type === 'ajust') { if (q >= 0) rec[l.id] = (rec[l.id] || 0) + q; else use[l.id] = (use[l.id] || 0) - q; } else if (m.type === 'reception') rec[l.id] = (rec[l.id] || 0) + q; else use[l.id] = (use[l.id] || 0) + q; }); });
     var layers = {};
     (st.items || []).forEach(function (it) {
       var open = (num(it.qty) || 0) - (rec[it.id] || 0) + (use[it.id] || 0), ip = itemPrice(it);
@@ -66,6 +86,14 @@
     });
     var alloc = {};
     moves.forEach(function (m) {
+      if (m.type === 'ajust') {
+        (m.lines || []).forEach(function (l) {
+          var it = items[l.id], q = num(l.qty) || 0, L = layers[l.id] = layers[l.id] || [];
+          if (q > 0) { var ip = it ? itemPrice(it) : { p: null }; L.push({ lot: '', qty: q, q0: q, price: ip.p, psrc: ip.src, aa: null, date: m.date, party: 'Ajustement', moveId: m.id, adj: true }); return; }
+          var need = -q; while (need > 1e-9 && L.length) { var t = Math.min(need, L[0].qty); L[0].qty -= t; need -= t; if (L[0].qty <= 1e-9) L.shift(); }
+        });
+        return;
+      }
       if (m.type === 'reception') {
         (m.lines || []).forEach(function (l) {
           var it = items[l.id]; if (!it) return; var pr = num(l.price), ip = pr == null ? itemPrice(it) : null;
@@ -132,5 +160,5 @@
     if (chosen && !seen[chosen]) h += '<option value="' + e(chosen) + '" selected>Lot ' + e(chosen) + ' (épuisé)</option>';
     return h;
   }
-  window.BrasserieTrace = { lotChoices: lotChoices, lotOptions: lotOptions, compute: compute, itemPrice: itemPrice, unitFactor: unitFactor, stockValue: stockValue, whereUsed: whereUsed };
+  window.BrasserieTrace = { conv: conv, unitOf: unitOf, lotChoices: lotChoices, lotOptions: lotOptions, compute: compute, itemPrice: itemPrice, unitFactor: unitFactor, stockValue: stockValue, whereUsed: whereUsed };
 })();

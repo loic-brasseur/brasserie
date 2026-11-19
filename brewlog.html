@@ -452,7 +452,11 @@ function addBrassin(){const d=day();if(d.brassins.length>=MAXB)return;d.brassins
 function delBrassin(){const d=day();if(d.brassins.length<2)return;const b=d.brassins[curB];
   if(!confirm('Retirer le brassin '+bCode(d,curB)+' et ses saisies ? Les brassins suivants seront renommés.'))return;d.brassins.splice(curB,1);d.brassins.forEach((x,i)=>x.n=i+1);curB=Math.max(0,curB-1);save();renderSheet();renderList();}
 function setBDate(v){const d=day();d.brassins[curB].date=v||d.date;if(curB===0&&v)d.date=v;save();renderList();}
-function delDay(){const d=day();if(!confirm('Supprimer la fiche du lot '+d.lot+' ?'))return;days=days.filter(x=>x.id!==d.id);save();curId=null;renderList();renderSheet();}
+function delDay(){const d=day();if(!confirm('Supprimer la fiche du lot '+d.lot+' ?'))return;
+  const st=d.stock&&ld(STOCK_KEY,null),m=st&&(st.moves||[]).find(x=>x.id===d.stock.moveId);
+  if(m&&confirm('Cette fiche a une sortie de stock ('+m.lines.length+' article(s)).\n\nOK : annuler aussi la sortie (les quantités reviennent dans le stock).\nAnnuler : garder la sortie dans le stock.')){
+    m.lines.forEach(l=>{const it=st.items.find(i=>i.id===l.id);if(it)it.qty=Math.round(((Number(it.qty)||0)+(parseFloat(l.qty)||0))*1e6)/1e6;});st.moves=st.moves.filter(x=>x!==m);sv(STOCK_KEY,st);}
+  days=days.filter(x=>x.id!==d.id);save();curId=null;renderList();renderSheet();}
 
 /* ===================== Saisie ===================== */
 function setM(k,v){const b=day().brassins[curB];b.m[k]=v;save();refreshCalc();}
@@ -536,7 +540,7 @@ function ingredientRows(d,b){
 /* recette telle que brassée : quantités / noms modifiés + ingrédients ajoutés (pour les calculs) */
 function actualRecipe(d,b){
   b=b||curBr(d);const r=JSON.parse(JSON.stringify(d.recipe)),S=b.subs||{};
-  const ap=(o,k,qk)=>{const sb=S[k];if(!sb||!o)return;if(sb.n){if(sb.n!==o.n)delete o.sid;o.n=sb.n;}if(sb.ppg)o.ppg=sb.ppg;if(sb.ebc!=null&&qk==='kg')o.ebc=sb.ebc;if(sb.a!==''&&sb.a!=null&&qk==='g'&&!isNaN(parseFloat(sb.a)))o.a=parseFloat(sb.a);if(sb.qty!==''&&sb.qty!=null&&!isNaN(parseFloat(sb.qty)))o[qk]=parseFloat(sb.qty);};
+  const ap=(o,k,qk)=>{const sb=S[k];if(!sb||!o)return;if(sb.n){if(sb.n!==o.n)delete o.sid;o.n=sb.n;}if(sb.ppg)o.ppg=sb.ppg;if(sb.ebc!=null&&qk==='kg')o.ebc=sb.ebc;if(sb.a!==''&&sb.a!=null&&qk==='g'&&num(sb.a)!=null)o.a=num(sb.a);if(sb.qty!==''&&sb.qty!=null&&num(sb.qty)!=null)o[qk]=num(sb.qty);};
   (r.malts||[]).forEach((m,i)=>ap(m,'m'+i,'kg'));(r.hops||[]).forEach((h,i)=>ap(h,'h'+i,'g'));ap(r.yeast,'y','g');(r.soft||[]).forEach((x,i)=>ap(x,'s'+i,'qty'));
   (b.extra||[]).forEach(x=>{if(x.typ==='malt'&&num(x.qty)!=null)(r.malts=r.malts||[]).push({n:x.n,kg:num(x.qty),ppg:x.ppg||37,ebc:x.ebc||0,cs:false});
     // houblon ajouté : compte dans l'amertume (IBU) selon son moment d'ajout, sa durée et son α
@@ -704,6 +708,7 @@ function renderSheet(){
         ${d.stock?`<span class="pill cave" id="stockPill">Stock déduit le ${fmtD(d.stock.at.slice(0,10))}</span>`:''}
         <a class="btn-ghost" style="text-decoration:none;padding:.6rem .9rem;border-radius:10px;font-weight:600;font-size:.85rem;color:var(--ink)" href="cuves.html">Ouvrir le Cellar Log</a>
       </div>
+      <div id="stockWarn">${stockWarnHTML(d)}</div>
     </div></div>`;
   refreshCalc();
 }
@@ -739,7 +744,7 @@ function compAvgHTML(d,b){
     <table class="t" style="margin-top:.3rem"><thead><tr><th></th><th class="num">Ce brassin</th><th class="num">Moyenne</th><th class="num">Écart</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 function refreshCalc(){
-  const d=day();if(!d)return;const b=d.brassins[curB];const c=calc(d,b);
+  const d=day();if(!d)return;refreshStockWarn();const b=d.brassins[curB];const c=calc(d,b);
   const cls=(dv,tol)=>dv==null?'':Math.abs(dv)<=tol?'ok':Math.abs(dv)<=tol*2?'warn':'bad';
   if(c.effPre!=null){const dv=c.recipeEff?c.effPre-c.recipeEff:null;setK('effPre',f1(c.effPre)+'<small> %</small>',dv!=null?(dv>=0?'+':'')+dv.toFixed(1)+' pt vs recette':'',dv==null?'':dv>=-1?'ok':dv>=-3?'warn':'bad');}else setK('effPre','—','');
   const H=history(d).map(dayEff).filter(v=>v!=null);
@@ -924,38 +929,110 @@ function lotIngredients(d){
 /* recette bio ou conventionnelle : choix enregistré, sinon Valmy et Orgemont = bio */
 function recBio(r){return r&&r.bio!=null?!!r.bio:/valmy|orgemont/i.test(String(r&&r.name||''));}
 const isBioName=n=>/\b(bio|organic)\b/i.test(String(n||''));
-function stGuess(ing,bio){
-  if(ing.sid&&stState.items.some(i=>i.id===ing.sid))return ing.sid;   // article relié dans le Carnet de brassage
-  if(bio==null){const d=day();bio=recBio(d&&d.recipe);}
-  const saved=(stState.recipeMap||{})[ing.key],si=saved&&stState.items.find(i=>i.id===saved);
-  if(saved==='__skip'||(si&&isBioName(si.name)===bio))return saved;
+/* bio ou conv d'un ingrédient : « bio » ou « conv » écrit dans son nom prime sur le choix de la recette */
+function stExplicit(n){const t=' '+stNorm(n)+' ';if(/ (bio|organic) /.test(t))return true;if(/ (conv|conventionnel|conventionnelle) /.test(t))return false;return null;}
+function ingBio(n,recipeBio){const e=stExplicit(n);return e!=null?e:!!recipeBio;}
+const mapKey=(key,bio)=>key+'|'+(bio?'bio':'conv');
+function stByName(ing,bio){
   const t=stTok(ing.n);if(!t.length)return '';let best='',bs=-1e9;
   stState.items.forEach(it=>{const t2=stTok(it.name);const hit=t.filter(w=>t2.includes(w)).length;if(!hit||hit<t.length)return;
     const sc=10-(t2.length-hit)+(it.cat===ing.cat?5:0)+(isBioName(it.name)===bio?3:-3);if(sc>bs){bs=sc;best=it.id;}});
   return best;
 }
+/* article du Stock pour un ingrédient :
+   1. lien du Carnet de brassage ; 2. article déjà utilisé pour cet ingrédient dans la sortie existante ;
+   3. choix enregistré pour cet ingrédient en bio / en conv ; 4. ancien choix fait à la main, gardé s'il n'existe pas
+   d'article plus juste en bio / conv ; 5. recherche par le nom */
+function stGuess(ing,bio,prev){
+  const items=stState.items,has=id=>!!id&&items.some(i=>i.id===id);
+  if(ing.sid&&has(ing.sid))return ing.sid;
+  if(bio==null){const d=day();bio=recBio(d&&d.recipe);}
+  bio=ingBio(ing.n,bio);
+  const M=stState.recipeMap||{};
+  if(prev){const l=prev.lines.find(l=>Array.isArray(l.keys)&&l.keys.includes(ing.key)&&has(l.id));if(l)return l.id;
+    // ancienne sortie (sans n° d'ingrédient) : on reprend l'article qu'elle utilisait, sauf si le nom de l'ingrédient dit bio / conv et l'article l'inverse
+    if(!prev.lines.some(l=>Array.isArray(l.keys))){
+      const ex=stExplicit(ing.n),okBio=id=>{const it=items.find(i=>i.id===id);return it&&(ex==null||isBioName(it.name)===ex);};
+      const inPrev=id=>prev.lines.some(l=>l.id===id);
+      if(has(M[ing.key])&&inPrev(M[ing.key])&&okBio(M[ing.key]))return M[ing.key];
+      const t=stTok(ing.n);if(t.length){let best='',bs=-1e9;prev.lines.forEach(l=>{const it=items.find(i=>i.id===l.id);if(!it||!okBio(it.id))return;const t2=stTok(it.name),hit=t.filter(w=>t2.includes(w)).length;if(hit<t.length)return;const sc=10-(t2.length-hit)+(it.cat===ing.cat?5:0);if(sc>bs){bs=sc;best=it.id;}});if(best)return best;}}}
+  const m2=M[mapKey(ing.key,bio)];
+  if(m2==='__skip'||has(m2))return m2;
+  const best=stByName(ing,bio),saved=M[ing.key];
+  if(saved==='__skip')return saved;
+  if(has(saved)){const si=items.find(i=>i.id===saved);if(isBioName(si.name)===bio)return saved;
+    const bi=best&&items.find(i=>i.id===best);if(!bi||isBioName(bi.name)!==bio)return saved;}
+  return best;
+}
 const stItem=id=>stState.items.find(i=>i.id===id);
+const stRnd=x=>Math.round(x*1e6)/1e6;
+/* lignes de la fiche reliées au stock (sortie existante reprise : articles, lots et quantités corrigées à la main) */
+function stBuild(d){
+  const prev=d.stock&&(stState.moves||[]).find(m=>m.id===d.stock.moveId);
+  const prevQ={};if(prev)prev.lines.forEach(l=>prevQ[l.id]=(prevQ[l.id]||0)+(parseFloat(l.qty)||0));
+  // lot saisi dans la fiche (champ « N° de lot ») repris s'il existe dans le stock
+  const typed={};d.brassins.forEach(b=>{const rows=ingredientRows(d,b);Object.entries(b.lots||{}).forEach(([k,v])=>{const x=rows.find(r=>r.k===k);if(x&&String(v||'').trim())typed[(TYP_CAT[x.typ]||['soft'])[0]+'|'+stNorm(String(x.n||'').split(' · ')[0])]=String(v).trim();});});
+  const OV=(d.stock&&d.stock.ov)||{},bio=recBio(d.recipe);
+  const rows=lotIngredients(d).map(i=>{const sel=stGuess(i,bio,prev);
+    const pl=prev&&prev.lines.find(l=>l.id===sel&&l.lot&&(!l.keys||l.keys.includes(i.key)));
+    let lot=pl?pl.lot:null;if(!lot&&typed[i.key]&&window.BrasserieTrace&&sel&&BrasserieTrace.lotChoices(stState,sel,prev&&prev.id).some(l=>l.lot===typed[i.key]))lot=typed[i.key];
+    const o=OV[i.key];const ov=o&&Math.abs((+o.q||0)-i.q)<1e-9&&o.sel===sel?+o.v:null;
+    return {...i,sel,ov,...(lot?{lot}:{})};});
+  rows.prevQ=prevQ;rows.prev=prev;return rows;
+}
+/* quantité à sortir dans l'unité de l'article (g ↔ kg, mL ↔ L ; g ↔ mL à densité 1 : « approx ») */
+function stQ(r){
+  const it=stItem(r.sel);if(!it)return {unit:r.u,q:r.sel==='__skip'?0:stRound(r.q,r.u),it:null};
+  const unit=it.unit||r.u,cv=window.BrasserieTrace?BrasserieTrace.conv(r.q,r.u,unit):{q:r.q,ok:true};
+  const bad=!cv.ok&&r.ov==null&&r.q>0;
+  return {unit,q:r.ov!=null?r.ov:bad?null:stRound(cv.q,unit),bad,approx:!!cv.approx&&r.ov==null,it};
+}
+function stCalc(r,rows){
+  rows=rows||stRows;const x=stQ(r);if(!x.it)return {unit:x.unit,q:x.q,stock:null};
+  const avail=(Number(x.it.qty)||0)+((rows.prevQ||{})[x.it.id]||0); // stock + ce que l'ancienne sortie avait déjà retiré
+  // plusieurs ingrédients sur le même article (ex. deux malts pilsen) : le stock après tient compte de toutes les lignes
+  const tot=rows.reduce((a,o)=>o.sel===r.sel?a+(stQ(o).q||0):a,0);
+  return {unit:x.unit,q:x.q,stock:avail,after:x.q==null?null:avail-tot,over:tot>avail+1e-9,bad:x.bad,approx:x.approx};
+}
+function stLines(rows){
+  const lines=[];
+  rows.forEach(r=>{if(!r.sel||r.sel==='__skip')return;const c=stCalc(r,rows);if(!(c.q>0))return;
+    const ex=lines.find(l=>l.id===r.sel&&(l.lot||'')===(r.lot||''));
+    if(ex){ex.qty=String(stRnd((parseFloat(ex.qty)||0)+c.q));if(!ex.keys.includes(r.key))ex.keys.push(r.key);}
+    else lines.push({id:r.sel,qty:String(c.q),keys:[r.key],...(r.lot?{lot:r.lot}:{})});});
+  return lines;
+}
+/* la fiche a-t-elle changé depuis la sortie de stock ? (comparaison article par article) */
+function stockCheck(d){
+  if(!d||!d.stock||!d.stock.moveId)return null;
+  const st=ld(STOCK_KEY,null);if(!st||!Array.isArray(st.items))return null;
+  const keep=stState;stState=st;
+  try{const prev=(st.moves||[]).find(m=>m.id===d.stock.moveId);if(!prev)return {missing:true};
+    const rows=stBuild(d),now={},was={};
+    stLines(rows).forEach(l=>now[l.id]=(now[l.id]||0)+(parseFloat(l.qty)||0));
+    prev.lines.forEach(l=>was[l.id]=(was[l.id]||0)+(parseFloat(l.qty)||0));
+    const diffs=[];new Set([...Object.keys(now),...Object.keys(was)]).forEach(id=>{const a=was[id]||0,b=now[id]||0;if(Math.abs(a-b)>1e-6){const it=st.items.find(i=>i.id===id);diffs.push({name:it?it.name:'(article supprimé)',unit:it?it.unit||'':'',was:a,now:b});}});
+    const bad=rows.filter(r=>r.sel&&r.sel!=='__skip'&&stCalc(r,rows).bad).map(r=>r.n);
+    const miss=rows.filter(r=>!r.sel&&r.q>0).map(r=>r.n);
+    return {diffs,bad,miss};
+  }finally{stState=keep;}
+}
+function stockWarnHTML(d){
+  const c=stockCheck(d);if(!c)return '';
+  if(c.missing)return `<div class="advice"><b>Sortie de stock introuvable</b> : elle a été supprimée dans l'app Stock. « Déduire du stock » la recrée.</div>`;
+  if(!c.diffs.length&&!c.bad.length)return '';
+  const f=x=>Math.round(x*1000)/1000;
+  return `<div class="advice" style="border-color:rgba(168,57,43,.45);background:rgba(168,57,43,.07)"><b>⚠ La fiche a changé depuis la sortie de stock</b> — le stock n'est pas à jour :<br>${c.diffs.map(x=>`${esc(x.name)} : ${f(x.was)} → <b>${f(x.now)}</b> ${esc(x.unit)}`).join(' · ')}${c.bad.length?`<br>Unité à vérifier : ${c.bad.map(esc).join(', ')}`:''}<br>Clique « Mettre à jour la sortie de stock » pour corriger.</div>`;
+}
+function refreshStockWarn(){const el=document.getElementById('stockWarn');if(el)el.innerHTML=stockWarnHTML(day());}
 function openStock(){
   stState=ld(STOCK_KEY,null);
   if(!stState||!Array.isArray(stState.items)){alert("Le stock n'est pas encore initialisé : ouvre une fois l'app Stock (même site), puis reviens ici.");return;}
   stState.moves=stState.moves||[];
-  const d=day();const prev=d.stock&&stState.moves.find(m=>m.id===d.stock.moveId);
-  const prevQ={};if(prev)prev.lines.forEach(l=>prevQ[l.id]=(prevQ[l.id]||0)+(parseFloat(l.qty)||0));
-  // lot saisi dans la fiche (champ « N° de lot ») repris s'il existe dans le stock
-  const typed={};d.brassins.forEach(b=>{const rows=ingredientRows(d,b);Object.entries(b.lots||{}).forEach(([k,v])=>{const x=rows.find(r=>r.k===k);if(x&&String(v||'').trim())typed[(TYP_CAT[x.typ]||['soft'])[0]+'|'+stNorm(String(x.n||'').split(' · ')[0])]=String(v).trim();});});
-  stRows=lotIngredients(d).map(i=>{const sel=stGuess(i);const pl=prev&&prev.lines.find(l=>l.id===sel&&l.lot);
-    let lot=pl?pl.lot:null;if(!lot&&typed[i.key]&&window.BrasserieTrace&&sel&&BrasserieTrace.lotChoices(stState,sel,prev&&prev.id).some(l=>l.lot===typed[i.key]))lot=typed[i.key];
-    return {...i,sel,ov:null,...(lot?{lot}:{})};});
-  stRows.prevQ=prevQ;stRows.prev=prev;
+  const d=day();stRows=stBuild(d);const prev=stRows.prev;
   document.getElementById('stHint').textContent=`Lot ${d.lot} · ${d.recipe.name} · ${d.brassins.length} brassin${d.brassins.length>1?'s':''} — total des quantités réelles. Un même ingrédient utilisé plusieurs fois (ex. houblon en ébullition et en dry hop) tient sur une ligne ; l'eau n'est pas déduite.`+(prev?' Une sortie existe déjà : elle sera corrigée, pas doublée.':'');
   document.getElementById('stGo').textContent=prev?'Mettre à jour la sortie':'Déduire';
   stRender();document.getElementById('stockOv').classList.add('show');
-}
-function stCalc(r){
-  const it=stItem(r.sel);if(!it)return {unit:r.u,q:r.sel==='__skip'?0:stRound(r.q,r.u),stock:null};
-  const unit=it.unit||r.u;const q=r.ov!=null?r.ov:stRound(stConv(r.q,r.u,unit),unit);
-  const avail=(Number(it.qty)||0)+((stRows.prevQ||{})[it.id]||0); // stock + ce que l'ancienne sortie avait déjà retiré
-  return {unit,q,stock:avail,over:q>avail+1e-9};
 }
 function stOptions(r){
   const cats={malt:'Malts',houblon:'Houblons',levure:'Levures',conso:'Consommables'};
@@ -964,40 +1041,50 @@ function stOptions(r){
   items.forEach(it=>{if(it.cat!==last){if(last!==null)h+='</optgroup>';h+=`<optgroup label="${cats[it.cat]||it.cat}">`;last=it.cat;}h+=`<option value="${it.id}"${it.id===r.sel?' selected':''}>${esc(it.name)}</option>`;});
   return h+(last!==null?'</optgroup>':'');
 }
+const stFmt=(v,u)=>v==null?'—':(Math.round(v*1000)/1000).toLocaleString('fr-FR')+' '+esc(u||'');
 function stRender(){
-  let miss=0,over=0,n=0;
-  document.getElementById('stBody').innerHTML=stRows.length?`<table class="st"><thead><tr><th>Ingrédient</th><th>Article du stock</th><th class="hm" style="text-align:right">En stock</th><th style="text-align:right">À déduire</th></tr></thead><tbody>
-    ${stRows.map((r,i)=>{const c=stCalc(r);if(!r.sel)miss++;else if(r.sel!=='__skip'&&c.q>0)n++;if(c.over)over++;
-      return `<tr class="${c.over?'over':''}"${r.q>0?'':' style="opacity:.55"'}><td><b>${esc(r.n)}</b><small>${stRound(r.q,r.u)} ${esc(r.u)}${r.sub?' · '+esc(r.sub):''}${r.q>0?'':' · quantité nulle'}</small></td>
-      <td><select class="in${r.sel?'':' unmapped'}" onchange="stRows[${i}].sel=this.value;stRows[${i}].ov=null;delete stRows[${i}].lot;stRender()">${stOptions(r)}</select>${(()=>{const it=stItem(r.sel);const lo=it&&window.BrasserieTrace?BrasserieTrace.lotOptions(stState,it.id,r.lot||'',it.unit,stRows.prev&&stRows.prev.id):'';return lo?`<div style="margin-top:.3rem;display:flex;gap:.35rem;align-items:center"><small style="color:var(--ink-soft);white-space:nowrap">Lot utilisé</small><select class="in" style="font-size:.8rem;padding:.3rem .45rem" onchange="stRows[${i}].lot=this.value||undefined">${lo}</select></div>`:'';})()}</td>
-      <td class="n hm">${c.stock!=null?stRound(c.stock,c.unit)+' '+esc(c.unit):'—'}</td>
-      <td class="n">${r.sel==='__skip'?'—':`<input class="in" type="number" min="0" step="any" inputmode="decimal" value="${c.q}" oninput="stRows[${i}].ov=Math.max(0,parseFloat(this.value)||0);stSum()"> ${esc(c.unit)}`}</td></tr>`;}).join('')}</tbody></table>`
+  document.getElementById('stBody').innerHTML=stRows.length?`<table class="st"><thead><tr><th>Ingrédient</th><th>Article du stock</th><th class="hm" style="text-align:right">Stock avant</th><th style="text-align:right">À déduire</th><th class="hm" style="text-align:right">Stock après</th></tr></thead><tbody>
+    ${stRows.map((r,i)=>{const c=stCalc(r);
+      return `<tr class="${c.over||c.bad?'over':''}"${r.q>0?'':' style="opacity:.55"'}><td><b>${esc(r.n)}</b><small>${stRound(r.q,r.u)} ${esc(r.u)}${r.sub?' · '+esc(r.sub):''}${r.q>0?'':' · quantité nulle'}</small></td>
+      <td><select class="in${r.sel?'':' unmapped'}" onchange="stRows[${i}].sel=this.value;stRows[${i}].ov=null;delete stRows[${i}].lot;stRender()">${stOptions(r)}</select>${(()=>{const it=stItem(r.sel);const lo=it&&window.BrasserieTrace?BrasserieTrace.lotOptions(stState,it.id,r.lot||'',it.unit,stRows.prev&&stRows.prev.id):'';return lo?`<div style="margin-top:.3rem;display:flex;gap:.35rem;align-items:center"><small style="color:var(--ink-soft);white-space:nowrap">Lot utilisé</small><select class="in" style="font-size:.8rem;padding:.3rem .45rem" onchange="stRows[${i}].lot=this.value||undefined">${lo}</select></div>`:'';})()}${c.bad?`<small style="color:var(--red);font-weight:700">Unités différentes (${esc(r.u)} → ${esc(c.unit||'?')}) : saisis la quantité à déduire</small>`:c.approx?`<small>converti ${esc(r.u)} → ${esc(c.unit)} (1 g = 1 mL) : à vérifier</small>`:''}</td>
+      <td class="n hm">${c.stock!=null?stFmt(c.stock,c.unit):'—'}</td>
+      <td class="n">${r.sel==='__skip'?'—':`<input class="in" type="text" inputmode="decimal" autocomplete="off" value="${c.q==null?'':c.q}" placeholder="?" oninput="const v=num(this.value);stRows[${i}].ov=v==null?null:Math.max(0,v);stSum();stAfter(${i})"> ${esc(c.unit)}`}</td>
+      <td class="n hm" id="stA${i}"${c.after!=null&&c.after<-1e-9?' style="color:var(--red);font-weight:700"':''}>${c.stock!=null?stFmt(c.after,c.unit):'—'}</td></tr>`;}).join('')}</tbody></table>`
     :'<p>Aucun ingrédient sur la fiche.</p>';
-  stSum(miss,over,n);
+  stSum();
 }
+function stAfter(){stRows.forEach((r,i)=>{const c=stCalc(r),el=document.getElementById('stA'+i);if(!el)return;el.innerHTML=c.stock!=null?stFmt(c.after,c.unit):'—';el.style.color=c.after!=null&&c.after<-1e-9?'var(--red)':'';el.style.fontWeight=c.after!=null&&c.after<-1e-9?'700':'';});}
 function stSum(){
-  let miss=0,over=0,n=0;stRows.forEach(r=>{const c=stCalc(r);if(!r.sel)miss++;else if(r.sel!=='__skip'&&c.q>0)n++;if(c.over)over++;});
-  document.getElementById('stSum').innerHTML=(miss?`<span class="bad">${miss} ingrédient(s) à associer</span> · `:'')+(over?`<span class="bad">${over} au-delà du stock</span> · `:'')+`<b>${n}</b> article(s) à sortir du stock`;
+  let miss=0,over=0,n=0,bad=0;stRows.forEach(r=>{const c=stCalc(r);if(!r.sel)miss++;else if(r.sel!=='__skip'&&c.q>0)n++;if(c.over)over++;if(r.sel&&r.sel!=='__skip'&&c.bad)bad++;});
+  document.getElementById('stSum').innerHTML=(miss?`<span class="bad">${miss} ingrédient(s) à associer</span> · `:'')+(bad?`<span class="bad">${bad} quantité(s) à saisir (unités différentes)</span> · `:'')+(over?`<span class="bad">${over} au-delà du stock (le stock passera en négatif)</span> · `:'')+`<b>${n}</b> article(s) à sortir du stock`;
 }
 function applyStock(){
-  if(stRows.some(r=>!r.sel)&&!confirm('Certains ingrédients ne sont associés à aucun article et seront ignorés. Continuer ?'))return;
+  const bad=stRows.filter(r=>r.sel&&r.sel!=='__skip'&&stCalc(r).bad);
+  if(bad.length){alert('Unités différentes entre la fiche et le stock pour : '+bad.map(r=>r.n).join(', ')+'.\nSaisis la quantité à déduire dans l\'unité du stock (colonne « À déduire »).');return;}
+  if(stRows.some(r=>!r.sel&&r.q>0)&&!confirm('Certains ingrédients ne sont associés à aucun article et seront ignorés. Continuer ?'))return;
+  // stock relu au moment d'enregistrer (une autre app a pu le modifier entre-temps)
   const fresh=ld(STOCK_KEY,null);if(!fresh||!Array.isArray(fresh.items)){alert('Stock introuvable.');return;}
-  stState=fresh;stState.moves=stState.moves||[];stState.recipeMap=stState.recipeMap||{};
-  const d=day();const lines=[];
-  stRows.forEach(r=>{if(!r.sel)return;stState.recipeMap[r.key]=r.sel;if(r.sel==='__skip')return;const c=stCalc(r);if(!(c.q>0))return;
-    const ex=lines.find(l=>l.id===r.sel&&(l.lot||'')===(r.lot||''));if(ex)ex.qty=String((parseFloat(ex.qty)||0)+c.q);else lines.push({id:r.sel,qty:String(c.q),...(r.lot?{lot:r.lot}:{})});});
+  const keepRows=stRows;stState=fresh;stState.moves=stState.moves||[];stState.recipeMap=stState.recipeMap||{};
+  const d=day(),bio=recBio(d.recipe);
+  // quantités « stock avant » recalculées sur le stock relu
   const prev=d.stock&&stState.moves.find(m=>m.id===d.stock.moveId);
-  // applique le delta net (même logique que l'app Stock) : nouvelle sortie - ancienne
+  const prevQ={};if(prev)prev.lines.forEach(l=>prevQ[l.id]=(prevQ[l.id]||0)+(parseFloat(l.qty)||0));keepRows.prevQ=prevQ;keepRows.prev=prev;
+  keepRows.forEach(r=>{if(!r.sel)return;stState.recipeMap[mapKey(r.key,ingBio(r.n,bio))]=r.sel;stState.recipeMap[r.key]=r.sel;});
+  const lines=stLines(keepRows);
+  // applique le delta net (nouvelle sortie - ancienne) ; le stock peut passer en négatif (signe d'une réception non saisie)
   const delta={};(prev?prev.lines:[]).forEach(l=>delta[l.id]=(delta[l.id]||0)+(parseFloat(l.qty)||0));
   lines.forEach(l=>delta[l.id]=(delta[l.id]||0)-(parseFloat(l.qty)||0));
-  Object.keys(delta).forEach(id=>{const it=stState.items.find(i=>i.id===id);if(it)it.qty=Math.max(0,(Number(it.qty)||0)+delta[id]);});
+  Object.keys(delta).forEach(id=>{const it=stState.items.find(i=>i.id===id);if(it)it.qty=stRnd((Number(it.qty)||0)+delta[id]);});
   const party=`Brassin lot ${d.lot} — ${d.recipe.name} (${d.brassins.length} brassin${d.brassins.length>1?'s':''})`;
-  if(prev){prev.lines=lines;prev.party=party;prev.date=d.date;}
+  if(prev){prev.lines=lines;prev.party=party;prev.date=d.date;prev.updatedAt=Date.now();}
   else{const m={id:'m'+Math.random().toString(36).slice(2,9),type:'usage',date:d.date,party,lines,lot:d.lot,brewId:d.id,createdAt:Date.now()};stState.moves.push(m);d.stock={moveId:m.id};}
   d.stock.at=new Date().toISOString();d.stock.n=lines.length;
+  // quantités corrigées à la main : gardées pour la prochaine mise à jour (tant que la fiche ne change pas pour cet ingrédient)
+  d.stock.ov={};keepRows.forEach(r=>{if(r.ov!=null&&r.sel&&r.sel!=='__skip')d.stock.ov[r.key]={q:r.q,v:r.ov,sel:r.sel};});
   try{localStorage.setItem(STOCK_KEY,JSON.stringify(stState));}catch(e){alert('Stockage impossible');return;}
   save();closeOv('stockOv');renderSheet();
-  alert((prev?'Sortie de stock mise à jour':'Stock déduit')+' : '+lines.length+' article(s). Visible dans l\'historique de l\'app Stock.');
+  const neg=lines.map(l=>stState.items.find(i=>i.id===l.id)).filter(it=>it&&Number(it.qty)<0);
+  alert((prev?'Sortie de stock mise à jour':'Stock déduit')+' : '+lines.length+' article(s). Visible dans l\'historique de l\'app Stock.'+(neg.length?'\n\nStock négatif (réception non saisie ?) : '+neg.map(it=>it.name+' '+it.qty+' '+(it.unit||'')).join(', '):''));
 }
 /* ===================== PDF ===================== */
 const SRM_HEX=["#FFE699","#FFD878","#FFCA5A","#FFBF42","#FBB123","#F8A600","#F39C00","#EA8F00","#E58500","#DE7C00","#D77200","#CF6900","#CB6200","#C35900","#BB5100","#B54C00","#B04500","#A63E00","#A13700","#9B3200","#8A2C04","#7F2704","#742204","#691E04","#5E1A05","#541705","#4A1405","#401105","#370F05","#2F0D05","#290B05","#240A05","#200905","#1C0805","#190704","#160604","#130504","#110504","#0F0403","#0D0403"]; // SRM 1→40, foncés recalés sur l'aspect réel en verre

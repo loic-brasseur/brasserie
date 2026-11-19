@@ -130,7 +130,7 @@
       for (var i = 0; i < keys.length; i++) { var res = await pushKey(keys[i]); if (res === 'conflict') again = true; }
       jset(LAST, { t: Date.now(), ok: true });
       status(pendingCount() ? 'pending' : 'ok');
-      if (changed.length) onChanged(changed, Object.keys(from));
+      if (changed.length) { try { window.dispatchEvent(new CustomEvent('brasserie-sync', { detail: { keys: changed } })); } catch (e) {} onChanged(changed, Object.keys(from)); }
       return { changed: changed };
     } catch (err) {
       jset(LAST, { t: Date.now(), ok: false, err: err.message }); status('error', err.message); throw err;
