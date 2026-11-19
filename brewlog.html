@@ -507,6 +507,22 @@ function calc(d,b){
   return {T,abv,abvPlan:r.calc&&r.calc.abv,effPre,effFerm,evapL,evapPct,lossL,vFerm,pPost,vPre,pPre,targetVol:num(r.vol),recipeEff:num(r.eff),ebc:cb.ebc,ibu:cb.ibu,ebcPlan:r.calc&&r.calc.ebc,ibuPlan:r.calc&&r.calc.ibu};
 }
 /* notes automatiques (1–5) — la note manuelle prime */
+/* brassin « moyen » du lot : mesures moyennées (densités, volumes, T°, pH, paliers, quantités) pour le noter comme un brassin */
+function avgBrassin(d){
+  const L=d.brassins,n=L.length,mean=a=>{const v=a.filter(x=>x!=null);return v.length?v.reduce((x,y)=>x+y,0)/v.length:null;};
+  const B=JSON.parse(JSON.stringify(L[0]));
+  Object.keys(B.m).forEach(k=>{const v=mean(L.map(b=>num(b.m[k])));B.m[k]=v==null?'':String(v);});
+  (B.mash||[]).forEach((p,i)=>{const v=mean(L.map(b=>num((b.mash[i]||{}).tReel)));p.tReel=v==null?'':String(v);});
+  const keys=new Set();L.forEach(b=>Object.keys(b.subs||{}).forEach(k=>keys.add(k)));
+  const base=ingredientRows(d,L[0]);B.subs={};
+  keys.forEach(k=>{const v=mean(L.map(b=>{const sb=(b.subs||{})[k];const r=base.find(x=>x.k===k);return sb&&sb.qty!==''&&sb.qty!=null&&num(sb.qty)!=null?num(sb.qty):r?num(r.pq):null;}));
+    B.subs[k]={...((L[0].subs||{})[k]||{}),...(v!=null?{qty:String(v)}:{})};});
+  B.extra=[];L.forEach(b=>(b.extra||[]).forEach(x=>B.extra.push({...x,id:x.id+'_'+b.n,qty:num(x.qty)!=null?String(num(x.qty)/n):x.qty})));
+  const dur=(k1,k2)=>mean(L.map(b=>b.ev[k1]&&b.ev[k2]?new Date(b.ev[k2])-new Date(b.ev[k1]):null));
+  const db=dur('boilStart','boilEnd');B.ev={};if(db!=null){B.ev.boilStart=1;B.ev.boilEnd=1+db;}
+  B.notes={grain:{s:null,c:''},mash:{s:null,c:''},filt:{s:null,c:''},boil:{s:null,c:''},cool:{s:null,c:''}};
+  return B;
+}
 function autoScores(d,b){
   const c=calc(d,b), r=d.recipe, s={};
   const lotKeys=ingredientRows(d,b).map(x=>x.k);
@@ -768,10 +784,15 @@ function refreshCalc(){
     const stars=a.parentNode.querySelectorAll('button');stars.forEach((s,i)=>s.classList.toggle('on',v!=null&&i<v));}});
   // bilan
   const sr=document.getElementById('scoreRows');
-  const avgRow=d.brassins.length>1?(()=>{const A=STEPS.map(([k,l])=>{const v=d.brassins.map(bb=>score(d,bb,k)).filter(x=>x!=null);return {l,v:v.length?v.reduce((a,b)=>a+b,0)/v.length:null};});
-    const g=A.filter(x=>x.v!=null);const glob=g.length?g.reduce((a,x)=>a+x.v,0)/g.length:null;const f=v=>v.toFixed(1).replace('.',',');
-    return `<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--copper);font-weight:700;margin:.4rem 0">Moyenne du lot · ${d.brassins.length} brassins${glob!=null?' · note globale '+f(glob)+'/5':''}</div>
-    <div class="score-row" style="margin-bottom:.6rem">${A.map(x=>`<div class="score${x.v!=null&&x.v<2.5?' low':''}" style="border-color:rgba(168,84,27,.45)"><div class="s">${x.v!=null?f(x.v)+'<span style="font-size:.8rem;color:var(--ink-soft)">/5</span>':'—'}</div><div class="l">${x.l}</div></div>`).join('')}</div>`;})():'';
+  const avgRow=d.brassins.length>1?(()=>{const B=avgBrassin(d),c=calc(d,B),sc=autoScores(d,B);
+    // grain : note de traçabilité (lots saisis) — moyenne des brassins
+    const gv=d.brassins.map(bb=>score(d,bb,'grain')).filter(x=>x!=null);if(gv.length)sc.grain=Math.round(gv.reduce((x,y)=>x+y,0)/gv.length);
+    const A=STEPS.map(([k,l])=>({l,v:sc[k]??null}));const g=A.filter(x=>x.v!=null);const glob=g.length?g.reduce((x,y)=>x+y.v,0)/g.length:null;
+    const f1v=(v,u,dg)=>v==null?'—':v.toFixed(dg).replace('.',',')+(u?' '+u:'');
+    const K=[['Rendement',f1v(c.effPre,'%',1)],['Densité avant éb.',f1v(c.pPre,'°P',1)],['DI',f1v(c.pPost,'°P',1)],['Vol. fin d\'éb.',f1v(num(B.m.vPost),'L',0)],['Vol. fermenteur',f1v(c.vFerm,'L',0)],['Pertes',f1v(c.lossL,'L',0)],['Évaporation',f1v(c.evapPct,'%/h',1)],['pH empâtage',f1v(num(B.m.ph),'',2)]];
+    return `<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--copper);font-weight:700;margin:.4rem 0">Moyenne du lot · ${d.brassins.length} brassins${glob!=null?' · note globale '+glob.toFixed(1).replace('.',',')+'/5':''}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:.35rem .9rem;font-size:.8rem;margin:0 0 .45rem">${K.map(([l,v])=>`<span><span style="color:var(--ink-soft)">${l}</span> <b style="font-family:var(--mono)">${v}</b></span>`).join('')}</div>
+    <div class="score-row" style="margin-bottom:.6rem">${A.map(x=>`<div class="score${x.v!=null&&x.v<=2?' low':''}" style="border-color:rgba(168,84,27,.45)"><div class="s">${x.v!=null?x.v+'<span style="font-size:.8rem;color:var(--ink-soft)">/5</span>':'—'}</div><div class="l">${x.l}</div></div>`).join('')}</div>`;})():'';
   sr.innerHTML=avgRow+d.brassins.map(bb=>`<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-soft);font-weight:700;margin:.4rem 0">Brassin ${bCode(d,bb.n-1)} · ${fmtD(bb.date||d.date)}</div>
     <div class="score-row">${STEPS.map(([k,l])=>{const s=score(d,bb,k);return `<div class="score${s!=null&&s<=2?' low':''}"><div class="s">${s!=null?s+'<span style="font-size:.8rem;color:var(--ink-soft)">/5</span>':'—'}</div><div class="l">${l}</div></div>`;}).join('')}</div>`).join('');
   const low=[];d.brassins.forEach(bb=>STEPS.forEach(([k,l])=>{const s=score(d,bb,k);if(s!=null&&s<=3)low.push(l+' ('+bCode(d,bb.n-1)+')');}));
