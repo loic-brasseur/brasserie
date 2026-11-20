@@ -1412,7 +1412,12 @@ function recalc(){
     mcu+=(m.kg*LB)*(m.ebc/1.97);                // couleur pleine, même en cold steep
     maltKg+=m.kg;
   });
-  const GU=(extractKg/volL)*308.8;              // 1 kg extrait Pilsen (37 PPG) / L ≈ 308.8 points — cohérent avec REF_PPG
+  // sucres apportés par les « Épices & autres » (jus, concentrés, sucre, miel… : champ « Sucre g/100g ») :
+  // ajoutés directement au moût (pas de rendement d'empâtage), fermentescibles à 100 % ; 1 kg de sucre = 46 PPG
+  let sugarKg=0;(state.soft||[]).forEach(it=>{const q=parseFloat(it.qty)||0;if(q>0&&it.sucre)sugarKg+=q*(it.g||1)/1000*(it.sucre/100);});
+  const exSugar=sugarKg*46/REF_PPG;
+  const GU_sugar=volL>0?(exSugar/volL)*308.8:0;
+  const GU=(extractKg/volL)*308.8+GU_sugar;     // 1 kg extrait Pilsen (37 PPG) / L ≈ 308.8 points — cohérent avec REF_PPG
   const OG=1+GU/1000;
   // couleur (Morey)
   const mcuV=volGal>0?mcu/volGal:0;
@@ -1423,7 +1428,7 @@ function recalc(){
   let attAdj=attU-(mash-65)*1.3;                // empâtage haut => atténuation plus basse
   attAdj=Math.max(45,Math.min(95,attAdj));
   const GU_ferm=(extractFermKg/volL)*308.8;
-  const FG=1+(GU - GU_ferm*(attAdj/100))/1000;
+  const FG=1+(GU - GU_ferm*(attAdj/100) - GU_sugar)/1000;
   const ABV=(OG-FG)*131.25;
   // IBU (Tinseth)
   let ibu=0;
@@ -1446,7 +1451,7 @@ function recalc(){
   document.getElementById('colorName').textContent=colorName(ebc);
   document.getElementById('hlHint').textContent=(volL/100).toFixed(volL%100?1:0)+' HL';
   document.getElementById('maltTot').textContent=maltKg.toFixed(1)+' kg';
-  document.getElementById('grainTot').textContent='Plato ≈ '+sgToPlato(OG).toFixed(1)+' °P';
+  document.getElementById('grainTot').textContent='Plato ≈ '+sgToPlato(OG).toFixed(1)+' °P'+(sugarKg>0?' (dont sucres ajoutés : '+sugarKg.toFixed(1).replace('.',',')+' kg, +'+(sgToPlato(OG)-sgToPlato(1+(GU-GU_sugar)/1000)).toFixed(1).replace('.',',')+' °P)':'');
   const hopG=state.hops.reduce((s,h)=>s+h.g,0);
   document.getElementById('hopTot').textContent=hopG+' g';
   document.getElementById('beerSoftTot').textContent=state.soft.length?state.soft.length+' ingrédient'+(state.soft.length>1?'s':''):'';
