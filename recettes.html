@@ -976,7 +976,7 @@ function colorName(ebc){
 /* ============================ STATE ============================ */
 let state={mode:'biere',malts:[],hops:[],yeast:null,soft:[],process:null,pack:{}};
 /* Ajout houblon : boil = ébullition (min), wp = whirlpool (min de contact), dh = dry hop (jours de contact) */
-const HOPUSE={boil:{l:'Ébullition',u:'min',def:60},wp:{l:'Whirlpool',u:'min',def:20},dh:{l:'Dry hop',u:'j',def:3}};
+const HOPUSE={mash:{l:'Empâtage',u:'min',def:60},boil:{l:'Ébullition',u:'min',def:60},wp:{l:'Whirlpool',u:'min',def:20},dh:{l:'Dry hop',u:'j',def:3}};
 const hopUse=h=>HOPUSE[h&&h.use]?h.use:'boil';
 function hopWhen(h){const u=hopUse(h),t=parseFloat(h.time)||0;return u==='boil'?t+' min':u==='wp'?'Whirlpool '+t+' min':'Dry hop '+t+' j';}
 let curTab="malt", curFilter="base";
@@ -1160,7 +1160,7 @@ function renderRecipe(){
   // hops
   let hh="";
   if(!state.hops.length)hh='<div class="empty">Ajoute des houblons →</div>';
-  ['boil','wp','dh'].forEach(gu=>{
+  ['mash','boil','wp','dh'].forEach(gu=>{
    const idx=state.hops.map((h,i)=>i).filter(i=>hopUse(state.hops[i])===gu);
    if(!idx.length)return;
    const gtot=idx.reduce((s,i)=>s+(parseFloat(state.hops[i].g)||0),0);
@@ -1435,8 +1435,9 @@ function recalc(){
   const bigness=1.65*Math.pow(0.000125,(OG-1));
   state.hops.forEach(h=>{
     const u=hopUse(h);if(u==='dh')return; // dry hop : pas d'amertume
-    const btf=(1-Math.exp(-0.04*h.time))/4.15;
-    let util=bigness*btf*(u==='wp'?0.5:1); // whirlpool : utilisation réduite (≈50 %, T° < ébullition)
+    // empâtage : compté comme un ajout de 60 min d'ébullition à 15 % du rendement (10 à 20 % selon les sources)
+    const btf=(1-Math.exp(-0.04*(u==='mash'?60:h.time)))/4.15;
+    let util=bigness*btf*(u==='wp'?0.5:u==='mash'?0.15:1); // whirlpool : utilisation réduite (≈50 %, T° < ébullition)
     if(h.form==='pellets')util*=1.10;
     ibu+=(h.a/100)*h.g*1000*util/volL;
   });
