@@ -978,6 +978,9 @@ let state={mode:'biere',malts:[],hops:[],yeast:null,soft:[],process:null,pack:{}
 /* Ajout houblon : boil = ébullition (min), wp = whirlpool (min de contact), dh = dry hop (jours de contact) */
 const HOPUSE={mash:{l:'Empâtage',u:'min',def:60},boil:{l:'Ébullition',u:'min',def:60},wp:{l:'Whirlpool',u:'min',def:20},dh:{l:'Dry hop',u:'j',def:3}};
 const hopUse=h=>HOPUSE[h&&h.use]?h.use:'boil';
+/* durée « équivalent ébullition » : whirlpool avec T° → vitesse d'isomérisation de Malowicki & Shellhammer (k ∝ e^(−11858/T)),
+   ≈ 7 fois plus lente à 78 °C qu'à 100 °C ; empâtage → 60 min (puis 15 %) */
+function wpTime(h,u){u=u||hopUse(h);if(u==='mash')return 60;const t=+h.time||0;if(u==='wp'&&h.temp!=null&&h.temp!==''){const T=+h.temp+273.15;return t*Math.exp(-11858*(1/T-1/373.15));}return t;}
 function hopWhen(h){const u=hopUse(h),t=parseFloat(h.time)||0;return u==='boil'?t+' min':u==='wp'?'Whirlpool '+t+' min':'Dry hop '+t+' j';}
 let curTab="malt", curFilter="base";
 const FILTERS={
@@ -1171,7 +1174,7 @@ function renderRecipe(){
       <input type="number" value="${h.g}" min="0" step="1" title="Quantité (g)" oninput="upd('hop',${i},'g',this.value)">
       <input type="number" value="${h.a}" min="0" step="0.1" title="Alpha (%)" oninput="upd('hop',${i},'a',this.value)">
       <select title="Moment d'ajout" onchange="setHopUse(${i},this.value)">${Object.keys(HOPUSE).map(k=>`<option value="${k}"${k===u?' selected':''}>${HOPUSE[k].l}</option>`).join('')}</select>
-      <div class="hdur"><input type="number" value="${h.time}" min="0" step="1" title="Durée (${HOPUSE[u].u==='j'?'jours':'minutes'})" oninput="upd('hop',${i},'time',this.value)"><span>${HOPUSE[u].u}</span></div>
+      <div class="hdur"${u==='wp'?' style="flex-wrap:wrap;row-gap:3px"':''}><input type="number" value="${h.time}" min="0" step="1" title="Durée (${HOPUSE[u].u==='j'?'jours':'minutes'})" oninput="upd('hop',${i},'time',this.value)"><span>${HOPUSE[u].u}</span>${u==='wp'?`<input type="number" value="${h.temp??''}" min="60" max="100" step="1" placeholder="T°" title="Température du whirlpool (°C) — vide : amertume comptée à 50 % d'un ajout bouilli" oninput="upd('hop',${i},'temp',this.value)"><span>°C</span>`:''}</div>
       <select onchange="upd('hop',${i},'form',this.value)">
         <option value="pellets" ${h.form==='pellets'?'selected':''}>Pellets</option>
         <option value="cones" ${h.form==='cones'?'selected':''}>Cônes</option></select>
@@ -1210,7 +1213,7 @@ function renderRecipe(){
 function setHopUse(i,u){const h=state.hops[i];if(!h||!HOPUSE[u])return;h.use=u;h.time=HOPUSE[u].def;renderRecipe();recalc();}
 function upd(type,i,key,val){
   if(type==='malt'){state.malts[i][key]= key==='cs'?val:parseFloat(val)||0;}
-  else if(type==='hop'){state.hops[i][key]= key==='form'?val:parseFloat(val)||0;}
+  else if(type==='hop'){state.hops[i][key]= key==='form'?val:key==='temp'?(val===''||isNaN(parseFloat(val))?null:parseFloat(val)):parseFloat(val)||0;}
   else if(type==='yeast'){state.yeast[key]=parseFloat(val)||0;}
   if(key==='g'&&type==='yeast')renderRecipe();
   recalc();
@@ -1436,8 +1439,8 @@ function recalc(){
   state.hops.forEach(h=>{
     const u=hopUse(h);if(u==='dh')return; // dry hop : pas d'amertume
     // empâtage : compté comme un ajout de 60 min d'ébullition à 15 % du rendement (10 à 20 % selon les sources)
-    const btf=(1-Math.exp(-0.04*(u==='mash'?60:h.time)))/4.15;
-    let util=bigness*btf*(u==='wp'?0.5:u==='mash'?0.15:1); // whirlpool : utilisation réduite (≈50 %, T° < ébullition)
+    const btf=(1-Math.exp(-0.04*wpTime(h,u)))/4.15;
+    let util=bigness*btf*(u==='wp'?(h.temp!=null&&h.temp!==''?1:0.5):u==='mash'?0.15:1); // whirlpool sans T° : ≈50 % d'un ajout bouilli
     if(h.form==='pellets')util*=1.10;
     ibu+=(h.a/100)*h.g*1000*util/volL;
   });

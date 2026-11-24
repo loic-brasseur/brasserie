@@ -328,7 +328,7 @@ function recipeCalc(r){
   const FG=1+(GU-extF/volL*308.8*att/100)/1000;
   const ebc=Math.max(0,1.4922*Math.pow(mcu/(volL/GAL),0.6859)*1.97);
   let ibu=0;const big=1.65*Math.pow(0.000125,OG-1);
-  (r.hops||[]).forEach(h=>{const u=hopUse(h);if(u==='dh')return;let ut=big*(1-Math.exp(-0.04*(u==='mash'?60:(+h.time||0))))/4.15*(u==='wp'?0.5:u==='mash'?0.15:1);if(h.form==='pellets')ut*=1.10;ibu+=((+h.a||0)/100)*(+h.g||0)*1000*ut/volL;});
+  (r.hops||[]).forEach(h=>{const u=hopUse(h);if(u==='dh')return;const q=hopEq(h);let ut=big*(1-Math.exp(-0.04*q.t))/4.15*q.f;if(h.form==='pellets')ut*=1.10;ibu+=((+h.a||0)/100)*(+h.g||0)*1000*ut/volL;});
   const ogP=sgToPlato(OG),fgP=sgToPlato(FG);
   return {og:+OG.toFixed(3),fg:+FG.toFixed(3),ogP:+ogP.toFixed(1),fgP:+fgP.toFixed(1),att:ogP>0?+((ogP-fgP)/ogP*100).toFixed(0):0,
     abv:+((OG-FG)*131.25).toFixed(1),ibu:Math.round(ibu),ebc:Math.round(ebc)};
@@ -347,6 +347,8 @@ function effFrom(recipe,volL,plato){
   return GU*volL/(308.8*pot)*100;
 }
 function hopUse(h){return ['mash','boil','wp','dh'].includes(h&&h.use)?h.use:'boil';}
+/* durée équivalent ébullition (whirlpool avec T° : Malowicki & Shellhammer ; empâtage : 60 min) et facteur de rendement */
+function hopEq(h){const u=hopUse(h),t=+h.time||0;if(u==='mash')return {t:60,f:0.15};if(u==='wp'){if(h.temp!=null&&h.temp!==''){const T=+h.temp+273.15;return {t:t*Math.exp(-11858*(1/T-1/373.15)),f:1};}return {t,f:0.5};}return {t,f:1};}
 
 /* ===================== Liste des journées ===================== */
 let showArch=false;
@@ -488,8 +490,8 @@ function colorBitter(R,volL,og){
   const ebc=(R.malts||[]).length?1.4922*Math.pow(mcu/volGal,0.6859)*1.97:null;
   let ibu=null;
   if(og){ibu=0;const big=1.65*Math.pow(0.000125,og-1);
-    (R.hops||[]).forEach(h=>{const u=hopUse(h);if(u==='dh')return;const btf=(1-Math.exp(-0.04*(u==='mash'?60:(+h.time||0))))/4.15;
-      let ut=big*btf*(u==='wp'?0.5:u==='mash'?0.15:1);if(h.form==='pellets')ut*=1.10;ibu+=((+h.a||0)/100)*(+h.g||0)*1000*ut/volL;});}
+    (R.hops||[]).forEach(h=>{const u=hopUse(h);if(u==='dh')return;const q=hopEq(h),btf=(1-Math.exp(-0.04*q.t))/4.15;
+      let ut=big*btf*q.f;if(h.form==='pellets')ut*=1.10;ibu+=((+h.a||0)/100)*(+h.g||0)*1000*ut/volL;});}
   return {ebc,ibu};
 }
 function calc(d,b){
@@ -701,7 +703,7 @@ function renderSheet(){
     <div class="card-b">
       <div class="tsgrid">${tsBox('Début ébullition','ev.boilStart',b.ev.boilStart)}${tsBox('Fin ébullition','ev.boilEnd',b.ev.boilEnd)}</div>
       ${boilHops.length?`<table class="t"><thead><tr><th>Houblon</th><th class="num">Quantité</th><th>Ajout prévu</th><th style="width:250px">Ajouté à</th></tr></thead><tbody>
-        ${boilHops.map(({h,i,u})=>`<tr><td>${esc(h.n)}</td><td class="num">${h.g} g</td><td>${u==='mash'?'Empâtage':u==='wp'?'Whirlpool '+h.time+' min':h.time+' min avant la fin'}</td><td>${tsBox('','hops.h'+i,b.hops['h'+i])}</td></tr>`).join('')}</tbody></table>`:''}
+        ${boilHops.map(({h,i,u})=>`<tr><td>${esc(h.n)}</td><td class="num">${h.g} g</td><td>${u==='mash'?'Empâtage':u==='wp'?'Whirlpool '+h.time+' min'+(h.temp!=null&&h.temp!==''?' à '+h.temp+' °C':''):h.time+' min avant la fin'}</td><td>${tsBox('','hops.h'+i,b.hops['h'+i])}</td></tr>`).join('')}</tbody></table>`:''}
       <div class="g g2" style="margin-top:.8rem">${inp('vPost','Volume fin d\'ébullition','L',1)}${inp('pPost','Densité fin d\'ébullition (DI)','°P',0.1)}</div>
       <div class="kpis">${kpi('di','DI vs cible')}${kpi('evap','Évaporation')}${kpi('ebc','Couleur')}${kpi('ibu','Amertume')}</div>
       ${noteBox('boil')}</div></div>
