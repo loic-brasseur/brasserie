@@ -980,7 +980,7 @@ const HOPUSE={mash:{l:'Empâtage',u:'min',def:60},boil:{l:'Ébullition',u:'min',
 const hopUse=h=>HOPUSE[h&&h.use]?h.use:'boil';
 /* durée « équivalent ébullition » : whirlpool avec T° → vitesse d'isomérisation de Malowicki & Shellhammer (k ∝ e^(−11858/T)),
    ≈ 7 fois plus lente à 78 °C qu'à 100 °C ; empâtage → 60 min (puis 15 %) */
-function wpTime(h,u){u=u||hopUse(h);if(u==='mash')return 60;const t=+h.time||0;if(u==='wp'&&h.temp!=null&&h.temp!==''){const T=+h.temp+273.15;return t*Math.exp(-11858*(1/T-1/373.15));}return t;}
+function wpTime(h,u){u=u||hopUse(h);if(u==='mash')return 60;const t=+h.time||0;if(u==='wp'){const T=(h.temp!=null&&h.temp!==''?+h.temp:97)+273.15;return t*Math.exp(-11858*(1/T-1/373.15));}return t;}
 function hopWhen(h){const u=hopUse(h),t=parseFloat(h.time)||0;return u==='boil'?t+' min':u==='wp'?'Whirlpool '+t+' min':'Dry hop '+t+' j';}
 let curTab="malt", curFilter="base";
 const FILTERS={
@@ -1174,7 +1174,7 @@ function renderRecipe(){
       <input type="number" value="${h.g}" min="0" step="1" title="Quantité (g)" oninput="upd('hop',${i},'g',this.value)">
       <input type="number" value="${h.a}" min="0" step="0.1" title="Alpha (%)" oninput="upd('hop',${i},'a',this.value)">
       <select title="Moment d'ajout" onchange="setHopUse(${i},this.value)">${Object.keys(HOPUSE).map(k=>`<option value="${k}"${k===u?' selected':''}>${HOPUSE[k].l}</option>`).join('')}</select>
-      <div class="hdur"${u==='wp'?' style="flex-wrap:wrap;row-gap:3px"':''}><input type="number" value="${h.time}" min="0" step="1" title="Durée (${HOPUSE[u].u==='j'?'jours':'minutes'})" oninput="upd('hop',${i},'time',this.value)"><span>${HOPUSE[u].u}</span>${u==='wp'?`<input type="number" value="${h.temp??''}" min="60" max="100" step="1" placeholder="T°" title="Température du whirlpool (°C) — vide : amertume comptée à 50 % d'un ajout bouilli" oninput="upd('hop',${i},'temp',this.value)"><span>°C</span>`:''}</div>
+      <div class="hdur"${u==='wp'?' style="flex-wrap:wrap;row-gap:3px"':''}><input type="number" value="${h.time}" min="0" step="1" title="Durée (${HOPUSE[u].u==='j'?'jours':'minutes'})" oninput="upd('hop',${i},'time',this.value)"><span>${HOPUSE[u].u}</span>${u==='wp'?`<input type="number" value="${h.temp??''}" min="60" max="100" step="1" placeholder="97" title="Température du whirlpool (°C) — vide : 97 °C" oninput="upd('hop',${i},'temp',this.value)"><span>°C</span>`:''}</div>
       <select onchange="upd('hop',${i},'form',this.value)">
         <option value="pellets" ${h.form==='pellets'?'selected':''}>Pellets</option>
         <option value="cones" ${h.form==='cones'?'selected':''}>Cônes</option></select>
@@ -1440,7 +1440,7 @@ function recalc(){
     const u=hopUse(h);if(u==='dh')return; // dry hop : pas d'amertume
     // empâtage : compté comme un ajout de 60 min d'ébullition à 15 % du rendement (10 à 20 % selon les sources)
     const btf=(1-Math.exp(-0.04*wpTime(h,u)))/4.15;
-    let util=bigness*btf*(u==='wp'?(h.temp!=null&&h.temp!==''?1:0.5):u==='mash'?0.15:1); // whirlpool sans T° : ≈50 % d'un ajout bouilli
+    let util=bigness*btf*(u==='mash'?0.15:1); // whirlpool sans T° saisie : 97 °C
     if(h.form==='pellets')util*=1.10;
     ibu+=(h.a/100)*h.g*1000*util/volL;
   });

@@ -348,7 +348,7 @@ function effFrom(recipe,volL,plato){
 }
 function hopUse(h){return ['mash','boil','wp','dh'].includes(h&&h.use)?h.use:'boil';}
 /* durée équivalent ébullition (whirlpool avec T° : Malowicki & Shellhammer ; empâtage : 60 min) et facteur de rendement */
-function hopEq(h){const u=hopUse(h),t=+h.time||0;if(u==='mash')return {t:60,f:0.15};if(u==='wp'){if(h.temp!=null&&h.temp!==''){const T=+h.temp+273.15;return {t:t*Math.exp(-11858*(1/T-1/373.15)),f:1};}return {t,f:0.5};}return {t,f:1};}
+function hopEq(h){const u=hopUse(h),t=+h.time||0;if(u==='mash')return {t:60,f:0.15};if(u==='wp'){const T=(h.temp!=null&&h.temp!==''?+h.temp:97)+273.15;return {t:t*Math.exp(-11858*(1/T-1/373.15)),f:1};}return {t,f:1};}
 
 /* ===================== Liste des journées ===================== */
 let showArch=false;
