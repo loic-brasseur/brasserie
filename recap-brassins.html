@@ -87,7 +87,7 @@
     .sec.sec-mois{display:none!important}
     .sec{break-inside:avoid;page-break-inside:avoid}
     .card,.kpi{box-shadow:none}
-    .kpis{grid-template-columns:repeat(7,1fr);gap:.4rem}
+    .kpis{grid-template-columns:repeat(8,1fr);gap:.4rem}
     .kpi{padding:.5rem .6rem}.kpi .v{font-size:1.15rem}
     .kpi.accent{background:#fff;color:var(--ink);border:2px solid var(--ink)}
     .kpi.accent .l,.kpi.accent .s,.kpi.accent .v small,.kpi.accent .lt{color:var(--ink-soft)}
@@ -260,6 +260,18 @@ async function exportXlsx() {
   document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 
+/* Packaging Log : volumes réellement conditionnés (unités × contenance), par session */
+const PACK_KEY = 'brasserie_packaging_v1';
+const PFMT = { '33cl': ['b33', .33], '75cl': ['b75', .75], '44cl': ['can', .44], '1.5L': ['oth', 1.5], '10L': ['keg', 10], '20L': ['keg', 20], '30L': ['keg', 30] };
+function packSessions(year) {
+  let S = []; try { S = JSON.parse(localStorage.getItem(PACK_KEY)) || []; } catch (e) {}
+  return (Array.isArray(S) ? S : []).filter(s => s && s.date && (!year || String(s.date).slice(0, 4) === String(year))).map(s => {
+    const o = { date: s.date, d: new Date(s.date + 'T00:00:00'), beer: s.recipe || '', lot: s.lot || '', code: s.code || s.plot || '', keg: 0, b33: 0, b75: 0, can: 0, oth: 0 };
+    (s.formats || []).forEach(f => { const u = parseFloat(String(f.units || '').replace(',', '.')) || 0; if (!u) return;
+      const m = PFMT[f.f]; if (m) o[m[0]] += u * m[1]; else o.oth += u * (parseFloat(String(f.vu || '').replace(',', '.')) || 0); });
+    o.tot = o.keg + o.b33 + o.b75 + o.can + o.oth; o.month = o.d.getMonth(); return o;
+  }).filter(o => o.tot > 0).sort((a, b) => a.d - b.d);
+}
 function readMonths() { try { const v = parseFloat(localStorage.getItem(MONTHS_KEY)); return v > 0 ? v : 7.5; } catch (e) { return 7.5; } }
 function saveMonths(v) { try { localStorage.setItem(MONTHS_KEY, String(v)); } catch (e) {} }
 
@@ -293,6 +305,7 @@ function render() {
   const totDone = sum(done, 'tot'), totPrev = sum(prev, 'tot'), totYear = totDone + totPrev;
   const months = readMonths();
   const avg = totYear / months;
+  const pack = packSessions(snap.year), totPack = pack.reduce((a, o) => a + o.tot, 0);
 
   let h = `<div class="kpis">
     <div class="kpi"><div class="l">Réalisé</div><div class="v">${fHL(totDone)} <small>HL</small></div><div class="lt">${fmt(totDone)} L</div><div class="s">${done.length} brassins</div></div>
@@ -302,12 +315,14 @@ function render() {
       <div class="s">sur <input id="months" type="number" min="0.5" step="0.5" value="${months}" inputmode="decimal"><span class="print-only">${String(months).replace('.', ',')}</span> mois</div></div>
     ${[['ABV moyen réalisé', done], ['ABV moyen prévisionnel', prev]].map(([l, arr]) => { const r = avgAbv(arr);
       return `<div class="kpi"${r.miss.length ? ` title="Sans ABV (ignorées) : ${r.miss.join(', ').replace(/"/g, '')}"` : ''}><div class="l">${l}</div><div class="v">${r.abv != null ? r.abv.toFixed(2).replace('.', ',') : '—'} <small>% vol</small></div><div class="s">moyenne pondérée par le volume${r.cover < 0.999 && r.abv != null ? ' · ' + Math.round(r.cover * 100) + ' % du volume' : ''}</div></div>`; }).join('')}
+    <div class="kpi"><div class="l">Conditionné</div><div class="v">${fHL(totPack)} <small>HL</small></div><div class="lt">${fmt(totPack)} L</div><div class="s">${pack.length} session${pack.length > 1 ? 's' : ''} · Packaging Log</div></div>
     <div class="kpi accent"><div class="l">Extrapolation annuelle</div><div class="v">${fHL(avg * 12)} <small>HL/an</small></div><div class="lt">${fmt(avg * 12)} L/an</div><div class="s">moyenne × 12</div></div>
   </div>
   <div class="bar-top"><div class="tabs">
     <button data-t="mois" class="${tab === 'mois' ? 'on' : ''}">Par mois</button>
     <button data-t="biere" class="${tab === 'biere' ? 'on' : ''}">Par bière</button>
     <button data-t="cont" class="${tab === 'cont' ? 'on' : ''}">Par contenant</button>
+    <button data-t="pack" class="${tab === 'pack' ? 'on' : ''}">Conditionné</button>
   </div><div class="exports"><button id="xPdf">PDF</button><button id="xXls">Excel</button></div></div>`;
 
   {
@@ -363,7 +378,25 @@ function render() {
     h += `<tr class="tot"><td class="t">Total</td><td></td><td>${q(totDone)}</td><td class="t">${totDone ? '100,0 %' : ''}</td></tr></table></div></div>`;
   }
 
-  LAST = { snap, today, brews, done, prev, totDone, totPrev, totYear, months, avg };
+  {
+    const cols = [['keg', 'Fût'], ['b33', '33 cl'], ['b75', '75 cl'], ['can', '44 cl'], ['oth', 'Autre']].filter(([k], i) => i < 3 || pack.some(o => o[k] > 0));
+    h += `<div class="card sec" ${tab === 'pack' ? '' : 'hidden'}><h2>Conditionné — Packaging Log</h2><p class="hint">Volumes réellement conditionnés (unités × contenance), par date de session. Volumes en HL, litres en dessous.</p><div class="tw"><table>
+      <tr><th class="t">Date</th><th class="t">Bière</th>${cols.map(c => `<th>${c[1]}</th>`).join('')}<th>Total</th></tr>`;
+    const byM = {}; pack.forEach(o => (byM[o.month] = byM[o.month] || []).push(o));
+    Object.keys(byM).map(Number).sort((a, b) => a - b).forEach(m => {
+      const list = byM[m]; h += `<tr class="month"><td colspan="${cols.length + 3}">${MOIS[m]}</td></tr>`;
+      list.forEach(o => { h += `<tr><td class="t">${o.d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</td><td class="t">${esc(shortBeer(o.beer))}${o.code || o.lot ? `<span class="code">${esc(o.code || o.lot)}</span>` : ''}</td>${cols.map(c => `<td>${q(o[c[0]])}</td>`).join('')}<td><b>${q(o.tot)}</b></td></tr>`; });
+      h += `<tr class="subt"><td class="t" colspan="2">Total ${MOIS[m].toLowerCase()}</td>${cols.map(c => `<td>${q(sum(list, c[0]))}</td>`).join('')}<td>${q(sum(list, 'tot'))}</td></tr>`;
+    });
+    h += `<tr class="tot"><td class="t" colspan="2">Total conditionné</td>${cols.map(c => `<td>${q(sum(pack, c[0]))}</td>`).join('')}<td>${q(totPack)}</td></tr></table></div>`;
+    const g = {}; pack.forEach(o => { const k = shortBeer(o.beer); g[k] = g[k] || { beer: k, n: 0, tot: 0 }; cols.forEach(c => g[k][c[0]] = (g[k][c[0]] || 0) + o[c[0]]); g[k].n++; g[k].tot += o.tot; });
+    const rows = Object.values(g).sort((a, b) => b.tot - a.tot);
+    h += `<h2 style="margin-top:1.2rem">Par bière</h2><div class="tw"><table><tr><th class="t">Bière</th><th>Sessions</th>${cols.map(c => `<th>${c[1]}</th>`).join('')}<th>Total</th><th class="t">Part</th></tr>`;
+    rows.forEach(r => { h += `<tr><td class="t">${esc(r.beer)}</td><td>${r.n}</td>${cols.map(c => `<td>${q(r[c[0]] || 0)}</td>`).join('')}<td><b>${q(r.tot)}</b></td><td class="t">${pct(r.tot / (totPack || 1))}</td></tr>`; });
+    h += `</table></div>${pack.length ? '' : '<p class="hint">Aucune session de conditionnement cette année.</p>'}</div>`;
+  }
+
+  LAST = { snap, today, brews, done, prev, totDone, totPrev, totYear, months, avg, pack, totPack };
   app.innerHTML = h;
   document.getElementById('xPdf').onclick = () => window.print();
   document.getElementById('xXls').onclick = exportXlsx;
@@ -376,7 +409,7 @@ render();
 // Mise à jour automatique : retour sur l'onglet, ou planning modifié dans un autre onglet
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
 window.addEventListener('pageshow', render);
-window.addEventListener('storage', e => { if (e.key === SNAP_KEY) render(); });
+window.addEventListener('storage', e => { if (e.key === SNAP_KEY || e.key === PACK_KEY) render(); });
 </script>
 </body>
 </html>
