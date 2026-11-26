@@ -136,11 +136,22 @@ const abvNorm = n => String(n || '').toLowerCase().normalize('NFD').replace(/[\u
 let ABV_CACHE = null;
 function beerAbv(name) {
   if (!ABV_CACHE) { ABV_CACHE = {}; let R = []; try { R = JSON.parse(localStorage.getItem('brasserie_recettes_v1')) || []; } catch (e) {}
-    ABV_CACHE.R = R.map(r => ({ n: abvNorm(r.name), abv: (() => { const t = r.process && r.process.targets && r.process.targets.abv; const v = t != null && t !== '' ? +t : r.calc && r.calc.abv != null ? +r.calc.abv : null; return v > 0 ? v : null; })() })).filter(r => r.n); }
+    ABV_CACHE.R = R.map(r => ({ n: abvNorm(r.name), abv: (() => { const t = r.process && r.process.targets && r.process.targets.abv; const v = t != null && t !== '' ? +t : r.calc && r.calc.abv != null ? +r.calc.abv : recipeAbv(r); return v > 0 ? v : null; })() })).filter(r => r.n); }
   const n = abvNorm(name); if (!n) return null; if (n in ABV_CACHE) return ABV_CACHE[n];
   const R = ABV_CACHE.R; let hit = R.find(r => r.n === n);
   if (!hit) { const c = R.filter(r => (r.n + ' ').startsWith(n + ' ') || (n + ' ').startsWith(r.n + ' ')); hit = c.sort((a, b) => Math.abs(a.n.length - n.length) - Math.abs(b.n.length - n.length))[0]; }
   return (ABV_CACHE[n] = hit ? hit.abv : null);
+}
+/* ABV recalculé depuis les ingrédients (même calcul que le Carnet de brassage) pour les recettes enregistrées sans valeur calculée */
+function recipeAbv(r) {
+  if (r.mode === 'soft') return null;
+  const vol = parseFloat(r.vol) || 0, eff = (parseFloat(r.eff) || 0) / 100, mash = parseFloat(r.mash) || 66; if (!vol || !eff) return null;
+  let ex = 0, exF = 0; (r.malts || []).forEach(m => { const e = (+m.kg || 0) * ((+m.ppg || 37) / 37) * eff * (m.cs ? 0.35 : 1); ex += e; if (m.ferment !== 0) exF += e; });
+  let sug = 0; (r.soft || []).forEach(x => { const q = parseFloat(x.qty) || 0; if (q > 0 && x.sucre) sug += q * (x.g || 1) / 1000 * (x.sucre / 100); });
+  const GUs = sug * 46 / 37 / vol * 308.8, GU = ex / vol * 308.8 + GUs, GUf = exF / vol * 308.8;
+  let att = r.yeast && r.yeast.attU ? +r.yeast.attU : 75; att = Math.max(45, Math.min(95, att - (mash - 65) * 1.3));
+  const OG = 1 + GU / 1000, FG = 1 + (GU - GUf * att / 100 - GUs) / 1000; const abv = (OG - FG) * 131.25;
+  return abv > 0 ? Math.round(abv * 10) / 10 : null;
 }
 /* ABV moyen pondéré par le volume ; bières sans ABV connu (softs, recette absente) ignorées */
 function avgAbv(arr) { let v = 0, a = 0, tot = 0; const miss = new Set();
