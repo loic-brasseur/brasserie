@@ -87,7 +87,7 @@
     .sec.sec-mois{display:none!important}
     .sec{break-inside:avoid;page-break-inside:avoid}
     .card,.kpi{box-shadow:none}
-    .kpis{grid-template-columns:repeat(5,1fr);gap:.4rem}
+    .kpis{grid-template-columns:repeat(7,1fr);gap:.4rem}
     .kpi{padding:.5rem .6rem}.kpi .v{font-size:1.15rem}
     .kpi.accent{background:#fff;color:var(--ink);border:2px solid var(--ink)}
     .kpi.accent .l,.kpi.accent .s,.kpi.accent .v small,.kpi.accent .lt{color:var(--ink-soft)}
@@ -131,6 +131,21 @@
 <script>
 const SNAP_KEY = 'brasserie_brassins_v1';
 const MONTHS_KEY = 'brasserie_recap_mois_v1';
+/* % ABV d'une bière : recette du Carnet de brassage correspondante (cible saisie, sinon ABV calculé) */
+const abvNorm = n => String(n || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').replace(/\b(biere|bio)\b/g, ' ').replace(/\s+/g, ' ').trim();
+let ABV_CACHE = null;
+function beerAbv(name) {
+  if (!ABV_CACHE) { ABV_CACHE = {}; let R = []; try { R = JSON.parse(localStorage.getItem('brasserie_recettes_v1')) || []; } catch (e) {}
+    ABV_CACHE.R = R.map(r => ({ n: abvNorm(r.name), abv: (() => { const t = r.process && r.process.targets && r.process.targets.abv; const v = t != null && t !== '' ? +t : r.calc && r.calc.abv != null ? +r.calc.abv : null; return v > 0 ? v : null; })() })).filter(r => r.n); }
+  const n = abvNorm(name); if (!n) return null; if (n in ABV_CACHE) return ABV_CACHE[n];
+  const R = ABV_CACHE.R; let hit = R.find(r => r.n === n);
+  if (!hit) { const c = R.filter(r => (r.n + ' ').startsWith(n + ' ') || (n + ' ').startsWith(r.n + ' ')); hit = c.sort((a, b) => Math.abs(a.n.length - n.length) - Math.abs(b.n.length - n.length))[0]; }
+  return (ABV_CACHE[n] = hit ? hit.abv : null);
+}
+/* ABV moyen pondéré par le volume ; bières sans ABV connu (softs, recette absente) ignorées */
+function avgAbv(arr) { let v = 0, a = 0, tot = 0; const miss = new Set();
+  arr.forEach(b => { tot += b.tot; const x = beerAbv(b.beer); if (x == null) { miss.add(b.beer); return; } v += b.tot; a += b.tot * x; });
+  return { abv: v ? a / v : null, cover: tot ? v / tot : 0, miss: [...miss] }; }
 const MOIS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 const L = hl => hl * 100;                       // HL → litres
 const fmt = n => n ? new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(Math.round(n)) : '–';
@@ -193,7 +208,8 @@ async function exportXlsx() {
     [1, 2, 3].forEach(c => { r.getCell(c).font = font({ bold: i === 4 }); r.getCell(c).border = BORD; if (i === 4) r.getCell(c).fill = TOT; });
     r.getCell(2).numFmt = '#,##0.0'; r.getCell(3).numFmt = '#,##0';
   });
-  [['Nombre de mois d\'activité', months, '0.0'], ['Brassins réalisés', done.length, '0'], ['Brassins prévisionnels', prev.length, '0']].forEach(([k, v, f], i) => {
+  [['Nombre de mois d\'activité', months, '0.0'], ['Brassins réalisés', done.length, '0'], ['Brassins prévisionnels', prev.length, '0'],
+   ['ABV moyen réalisé (% vol)', avgAbv(done).abv, '0.00'], ['ABV moyen prévisionnel (% vol)', avgAbv(prev).abv, '0.00']].forEach(([k, v, f], i) => {
     const r = ws0.getRow(11 + i); r.getCell(1).value = k; r.getCell(2).value = v; r.getCell(2).numFmt = f;
     [1, 2].forEach(c => { r.getCell(c).font = font(); r.getCell(c).border = BORD; });
   });
@@ -273,6 +289,8 @@ function render() {
     <div class="kpi"><div class="l">Total année</div><div class="v">${fHL(totYear)} <small>HL</small></div><div class="lt">${fmt(totYear)} L</div><div class="s">réalisé + prévisionnel</div></div>
     <div class="kpi"><div class="l">Moyenne mensuelle</div><div class="v">${fHL(avg)} <small>HL/mois</small></div><div class="lt">${fmt(avg)} L/mois</div>
       <div class="s">sur <input id="months" type="number" min="0.5" step="0.5" value="${months}" inputmode="decimal"><span class="print-only">${String(months).replace('.', ',')}</span> mois</div></div>
+    ${[['ABV moyen réalisé', done], ['ABV moyen prévisionnel', prev]].map(([l, arr]) => { const r = avgAbv(arr);
+      return `<div class="kpi"${r.miss.length ? ` title="Sans ABV (ignorées) : ${r.miss.join(', ').replace(/"/g, '')}"` : ''}><div class="l">${l}</div><div class="v">${r.abv != null ? r.abv.toFixed(2).replace('.', ',') : '—'} <small>% vol</small></div><div class="s">moyenne pondérée par le volume${r.cover < 0.999 && r.abv != null ? ' · ' + Math.round(r.cover * 100) + ' % du volume' : ''}</div></div>`; }).join('')}
     <div class="kpi accent"><div class="l">Extrapolation annuelle</div><div class="v">${fHL(avg * 12)} <small>HL/an</small></div><div class="lt">${fmt(avg * 12)} L/an</div><div class="s">moyenne × 12</div></div>
   </div>
   <div class="bar-top"><div class="tabs">
